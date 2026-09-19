@@ -10,6 +10,7 @@ from backend.drug_facts.models import DrugFactsError
 
 IMPRINT_DOMAINS = ("drugs.com", "dailymed.nlm.nih.gov")
 BOTTLE_DOMAINS = ("dailymed.nlm.nih.gov", "drugs.com", "www.accessdata.fda.gov")
+PILL_DOMAINS = ("dailymed.nlm.nih.gov", "drugs.com")
 
 _SEARCH_LIMIT = 3
 _SEARCH_TIMEOUT_MS = 60_000

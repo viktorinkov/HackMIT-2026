@@ -7,6 +7,7 @@ from backend.drug_facts.elastic import ElasticStore, SearchKind, get_elastic_sto
 from backend.drug_facts.firecrawl_client import (
     BOTTLE_DOMAINS,
     IMPRINT_DOMAINS,
+    PILL_DOMAINS,
     FirecrawlClient,
     get_firecrawl_client,
 )
@@ -20,9 +21,11 @@ from backend.drug_facts.queries import (
     bottle_search_query,
     imprint_search_query,
     normalize_query,
+    pill_search_query,
 )
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
+from backend.pill import PillHardwareResult
 
 FACTS_MODEL = "gpt-4o"
 FACTS_INSTRUCTIONS = """\
@@ -65,6 +68,15 @@ class ResearchService:
                 status_code=400,
             )
         return await self._research("bottle", query, BOTTLE_DOMAINS)
+
+    async def research_pill(self, result: PillHardwareResult) -> DrugFactsResearch:
+        query = pill_search_query(result)
+        if not query:
+            raise DrugFactsError(
+                "Need a matched pill type from hardware to research the pill.",
+                status_code=400,
+            )
+        return await self._research("pill", query, PILL_DOMAINS)
 
     async def _research(
         self,

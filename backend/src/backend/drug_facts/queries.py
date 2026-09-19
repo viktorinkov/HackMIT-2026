@@ -1,5 +1,6 @@
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
+from backend.pill import PillHardwareResult
 
 
 def normalize_query(query: str) -> str:
@@ -47,3 +48,16 @@ def bottle_search_query(result: BottlePhotoResult) -> str:
         result.manufacturer,
     ]
     return " ".join(part.strip() for part in parts if part and part.strip())
+
+
+def pill_search_query(result: PillHardwareResult) -> str:
+    """Turn hardware pill results into a Firecrawl search string.
+
+    Look up the matched pill type, not the real/fake status and not the spectrum.
+    Status is a contents verdict; spectrum is not something public pages can search.
+    Do not include bottle or imprint fields. This lookup must stay independent.
+    Return "" if the hardware did not match a type.
+    """
+    if result.pill_type and result.pill_type.strip():
+        return result.pill_type.strip()
+    return ""
