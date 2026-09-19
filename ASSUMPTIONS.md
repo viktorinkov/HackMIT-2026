@@ -1,0 +1,2 @@
+- The product will be used in developing countries.
+- This is a project for HackMIT
