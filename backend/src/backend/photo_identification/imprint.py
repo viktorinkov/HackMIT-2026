@@ -12,17 +12,17 @@ from backend.photo_identification.vision import (
 )
 
 INSTRUCTIONS = """\
-This is photo observation of a single pill or capsule, not identification of the drug.
+This is photo observation of an imprint on a single pill or capsule, not identification of the drug.
 Read only what is visible in this one photo: imprint, color, shape, form, and score marks.
 Transcribe imprint characters exactly as printed, including case, slashes, and spacing.
 If the photo is not a pill or capsule, set is_pill to false and leave fields null.
 confidence is how readable the imprint and physical features are, from 0 to 1.
 """
 
-PROMPT = "Read the pill photo and extract only the imprint and physical features."
+PROMPT = "Read the imprint photo and extract only the imprint and physical features."
 
 
-class PillPhotoResult(BaseModel):
+class ImprintPhotoResult(BaseModel):
     is_pill: bool
     imprint: str | None = None
     color: str | None = None
@@ -34,29 +34,29 @@ class PillPhotoResult(BaseModel):
     notes: str | None = None
 
 
-class PillPhotoIdentification(BaseModel):
+class ImprintPhotoIdentification(BaseModel):
     identification_method: Literal["photo"] = "photo"
-    target: Literal["pill"] = "pill"
+    target: Literal["imprint"] = "imprint"
     model: str
-    result: PillPhotoResult
+    result: ImprintPhotoResult
 
 
 router = APIRouter()
 
 
-@router.post("/pill", response_model=PillPhotoIdentification)
-async def identify_pill_photo(
+@router.post("/imprint", response_model=ImprintPhotoIdentification)
+async def identify_imprint_photo(
     photo: tuple[bytes, str] = Depends(read_photo),
     vision: VisionClient = Depends(get_vision_client),
-) -> PillPhotoIdentification:
+) -> ImprintPhotoIdentification:
     image_bytes, media_type = photo
     try:
         result = await vision.identify_photo(
-            image_bytes, media_type, INSTRUCTIONS, PROMPT, PillPhotoResult
+            image_bytes, media_type, INSTRUCTIONS, PROMPT, ImprintPhotoResult
         )
     except VisionError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
-    return PillPhotoIdentification(model=VISION_MODEL, result=result)
+    return ImprintPhotoIdentification(model=VISION_MODEL, result=result)

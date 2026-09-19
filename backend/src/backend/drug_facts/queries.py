@@ -1,13 +1,13 @@
 from backend.photo_identification.bottle import BottlePhotoResult
-from backend.photo_identification.pill import PillPhotoResult
+from backend.photo_identification.imprint import ImprintPhotoResult
 
 
 def normalize_query(query: str) -> str:
     return " ".join(query.casefold().split())
 
 
-def pill_search_query(result: PillPhotoResult) -> str:
-    """Turn pill photo observations into a Firecrawl search string.
+def imprint_search_query(result: ImprintPhotoResult) -> str:
+    """Turn imprint photo observations into a Firecrawl search string.
 
     Do not include bottle fields. This lookup must stay independent of the label.
 
@@ -16,7 +16,6 @@ def pill_search_query(result: PillPhotoResult) -> str:
     - Imprint + color + shape + form disambiguates, but a vision color miss can hide the real hit.
     Return "" if there is nothing searchable.
     """
-    # TODO: build the imprint lookup query from result fields.
     parts = [
         result.imprint,
         result.color,
@@ -31,14 +30,13 @@ def pill_search_query(result: PillPhotoResult) -> str:
 def bottle_search_query(result: BottlePhotoResult) -> str:
     """Turn bottle photo observations into a Firecrawl search string.
 
-    Do not include pill-imprint guesses. This lookup must stay independent of the pill photo.
+    Do not include imprint guesses. This lookup must stay independent of the imprint photo.
 
     Trade-offs to decide here:
     - NDC-first is the DailyMed key and is usually unique.
     - Fall back to brand/generic + strength + manufacturer when NDC is missing or unreadable.
     Return "" if there is nothing searchable.
     """
-    # TODO: build the label lookup query from result fields.
     if result.ndc and result.ndc.strip():
         return result.ndc.strip()
     parts = [

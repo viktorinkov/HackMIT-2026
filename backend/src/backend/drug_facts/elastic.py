@@ -11,7 +11,7 @@ from fastapi import Depends
 from backend.config import Settings, get_settings
 from backend.drug_facts.models import DrugFactHit, DrugFactsError
 
-SearchKind = Literal["pill", "bottle"]
+SearchKind = Literal["imprint", "bottle"]
 
 INDEX_NAME = "peel-drug-facts"
 _CREATED_INFERENCE_ID = "peel-elser"

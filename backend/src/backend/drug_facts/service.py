@@ -6,7 +6,7 @@ from backend.drug_facts.chunking import chunk_markdown
 from backend.drug_facts.elastic import ElasticStore, SearchKind, get_elastic_store
 from backend.drug_facts.firecrawl_client import (
     BOTTLE_DOMAINS,
-    PILL_DOMAINS,
+    IMPRINT_DOMAINS,
     FirecrawlClient,
     get_firecrawl_client,
 )
@@ -18,11 +18,11 @@ from backend.drug_facts.models import (
 )
 from backend.drug_facts.queries import (
     bottle_search_query,
+    imprint_search_query,
     normalize_query,
-    pill_search_query,
 )
 from backend.photo_identification.bottle import BottlePhotoResult
-from backend.photo_identification.pill import PillPhotoResult
+from backend.photo_identification.imprint import ImprintPhotoResult
 
 FACTS_MODEL = "gpt-4o"
 FACTS_INSTRUCTIONS = """\
@@ -44,16 +44,16 @@ class ResearchService:
         self._firecrawl = firecrawl
         self._openai = AsyncOpenAI(api_key=settings.openai_api_key)
 
-    async def research_pill(self, result: PillPhotoResult) -> DrugFactsResearch:
+    async def research_imprint(self, result: ImprintPhotoResult) -> DrugFactsResearch:
         if not result.is_pill:
             raise DrugFactsError("Photo was not a pill.", status_code=400)
-        query = pill_search_query(result)
+        query = imprint_search_query(result)
         if not query:
             raise DrugFactsError(
-                "Need an imprint or physical features to research the pill.",
+                "Need an imprint or physical features to research the imprint.",
                 status_code=400,
             )
-        return await self._research("pill", query, PILL_DOMAINS)
+        return await self._research("imprint", query, IMPRINT_DOMAINS)
 
     async def research_bottle(self, result: BottlePhotoResult) -> DrugFactsResearch:
         if not result.is_medication_container:

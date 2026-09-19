@@ -30,7 +30,7 @@ class DrugFactsCard(BaseModel):
 
 
 class DrugFactsResearch(BaseModel):
-    search_kind: Literal["pill", "bottle"]
+    search_kind: Literal["imprint", "bottle"]
     query: str
     sources_scraped: list[str]
     hits: list[DrugFactHit]

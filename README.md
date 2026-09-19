@@ -39,3 +39,9 @@ Cases:
 Problem Statement: People don’t know if the pill is the right pill
 
 Full Context: We have a hardware device that checks the spectometry of the pill and verifies where it matches a known pill type. The hardware device is attached to the phone but it's model will run also on runpod.
+
+Consistent wording:
+
+- Bottle
+- Imprint
+- Pill

@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.drug_facts import router as drug_facts_router
 from backend.drug_facts.elastic import close_elastic_store
 from backend.photo_identification import router as photo_identification_router
+from backend.pill import router as pill_router
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 app.include_router(photo_identification_router)
 app.include_router(drug_facts_router)
+app.include_router(pill_router)
 
 
 @app.get("/")
@@ -33,12 +35,13 @@ def root() -> dict[str, object]:
         "health": "/health",
         "photo_identification": {
             "bottle": "/photo-identification/bottle",
-            "pill": "/photo-identification/pill",
+            "imprint": "/photo-identification/imprint",
         },
         "drug_facts": {
             "bottle": "/drug-facts/bottle",
-            "pill": "/drug-facts/pill",
+            "imprint": "/drug-facts/imprint",
         },
+        "pill": "/pill",
     }
 
 
