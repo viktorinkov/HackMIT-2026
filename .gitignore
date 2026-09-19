@@ -1,0 +1,38 @@
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+.cursor/mcp.json
+
+# Python dependencies and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Android and Gradle generated files
+.gradle/
+.kotlin/
+build/
+local.properties
+.cxx/
+.externalNativeBuild/
+*.apk
+*.aab
+*.hprof
+
+# IDE and operating system files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
