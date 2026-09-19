@@ -25,7 +25,8 @@ from backend.research.models import ResearchReport
 from backend.research.contract import to_scan_context
 from backend.research.pipeline import ResearchPipeline, cancel_all, launch_research
 from backend.research.rxnav import RxTerm
-from backend.research.web import WebOutcome, reset_daily_credits
+from backend.research.evidence import NO_IMPRINT_SKIP
+from backend.research.web import WebOutcome, daily_credits_used, reset_daily_credits
 
 SCAN_ID = "scan-1"
 
@@ -130,19 +131,23 @@ class FakeSearch:
     def __init__(self, **overrides: Any) -> None:
         self.overrides = overrides
         self.calls: list[str] = []
+        self.kwargs: dict[str, dict[str, Any]] = {}
 
-    def _value(self, name: str, default: Any) -> Any:
+    def _value(self, name: str, default: Any, **kwargs: Any) -> Any:
         self.calls.append(name)
+        self.kwargs[name] = kwargs
         value = self.overrides.get(name, default)
         if isinstance(value, Exception):
             raise value
         return value
 
-    async def recalls_by_lot(self, lot: str) -> list[Hit]:
-        return self._value("recalls_by_lot", [])
+    async def recalls_by_lot(
+        self, lot: str, *, ndc9: str | None = None, drug_names: list[str] | None = None
+    ) -> list[Hit]:
+        return self._value("recalls_by_lot", [], lot=lot, ndc9=ndc9, drug_names=drug_names)
 
     async def recalls_covering_all_lots(self, **kwargs: Any) -> list[Hit]:
-        return self._value("recalls_covering_all_lots", [])
+        return self._value("recalls_covering_all_lots", [], **kwargs)
 
     async def recalls_by_ndc(self, ndc: Any) -> list[Hit]:
         return self._value("recalls_by_ndc", [])
@@ -172,10 +177,12 @@ class FakeWeb:
         error: Exception | None = None,
         *,
         pages: list[Hit] | None = None,
+        scan_pages: list[Hit] | None = None,
     ):
         self.outcome = outcome or WebOutcome(page_ids=["page-1"], credits=5)
         self.error = error
         self.pages = pages or []
+        self.scan_pages = scan_pages or []
         self.queries: list[str] = []
         self.requested_ids: list[str] = []
         self.harvested = 0
@@ -189,6 +196,9 @@ class FakeWeb:
     async def pages_by_id(self, page_ids: list[str]) -> list[Hit]:
         self.requested_ids.extend(page_ids)
         return [hit for hit in self.pages if hit.id in set(page_ids)]
+
+    async def pages_for_scan(self, scan_id: str, **kwargs: Any) -> list[Hit]:
+        return list(self.scan_pages)
 
     async def harvest_agent_pages(self, tool_calls: Any, **kwargs: Any) -> list[str]:
         self.harvested += 1
@@ -701,3 +711,248 @@ def test_launch_returns_false_when_no_pipeline_can_be_built(
     monkeypatch.setattr(pipeline_module, "get_pipeline", boom)
 
     assert launch_research(FastAPI(), SCAN_ID) is False
+
+
+# --------------------------------------------------------------------------- web concurrency
+
+
+class BarrierWeb(FakeWeb):
+    """Each search waits for every other one to start, so a sequential
+    implementation deadlocks instead of quietly passing."""
+
+    def __init__(self, expected: int) -> None:
+        super().__init__()
+        self.barrier = asyncio.Barrier(expected)
+
+    async def search_and_index(self, query: Any, **kwargs: Any) -> WebOutcome:
+        self.queries.append(query.text)
+        async with asyncio.timeout(1):
+            await self.barrier.wait()
+        return WebOutcome(page_ids=[f"page-{len(self.queries)}"], credits=5)
+
+
+class HangingWeb(FakeWeb):
+    """First search returns pages, the rest never finish."""
+
+    def __init__(self, pages: list[Hit] | None = None) -> None:
+        super().__init__(pages=pages)
+        self.started = 0
+
+    async def search_and_index(self, query: Any, **kwargs: Any) -> WebOutcome:
+        self.queries.append(query.text)
+        self.started += 1
+        if self.started > 1:
+            await asyncio.sleep(30)
+        return WebOutcome(page_ids=["page-1"], credits=5)
+
+
+def scan_page(page_id: str = "page-1") -> Hit:
+    return Hit(
+        index="peel-web-pages",
+        id=page_id,
+        score=0.0,
+        source={
+            Web.PAGE_ID: page_id,
+            Web.URL: "https://www.fda.gov/b",
+            Web.DOMAIN: "fda.gov",
+            Web.SOURCE_TIER: "regulator",
+            Web.LOT_NUMBERS: ["D2402430"],
+            Web.FLAGS: ["recall"],
+        },
+        match_kind="fetched_for_this_scan",
+    )
+
+
+async def test_planned_searches_run_concurrently() -> None:
+    web = BarrierWeb(expected=2)
+    pipeline, store = build(web=web)
+
+    await pipeline.run(SCAN_ID)
+
+    assert len(web.queries) == 2
+    assert store.stages["web"]["status"] == "ok"
+    assert store.last_patch()[Scan.EVIDENCE]["firecrawl_credits_used"] == 10
+
+
+async def test_credits_are_reserved_before_the_searches_launch() -> None:
+    web = FakeWeb()
+    pipeline, _ = build(web=web)
+
+    await pipeline.run(SCAN_ID)
+
+    # Two planned searches at 2 + 3 credits each, taken up front.
+    assert daily_credits_used() == 10
+
+
+async def test_a_timed_out_web_stage_keeps_the_pages_already_indexed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipeline_module, "WEB_TIMEOUT_S", 0.1)
+    web = HangingWeb(pages=[scan_page()])
+    pipeline, store = build(web=web)
+
+    await pipeline.run(SCAN_ID)
+
+    assert store.stages["web"]["status"] == "partial"
+    assert "already indexed" in store.stages["web"]["error"]
+    evidence = store.last_patch()[Scan.EVIDENCE]
+    assert evidence["web_page_ids"] == ["page-1"]
+    assert evidence["firecrawl_credits_used"] == 5
+    assert [entry["page_id"] for entry in evidence["evidence_pack"]["web_hits"]] == ["page-1"]
+    assert store.statuses[-1] == "complete"
+
+
+async def test_a_timed_out_web_stage_with_no_pages_stays_a_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class DeadWeb(FakeWeb):
+        async def search_and_index(self, query: Any, **kwargs: Any) -> WebOutcome:
+            self.queries.append(query.text)
+            await asyncio.sleep(30)
+            raise AssertionError("should have been cancelled")
+
+    monkeypatch.setattr(pipeline_module, "WEB_TIMEOUT_S", 0.1)
+    pipeline, store = build(web=DeadWeb())
+
+    await pipeline.run(SCAN_ID)
+
+    assert store.stages["web"]["status"] == "timeout"
+    assert store.statuses[-1] == "complete"
+
+
+async def test_pages_recovered_by_scan_id_are_added_to_the_evidence() -> None:
+    # A search cancelled mid-flight indexed a page the caller never heard about.
+    web = FakeWeb(WebOutcome(page_ids=[], credits=5), scan_pages=[scan_page("page-recovered")])
+    pipeline, store = build(web=web)
+
+    await pipeline.run(SCAN_ID)
+
+    evidence = store.last_patch()[Scan.EVIDENCE]
+    assert "page-recovered" in evidence["web_page_ids"]
+    assert [entry["page_id"] for entry in evidence["evidence_pack"]["web_hits"]] == [
+        "page-recovered"
+    ]
+
+
+# --------------------------------------------------------------------------- no imprint
+
+
+async def test_the_pill_lookup_is_skipped_without_an_imprint() -> None:
+    norm = dict(scan_doc()[Scan.NORM])
+    norm["imprint_norm"] = None
+    search = FakeSearch()
+    pipeline, store = build(doc=scan_doc(**{Scan.NORM: norm}), search=search)
+
+    await pipeline.run(SCAN_ID)
+
+    assert "identify_pill" not in search.calls
+    evidence = store.last_patch()[Scan.EVIDENCE]
+    assert evidence["pill_candidates"] == []
+    assert evidence["evidence_pack"]["pill"]["skipped"] == NO_IMPRINT_SKIP
+
+
+# --------------------------------------------------------------------------- recall lookups
+
+
+async def test_the_lot_lookup_carries_the_product_context() -> None:
+    search = FakeSearch(recalls_by_lot=[lot_hit()])
+    pipeline, _ = build(search=search)
+
+    await pipeline.run(SCAN_ID)
+
+    # Without the product, a lot-string collision cannot be told from a real match.
+    assert search.kwargs["recalls_by_lot"]["lot"] == "D2402430"
+    assert search.kwargs["recalls_by_lot"]["ndc9"] == "167290457"
+    assert search.kwargs["recalls_by_lot"]["drug_names"] == ["levothyroxine"]
+    assert search.kwargs["recalls_covering_all_lots"]["ndc9"] == "167290457"
+    assert search.kwargs["recalls_covering_all_lots"]["drug_names"] == ["levothyroxine"]
+
+
+async def test_a_failed_lot_lookup_is_never_reported_as_nothing_found() -> None:
+    search = FakeSearch(
+        recalls_by_lot=KnowledgeError("search on peel-regulatory failed: 503", status_code=503)
+    )
+    pipeline, store = build(search=search, openai_client=FakeOpenAI(llm_report()))
+
+    await pipeline.run(SCAN_ID)
+
+    assert store.statuses[-1] == "complete"
+    report = store.last_patch()[Scan.RESEARCH]
+    assert report["verdict"] == "insufficient_evidence"
+    assert report["risk_level"] == "unknown"
+    blob = " ".join([f["statement"] for f in report["findings"]] + report["next_steps"])
+    assert "did not find any recall" not in blob
+    assert any("recall lookup did not complete" in gap for gap in report["gaps"])
+
+
+async def test_a_failed_all_lots_lookup_notes_the_same_gap() -> None:
+    search = FakeSearch(recalls_covering_all_lots=RuntimeError("shard failure"))
+    pipeline, store = build(search=search)
+
+    await pipeline.run(SCAN_ID)
+
+    report = store.last_patch()[Scan.RESEARCH]
+    assert report["verdict"] == "insufficient_evidence"
+    assert any("recall lookup did not complete" in gap for gap in report["gaps"])
+
+
+async def test_a_successful_lookup_leaves_the_safe_wording_alone() -> None:
+    pipeline, store = build(search=FakeSearch())
+
+    await pipeline.run(SCAN_ID)
+
+    report = store.last_patch()[Scan.RESEARCH]
+    assert report["verdict"] == "no_adverse_findings"
+    assert not any("recall lookup did not complete" in gap for gap in report["gaps"])
+
+
+# --------------------------------------------------------------------------- credits
+
+
+async def test_a_cache_hit_returns_its_reservation_to_the_daily_counter() -> None:
+    web = FakeWeb(WebOutcome(page_ids=["page-1", "page-2"], cache_hit=True, credits=0))
+    pipeline, store = build(web=web)
+
+    await pipeline.run(SCAN_ID)
+
+    assert len(web.queries) == 2
+    # Two searches were planned and reserved, both answered from the index.
+    assert daily_credits_used() == 0
+    assert store.last_patch()[Scan.EVIDENCE]["firecrawl_credits_used"] == 0
+
+
+async def test_a_live_search_still_consumes_the_daily_counter() -> None:
+    pipeline, _ = build(web=FakeWeb(WebOutcome(page_ids=["page-1"], credits=5)))
+
+    await pipeline.run(SCAN_ID)
+
+    assert daily_credits_used() == 10
+
+
+# --------------------------------------------------------------------------- prompt hygiene
+
+
+async def test_the_raw_spectrum_never_reaches_a_third_party_model() -> None:
+    doc = scan_doc(
+        **{
+            Scan.HARDWARE: {
+                "status": "real",
+                "model": HARDWARE_MODEL,
+                "confidence": 0.9,
+                "spectrum": [0.123456789] * 2048,
+            }
+        }
+    )
+    agent, openai_client = FakeAgent(), FakeOpenAI(llm_report())
+    pipeline, _ = build(doc=doc, agent=agent, openai_client=openai_client)
+
+    await pipeline.run(SCAN_ID)
+
+    prompt = agent.prompts[0]
+    assert "spectrum" not in prompt
+    assert "0.123456789" not in prompt
+    # The reading itself still reaches the agent, just not its raw floats.
+    assert '"status":"real"' in prompt
+    coerce_input = openai_client.calls[0]["input"]
+    assert "spectrum" not in coerce_input
+    assert "0.123456789" not in coerce_input

@@ -150,7 +150,12 @@ class OpenFdaNdcSource(Source):
 def _read_results(archive: Path) -> list[dict[str, Any]]:
     try:
         with zipfile.ZipFile(archive) as bundle:
-            inner_name = bundle.namelist()[0]
+            # By extension, not position: a second entry shipped first (a README,
+            # a checksum) would otherwise raise into the except below and make
+            # the whole source index nothing, silently.
+            inner_name = next((n for n in bundle.namelist() if n.lower().endswith(".json")), None)
+            if inner_name is None:
+                return []
             with bundle.open(inner_name) as handle:
                 payload = json.load(handle)
     except (OSError, zipfile.BadZipFile, json.JSONDecodeError, IndexError):

@@ -186,12 +186,16 @@ def regulatory_search_semantic(threshold: float) -> dict[str, Any]:
 
 
 def pill_lookup() -> dict[str, Any]:
+    # Parts stay space-separated ("B 972"): a photo shows one face of a pill whose
+    # reference imprint lists both ("b;972;1;0"), so every observed part must be
+    # present (MATCH ... AND) rather than the whole string being equal.
     query = (
         f"FROM {PILLS_INDEX} METADATA _score\n"
-        f"| WHERE {Pill.IMPRINT_NORM} == ?imprint OR {Pill.IMPRINT_SORTED} == ?imprint "
-        f"OR MATCH({Pill.IMPRINT_TEXT}, ?imprint)\n"
+        '| EVAL compact = REPLACE(?imprint, " ", "")\n'
+        f"| WHERE {Pill.IMPRINT_NORM} == compact OR {Pill.IMPRINT_SORTED} == compact "
+        f'OR MATCH({Pill.IMPRINT_TEXT}, ?imprint, {{"operator": "AND"}})\n'
         f'| WHERE ?shape == "{ANY}" OR {Pill.SHAPE} == ?shape OR {Pill.SHAPE_FAMILY} == ?shape\n'
-        f"| EVAL exact = CASE({Pill.IMPRINT_NORM} == ?imprint OR {Pill.IMPRINT_SORTED} == ?imprint, 1, 0)\n"
+        f"| EVAL exact = CASE({Pill.IMPRINT_NORM} == compact OR {Pill.IMPRINT_SORTED} == compact, 1, 0)\n"
         "| SORT exact DESC, _score DESC\n"
         f"| KEEP {Pill.PILL_ID}, exact, {Pill.IMPRINT_RAW}, {Pill.SHAPE}, {Pill.COLORS}, {Pill.SCORE}, "
         f"{Pill.SIZE_MM}, {Pill.MEDICINE_NAME}, {Pill.GENERIC_NAME}, {Pill.STRENGTH}, {Pill.LABELER}, "
@@ -202,13 +206,15 @@ def pill_lookup() -> dict[str, Any]:
         "peel.pill_lookup",
         "Look up which medicines carry a given pill IMPRINT in the US NLM Pillbox reference (an archive frozen "
         "in January 2021, so newer products are missing and a miss never means the pill is fake). Pass the "
-        "imprint uppercase with letters and digits only, no separators, e.g. 5892V or L484. Optionally narrow "
+        "imprint UPPERCASE exactly as read, keeping a single space between separate markings, e.g. 'B 972', "
+        "'5892 V' or 'L484'. A photo usually shows one face only; exact = 0 rows are pills that carry every "
+        "marking you passed plus others on the far face, and are valid candidates. Optionally narrow "
         "by shape: round, oval, capsule, rectangle, triangle, square, pentagon, hexagon, octagon, diamond, "
         "teardrop, or a shape family: elongated, quadrilateral, polygon, irregular. Pass \"any\" when unsure; "
         "a wrong shape hides the right pill. Compare the candidates with what the bottle label claims.",
         query,
         {
-            "imprint": {"type": "string", "description": "Imprint characters, uppercase letters and digits only."},
+            "imprint": {"type": "string", "description": "Imprint as read, uppercase, markings separated by one space."},
             "shape": _optional("Lowercase shape or shape family, or \"any\"."),
         },
     )
@@ -334,7 +340,8 @@ evidence you can find.
 2. NDC present: peel.recalls_by_ndc and peel.ndc_lookup with norm.ndc9. Check that the NDC resolves to \
 the drug, strength and company on the label. An NDC recall hit is a product-line match only: compare \
 its lots with the label's lot before saying this bottle is affected.
-3. Imprint present: peel.pill_lookup with norm.imprint_norm (add the shape only when confident). \
+3. Imprint present: peel.pill_lookup with the imprint as read (imprint.imprint, uppercased, markings \
+separated by a space, e.g. "B 972"); add the shape only when confident. \
 Compare the candidates with the bottle's claimed drug and strength.
 4. peel.regulatory_search_text for the drug and the manufacturer; narrow with filters you are sure \
 of, otherwise pass "any". Use peel.regulatory_search_semantic when keywords find nothing.

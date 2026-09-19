@@ -158,11 +158,19 @@ async def _run(
                             workers=workers,
                             on_progress=report,
                         )
-                    status = "ok" if outcome.failed == 0 else "errors"
+                    # An empty or unreadable raw cache must be a visible failure, not "ok".
                     if outcome.failed:
+                        status = "errors"
+                    elif outcome.indexed == 0:
+                        status = "empty"
+                    else:
+                        status = "ok"
+                    if status != "ok":
                         failures += 1
                         for error in outcome.errors[:5]:
                             console.print(f"[red]{error}[/red]")
+                        if status == "empty":
+                            console.print(f"[red]{source.name} produced no documents[/red]")
                     results.append((source.name, outcome, status))
                 except Exception as exc:  # one bad source must not stop the rest
                     failures += 1

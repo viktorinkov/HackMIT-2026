@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from backend.seed.sources.mhra import to_doc
+from backend.seed.sources.mhra import _table_lots, to_doc
 
 _NOW = datetime(2026, 9, 19, tzinfo=UTC)
 
@@ -150,6 +150,136 @@ def test_missing_date_returns_none() -> None:
     content["details"] = {**content["details"], "metadata": {}}
     item = {k: v for k, v in _TABLE_ITEM.items() if k != "public_timestamp"}
     assert to_doc(item, content) is None
+
+
+# --------------------------------------------------------------- table parsing
+
+# Verbatim from the cached gov.uk body of the Lipitor/Almus Class 2 recall: the
+# batch cell carries the livery name alongside the code.
+LIPITOR_TABLE = """
+<table>
+<thead><tr><th>Batch Number</th><th>Expiry Date</th><th>Pack Size</th></tr></thead>
+<tbody>
+<tr><td>T43157 (Almus)</td><td>31 Jan 2020</td><td>1 x 28</td></tr>
+<tr><td>T43166 (Lipitor)</td><td>31 Jan 2020</td><td>1 x 28</td></tr>
+<tr><td>T43170 (Lipitor)</td><td>31 Jan 2020</td><td>1 x 28</td></tr>
+</tbody></table>
+"""
+
+# The Adrenaline/Amiodarone alert: one cell stands for a whole inclusive range.
+RANGE_TABLE = """
+<table>
+<thead><tr><th>Product name</th><th>Batch number range from and to inclusive</th>
+<th>Expiry date range From and to inclusive</th></tr></thead>
+<tbody>
+<tr><td>Adrenaline 1mg/10ml</td><td>From 5000879 to 5000964</td><td>From 05/2014 to 07/2014</td></tr>
+<tr><td>Ephedrine Hydrochloride 3mg/ml</td><td>From 5000377 to 5000846</td>
+<td>From 06/2013 to 10/2014</td></tr>
+</tbody></table>
+"""
+
+# Kogenate Bayer, CLDA(16)A/05: gov.uk swapped its own first two columns, so the
+# header says "Batch no" over a column of product names.
+KOGENATE_TABLE = """
+<table>
+<thead><tr><th>Batch no</th><th>Product</th><th>Expiry date</th></tr></thead>
+<tbody>
+<tr><td>KOGENATE BAYER 500 IU</td><td>ITA2N65</td><td>12/06/2018</td></tr>
+<tr><td>KOGENATE BAYER 500 IU</td><td>ITA2CNV</td><td>19/03/2017</td></tr>
+<tr><td>KOGENATE BAYER 2000 IU</td><td>ITA2P68</td><td>12/06/2018</td></tr>
+</tbody></table>
+"""
+
+
+def test_table_cell_yields_each_code_not_the_glued_cell() -> None:
+    # Was ['T43157ALMUS', 'T43166LIPITOR', 'T43170LIPITOR'] — no exact lot hit
+    # for a patient scanning T43157 on a Class 2 (patient-level) recall.
+    assert _table_lots(LIPITOR_TABLE) == ["T43157", "T43166", "T43170"]
+
+
+def test_table_range_cell_expands_only_when_it_is_small_and_numeric() -> None:
+    lots = _table_lots(RANGE_TABLE)
+    # 5000879..5000964 inclusive is 86 batches, all of them recalled.
+    assert lots[:3] == ["5000879", "5000880", "5000881"]
+    assert "5000964" in lots
+    assert len([lot for lot in lots if lot.startswith("50008") or lot.startswith("50009")]) >= 86
+    # 5000377..5000846 is 470 wide: endpoints only, never 470 index entries.
+    assert "5000377" in lots and "5000846" in lots
+    assert "5000378" not in lots
+    assert "FROM5000879TO5000964" not in lots
+
+
+def test_swapped_columns_are_validated_against_the_data_rows() -> None:
+    lots = _table_lots(KOGENATE_TABLE)
+    assert lots == ["ITA2N65", "ITA2CNV", "ITA2P68"]
+    assert not any(lot.startswith("KOGENATE") for lot in lots)
+
+
+def test_a_table_where_no_column_holds_a_code_yields_nothing() -> None:
+    table = """
+    <table><thead><tr><th>Batch no</th><th>Product</th></tr></thead>
+    <tbody><tr><td>see annex</td><td>Widgetol tablets</td></tr>
+    <tr><td>see annex</td><td>Widgetol capsules</td></tr></tbody></table>
+    """
+    assert _table_lots(table) == []
+
+
+def test_a_batch_code_printed_with_a_space_survives() -> None:
+    table = """
+    <table><thead><tr><th>Batch no</th><th>Expiry date</th></tr></thead>
+    <tbody><tr><td>ER 4824</td><td>May 2017</td></tr></tbody></table>
+    """
+    assert _table_lots(table) == ["ER4824"]
+
+
+# ------------------------------------------------------------- title splitting
+
+
+def _titled(title: str) -> dict:
+    doc = to_doc(
+        {"content_id": "t-1", "title": title, "link": "/x", "public_timestamp": "2020-01-01T00:00:00Z"},
+        {
+            "content_id": "t-1",
+            "title": title,
+            "description": "d",
+            "first_published_at": "2020-01-01T00:00:00Z",
+            "details": {"body": "<p>body</p>", "metadata": {}},
+        },
+        now=_NOW,
+    )
+    assert doc is not None
+    return doc
+
+
+def test_comma_separated_class_title_is_split_and_classified() -> None:
+    doc = _titled(
+        "Class 2 Medicines Recall, medac GmbH (T/A medac Pharma LLP) Sodiofolin 50mg/ml "
+        "Solution for Injection 100mg/2ml, PL 11587/0005, EL (20) A/61"
+    )
+    assert doc["classification_raw"] == "Class 2 Medicines Recall"
+    assert doc["severity"] == "critical"
+    assert doc["severity_rank"] == 4
+    assert not doc["manufacturer"].lower().startswith("class")
+
+
+def test_qualifier_word_and_bare_notification_titles_still_split() -> None:
+    fmd = _titled("Class 3 FMD Medicines Recall, Beconase Aqueous Nasal Spray, EL (20)A/07")
+    assert fmd["classification_raw"] == "Class 3 FMD Medicines Recall"
+    assert fmd["severity"] == "high"
+    notif = _titled("Class 4 Medicines Notification: Zentiva Pharma UK Limited, Irbesartan 150mg")
+    assert notif["classification_raw"] == "Class 4 Medicines Notification"
+    assert notif["severity"] == "moderate"
+    assert "irbesartan" in " ".join(notif["drug_names_extracted"])
+
+
+def test_an_unsplittable_class_title_never_falls_to_unknown() -> None:
+    # "FMD Alert: Class 2 (EL (19)A/19)" has no splittable prefix at all, but a
+    # Class 2 recall must not rank below a correctly-parsed Class 4 notice.
+    doc = _titled("FMD Alert: Class 2 (EL (19)A/19)")
+    assert doc["severity"] == "critical"
+    assert doc["severity_rank"] == 4
+    # …and the fallback feeds severity only, so the honest fields stay honest.
+    assert "classification_raw" not in doc
 
 
 def test_unmapped_fields_are_a_subset_of_the_strict_mapping() -> None:

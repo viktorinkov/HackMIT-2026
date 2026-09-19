@@ -13,6 +13,8 @@ from backend.knowledge.normalize import (
     canonical_url,
     classify_doc_type,
     clean_text,
+    code_token,
+    code_tokens,
     content_hash,
     domain_of,
     extract_batches_from_prose,
@@ -22,6 +24,8 @@ from backend.knowledge.normalize import (
     extract_ndcs,
     freshness_label,
     html_to_text,
+    lot_code,
+    mentions_all_lots,
     normalize_dosage_form,
     normalize_drug_name,
     normalize_imprint,
@@ -265,6 +269,112 @@ def test_extract_batches_from_prose_rejects_bare_gram_strength() -> None:
 def test_extract_lots_semicolon_and_paren_do_not_end_collection() -> None:
     assert extract_lots("Lots: A1234; B5678").lot_numbers == ["A1234", "B5678"]
     assert extract_lots("Lots: A1234 (NDC 16729-457-15) B5678").lot_numbers == ["A1234", "B5678"]
+
+
+def test_extract_lots_comma_separated_lot_expiry_pairs() -> None:
+    """fda-enf-D-0823-2026, verbatim: pairs separated by commas, not `;`.
+
+    The expiry label opened an aside that nothing ever closed, so every lot after
+    the first was dropped — 4,710 lots across 750 cached FDA records.
+    """
+    codes = extract_lots(
+        "Lots: H22V01 Exp. 8/29/2026, H22V02 Exp. 8/30/2026, "
+        "K22V02A Exp. 10/29/2026, M10V01 Exp. 01/21/2027"
+    )
+    assert codes.lot_numbers == ["H22V01", "H22V02", "K22V02A", "M10V01"]
+
+
+def test_extract_lots_compound_label_header_keeps_the_first_lot() -> None:
+    """fda-enf-D-0672-2026: `Lot, expiry:` names two columns, so the value right
+    after it is a lot — treating the `expiry` half as an aside ate RPTH0125A."""
+    codes = extract_lots(
+        "Lot, expiry:            RPTH0125A Jan 31, 2028;   RPTH0225A Jan 31, 2028;   "
+        "RPTH0325A Jan 31, 2028;   RPTH0725A Apr 30, 2028;"
+    )
+    assert codes.lot_numbers == ["RPTH0125A", "RPTH0225A", "RPTH0325A", "RPTH0725A"]
+
+
+def test_extract_lots_separate_expiry_label_still_opens_an_aside() -> None:
+    # Only a label that *directly* follows a lot label is a compound header.
+    assert extract_lots("Lot: A1234, Exp 20260524").lot_numbers == ["A1234"]
+
+
+# ------------------------------------------------------------------ code tokens
+
+
+@pytest.mark.parametrize(
+    ("cell", "expected"),
+    [
+        # The Lipitor recall's batch cells: a code plus a livery name.
+        ("T43157 (Almus)", ["T43157"]),
+        ("T43166 (Lipitor)", ["T43166"]),
+        # A range cell yields its endpoints; the caller expands the interior.
+        ("From 5000879 to 5000964", ["5000879", "5000964"]),
+        # A leading "#" is punctuation, not part of the code.
+        ("# 56688403", ["56688403"]),
+        # gov.uk prints some real batches with an underscore.
+        ("B231264_01", ["B23126401"]),
+        # A product name in the wrong column must yield nothing at all.
+        ("KOGENATE BAYER 500 IU", []),
+        ("12/06/2018", []),
+        ("Expiry date", []),
+        ("", []),
+        (None, []),
+    ],
+)
+def test_code_tokens(cell: str | None, expected: list[str]) -> None:
+    assert code_tokens(cell) == expected
+
+
+@pytest.mark.parametrize(
+    ("token", "expected"),
+    [
+        ("ITA2N65", "ITA2N65"),
+        ("56688403", "56688403"),
+        ("12/06/2018", None),
+        ("28FEB16", None),
+        ("500mg", None),
+        ("2018", None),  # a bare year is never a batch
+        ("20180601", None),  # nor a packed date
+        ("IU", None),
+        ("BATCH", None),
+    ],
+)
+def test_code_token(token: str, expected: str | None) -> None:
+    assert code_token(token) == expected
+
+
+@pytest.mark.parametrize(
+    ("token", "expected"),
+    [
+        ("FA2B6004A", "FA2B6004A"),
+        ("737A", "737A"),
+        # Health Canada cells split on whitespace: neighbouring words and short
+        # digit runs are not lot numbers, and they are exact-matchable if kept.
+        ("EXPIRY", None),
+        ("CANADIAN", None),
+        ("ALL", None),
+        ("2029", None),
+        ("737", None),
+    ],
+)
+def test_lot_code_is_the_public_gate(token: str, expected: str | None) -> None:
+    assert lot_code(token) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("All lots", True),
+        ("All lots (since July 2023)", True),
+        ("Lots: ALL", True),
+        ("737, 737A, 737B", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_mentions_all_lots(text: str | None, expected: bool) -> None:
+    assert mentions_all_lots(text) is expected
 
 
 @pytest.mark.parametrize(

@@ -62,6 +62,8 @@ def pill_imprint(**kwargs: object) -> ImprintPhotoResult:
 def test_sanitize_bottle_drops_personal_label_fields_by_default() -> None:
     doc = sanitize_bottle(full_bottle(), store_sensitive=False)
     assert SENSITIVE.isdisjoint(doc)
+    assert "other_label_text" not in doc
+    assert "notes" not in doc
     assert doc["rx_number_present"] is True
     assert doc["pharmacy_present"] is True
     assert doc["directions_present"] is True
@@ -82,10 +84,11 @@ def test_sanitize_bottle_keeps_sensitive_fields_when_opted_in() -> None:
     assert doc["rx_number"] == "RX 8823410"
     assert doc["pharmacy"] == "Downtown Pharmacy"
     assert doc["directions"] == "Take one tablet twice daily"
+    assert doc["other_label_text"]
 
 
 def test_sanitize_bottle_truncates_free_text() -> None:
-    doc = sanitize_bottle(full_bottle(notes="n " * 400), store_sensitive=False)
+    doc = sanitize_bottle(full_bottle(notes="n " * 400), store_sensitive=True)
     assert len(doc["other_label_text"]) <= TEXT_CAP
     assert len(doc["notes"]) <= TEXT_CAP
 
@@ -97,13 +100,24 @@ def test_sanitize_bottle_only_emits_mapped_keys() -> None:
 
 
 def test_imprint_doc_only_emits_mapped_keys() -> None:
-    doc = imprint_doc(pill_imprint(), size_mm=9.5)
+    doc = imprint_doc(pill_imprint(), size_mm=9.5, store_sensitive=False)
     assert set(doc) <= mapped("imprint")
     assert doc["size_mm"] == 9.5
 
 
 def test_imprint_doc_rejects_an_implausible_size() -> None:
-    assert imprint_doc(pill_imprint(), size_mm=900.0)["size_mm"] is None
+    doc = imprint_doc(pill_imprint(), size_mm=900.0, store_sensitive=False)
+    assert doc["size_mm"] is None
+
+
+def test_imprint_doc_drops_notes_by_default() -> None:
+    doc = imprint_doc(pill_imprint(notes="looks scored off-center"), size_mm=9.5, store_sensitive=False)
+    assert "notes" not in doc
+
+
+def test_imprint_doc_keeps_notes_when_opted_in() -> None:
+    doc = imprint_doc(pill_imprint(notes="looks scored off-center"), size_mm=9.5, store_sensitive=True)
+    assert doc["notes"] == "looks scored off-center"
 
 
 def test_build_norm_only_emits_mapped_keys() -> None:

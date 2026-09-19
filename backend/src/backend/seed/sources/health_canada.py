@@ -36,6 +36,10 @@ SOURCE_LICENSE = "Open Government Licence – Canada"
 SOURCE_TERMS_URL = "https://open.canada.ca/en/open-government-licence-canada"
 
 _LOT_SPLIT_RE = re.compile(r"[,;/\s]+")
+# `Lot #: FA2B6004A Expiry: 2029/04/19` — the value right after an expiry label
+# belongs to that field, not to the lot column ('2029'). Lot/batch labels are
+# deliberately NOT in this set: `Canadian lots: 3213779` puts a real lot there.
+_EXPIRY_LABEL_RE = re.compile(r"^(?:exp|exp\.|expiry|expiration|expires)[\s#:.]*$", re.I)
 
 
 def _text(value: object) -> str | None:
@@ -127,9 +131,32 @@ class _DetailInfo:
     lot_numbers: list[str]
     lot_text: str
     manufacturers: list[str]
+    covers_all_lots: bool = False
 
 
 _EMPTY_DETAIL = _DetailInfo([], "", [])
+
+
+def _cell_lots(cell: str) -> list[str]:
+    """Lot-column cell -> the codes in it, gated by the same test the FDA
+    `code_info` path uses. Splitting and calling `normalize_lot` directly let
+    neighbouring words ('EXPIRY', 'CANADIAN') and date fragments ('2029')
+    through, and they are exact-matchable in Reg.LOT_NUMBERS."""
+    out: list[str] = []
+    after_expiry = False
+    for token in _LOT_SPLIT_RE.split(cell):
+        if not token:
+            continue
+        if _EXPIRY_LABEL_RE.match(token):
+            after_expiry = True
+            continue
+        if after_expiry:
+            after_expiry = False
+            continue
+        code = normalize.lot_code(token)
+        if code and code not in out:
+            out.append(code)
+    return out
 
 
 def _extract_detail(html: str | None) -> _DetailInfo:
@@ -141,20 +168,22 @@ def _extract_detail(html: str | None) -> _DetailInfo:
     lots: list[str] = []
     lot_cells: list[str] = []
     manufacturers: list[str] = []
+    covers_all = False
     for row in rows:
         lot_key = next((k for k in row if "lot" in k), None)
         if lot_key and row[lot_key]:
             lot_cells.append(row[lot_key])
-            for token in _LOT_SPLIT_RE.split(row[lot_key]):
-                code = normalize.normalize_lot(token)
-                if code and code not in lots:
+            # "All lots" is a coverage statement, not the lot code 'ALL'.
+            covers_all = covers_all or normalize.mentions_all_lots(row[lot_key])
+            for code in _cell_lots(row[lot_key]):
+                if code not in lots:
                     lots.append(code)
         man_key = next((k for k in row if "manufactur" in k), None)
         if man_key and row[man_key]:
             name = normalize.clean_text(row[man_key])
             if name and name not in manufacturers:
                 manufacturers.append(name)
-    return _DetailInfo(lots, " | ".join(lot_cells), manufacturers)
+    return _DetailInfo(lots, " | ".join(lot_cells), manufacturers, covers_all)
 
 
 # ------------------------------------------------------------------- to_doc
@@ -219,6 +248,9 @@ def to_doc(
         Reg.MANUFACTURER: detail.manufacturers,
         Reg.LOT_NUMBERS: lot_numbers,
         Reg.LOT_TEXT: detail.lot_text or None,
+        # Only ever True: `recalls_covering_all_lots` terms on it, and an
+        # explicit False on every other record would bloat the index for nothing.
+        Reg.COVERS_ALL_LOTS: True if detail.covers_all_lots else None,
         Reg.CLASSIFICATION_RAW: classification_raw,
         Reg.SEVERITY: severity,
         Reg.SEVERITY_RANK: severity_rank,

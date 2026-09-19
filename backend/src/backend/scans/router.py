@@ -44,6 +44,11 @@ async def list_scans(
     limit: int = Query(default=20, ge=1, le=100),
     after: str | None = None,
 ) -> ScanListResponse:
+    if not device_id and not lot and not ndc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="at least one of device_id, lot or ndc is required",
+        )
     lot_norm = normalize.normalize_lot(lot) if lot else None
     ndc_forms = normalize.normalize_ndc(ndc) if ndc else None
     ndc9 = ndc_forms.ndc9 if ndc_forms else None

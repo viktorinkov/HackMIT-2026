@@ -55,7 +55,25 @@ _RISK_BY_SEVERITY = {"critical": "high", "high": "high", "moderate": "medium"}
 # An all-lots recall is only about this bottle when the recall text itself names
 # the NDC, or the product was reached by its own drug name (audit_redteam F2).
 _PRECISE_NDC_KINDS = ("ndc_in_description", "all_lots_product")
-_EXACT_IMPRINT_KINDS = ("imprint_exact", "imprint_sorted")
+# Only a corroborated record may carry the recall_match verdict. knowledge.search
+# marks a lot hit whose product context disagrees as "lot_only_match" (a lot
+# string that collides with an unrelated product) and an all-lots recall reached
+# only through openFDA's sibling-strength NDC list as "all_lots_sibling". Both
+# are cautions to compare by hand, never a match for this bottle.
+_RECALL_LOT_KINDS = ("exact_lot",)
+_RECALL_ALL_LOTS_KINDS = ("all_lots_product",)
+LOT_ONLY_CAUTION = (
+    "a recall names this lot number but for a different product — compare the product name "
+    "carefully"
+)
+# Stated when the lot / all-lots lookup itself failed: the search never ran, so
+# "nothing was found" would be a claim about a query that never happened.
+RECALL_LOOKUP_FAILED_GAP = (
+    "The recall lookup did not complete for this scan, so a matching recall could have been missed."
+)
+# "imprint_all_parts": every part read from one face is on the reference pill
+# (Pillbox stores both faces, a phone photo shows one).
+_EXACT_IMPRINT_KINDS = ("imprint_exact", "imprint_sorted", "imprint_all_parts")
 
 _SAFE_NEXT_STEPS = (
     "Keep the medicine in its original packaging with the label and lot number intact.",
@@ -81,21 +99,22 @@ NEUTRAL_HEADLINES = {
 _BANNED_RE = re.compile(r"\b(?:safe|genuine|authentic|authenticated|verified|counterfeit-free)\b", re.I)
 _NEGATION_RE = re.compile(r"\b(?:not|never|cannot|can't|isn't|aren't|no|nor|neither)\b", re.I)
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+# A negation only disarms a banned word inside its own clause: "no recall was
+# found, so this medicine is genuine" is still a positive assurance.
+_CLAUSE_RE = re.compile(r"[,;:—–]|\b(?:so|but|therefore|thus|hence|however|yet)\b", re.I)
 _PII_RE = re.compile(
     r"\brx\s*(?:#|nos?\.?|numbers?)\s*[:#]?\s*\w{3,}|\bprescription\s+numbers?\b"
     r"|\bpatient\s+name\b|\bpharmacy\s*[:#]\s*\S+",
     re.I,
 )
 
-_ID_KEYS = (
-    "record_id",
-    "page_id",
-    "pill_id",
-    "product_ndc",
-    "url",
-    "id",
-    "source_id",
-)
+# The sentence a "nothing found" result must carry; it cites nothing by design.
+DISCLAIMER_MARKER = "That is not a confirmation"
+_UNSOURCED_OK = {"hardware_result", "bottle_label", "prior_scan_signal"}
+# C0 controls except tab and newline. gpt-4o turns an en dash into U+0013 when it
+# retypes a JSON escape, which is one reason source metadata is never trusted.
+_CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+
 
 
 # --------------------------------------------------------------------------- pack
@@ -115,6 +134,7 @@ def build_evidence(
     regulatory_hits: Sequence[Hit] = (),
     web_hits: Sequence[Hit] = (),
     prior_scans: dict[str, Any] | None = None,
+    recall_lookup_failed: bool = False,
 ) -> dict[str, Any]:
     """Stage-2 results -> the compact pack the agent and the LLM both read."""
     label = _label(scan_doc)
@@ -135,7 +155,15 @@ def build_evidence(
         "regulatory_hits": [_reg(hit) for hit in regulatory_hits],
         "web_hits": [_web(hit) for hit in web_hits],
         "prior_scans": dict(prior_scans or {"total": 0, "by_verdict": {}}),
+        "recall_lookup_failed": bool(recall_lookup_failed),
     }
+    # `_fit` trims each list from its tail, so the tail must be the cheapest
+    # evidence: rank the web hits first, and keep the pages this scan fetched
+    # (the ones that can name this very lot) ahead of generic hybrid matches.
+    evidence["web_hits"] = sorted(
+        rank_web_hits(evidence, label),
+        key=lambda entry: 0 if entry.get("match_kind") == "fetched_for_this_scan" else 1,
+    )
     return _fit(evidence)
 
 
@@ -265,6 +293,7 @@ def _pill_candidate(hit: Hit) -> dict[str, Any]:
         "shape": source.get(Pill.SHAPE),
         "colors": _as_list(source.get(Pill.COLORS)),
         "product_ndc": source.get(Pill.PRODUCT_NDC),
+        "setid": source.get(Pill.SETID),
         "match_kind": hit.match_kind,
     }
 
@@ -483,16 +512,32 @@ def deterministic_report(
     for entry in evidence.get("exact_lot_hits") or []:
         ref = _reg_source(entry)
         sources[ref.id] = ref
-        recall_hits.append(ref)
+        if entry.get("match_kind") in _RECALL_LOT_KINDS:
+            recall_hits.append(ref)
+            findings.append(
+                Finding(
+                    statement=(
+                        f"{entry.get('source_org') or 'A regulator'} record "
+                        f"\"{entry.get('title')}\" names lot {label.get('lot')}, the lot read "
+                        "from this label."
+                    ),
+                    evidence_type="exact_lot_match",
+                    source_ids=[ref.id],
+                    severity="serious",
+                    country_scope=_first(entry.get("countries")),
+                )
+            )
+            continue
+        # lot_only_match: the lot string matches, the product does not.
         findings.append(
             Finding(
                 statement=(
                     f"{entry.get('source_org') or 'A regulator'} record \"{entry.get('title')}\" "
-                    f"names lot {label.get('lot')}, the lot read from this label."
+                    f"lists lot {label.get('lot')}: {LOT_ONLY_CAUTION}."
                 ),
-                evidence_type="exact_lot_match",
+                evidence_type="regulatory_record",
                 source_ids=[ref.id],
-                severity="serious",
+                severity="caution",
                 country_scope=_first(entry.get("countries")),
             )
         )
@@ -500,16 +545,30 @@ def deterministic_report(
     for entry in evidence.get("all_lots_hits") or []:
         ref = _reg_source(entry)
         sources[ref.id] = ref
-        recall_hits.append(ref)
+        if entry.get("match_kind") in _RECALL_ALL_LOTS_KINDS:
+            recall_hits.append(ref)
+            findings.append(
+                Finding(
+                    statement=(
+                        f"{entry.get('source_org') or 'A regulator'} record "
+                        f"\"{entry.get('title')}\" covers every lot of this product, so no lot "
+                        "number is needed to be in scope."
+                    ),
+                    evidence_type="regulatory_record",
+                    source_ids=[ref.id],
+                    severity="serious",
+                    country_scope=_first(entry.get("countries")),
+                )
+            )
+            continue
+        # all_lots_sibling: reached through openFDA's sibling-strength NDC list,
+        # so it is product-line evidence exactly like an NDC hit.
         findings.append(
             Finding(
-                statement=(
-                    f"{entry.get('source_org') or 'A regulator'} record \"{entry.get('title')}\" "
-                    "covers every lot of this product, so no lot number is needed to be in scope."
-                ),
-                evidence_type="regulatory_record",
+                statement=_product_line_statement(entry, label.get("lot")),
+                evidence_type="exact_ndc_match",
                 source_ids=[ref.id],
-                severity="serious",
+                severity="caution",
                 country_scope=_first(entry.get("countries")),
             )
         )
@@ -612,7 +671,7 @@ def deterministic_report(
             Finding(
                 statement=(
                     f"The expiry date read from the label ({label.get('expiration')}) has passed. "
-                    "An expired medicine may have lost potency even when it is genuine."
+                    "A medicine past its expiry date may have lost potency whatever its origin."
                 ),
                 evidence_type="bottle_label",
                 source_ids=[],
@@ -646,7 +705,7 @@ def deterministic_report(
     if verdict == "no_adverse_findings":
         next_steps.append(SAFE_NO_FINDINGS_TEXT.format(index_date=index_date))
 
-    return ResearchReport(
+    return _scrubbed(ResearchReport(
         verdict=verdict,
         risk_level=risk,
         headline=_headline(verdict, label, evidence, len(mismatch_dicts)),
@@ -659,15 +718,16 @@ def deterministic_report(
         sources=list(sources.values()),
         agent_used=agent_used,
         demo=bool(scan_doc.get("demo", False)),
-    )
+    ))
 
 
 def verdict_from_evidence(
     evidence: dict[str, Any], *, has_mismatch: bool
 ) -> tuple[str, str]:
     """The verdict the evidence supports on its own, LLM or no LLM."""
-    if evidence.get("exact_lot_hits"):
-        return "recall_match", _risk(evidence["exact_lot_hits"])
+    lot_hits = qualifying_lot_hits(evidence)
+    if lot_hits:
+        return "recall_match", _risk(lot_hits)
     all_lots = _qualifying_all_lots(evidence)
     if all_lots:
         return "recall_match", _risk(all_lots)
@@ -675,12 +735,29 @@ def verdict_from_evidence(
         return "mismatch_found", "medium"
     if not _label_usable(evidence.get("label") or {}):
         return "insufficient_evidence", "unknown"
+    if evidence.get("recall_lookup_failed"):
+        # The anchor lookup never ran, so "nothing was found" would describe a
+        # search that did not happen.
+        return "insufficient_evidence", "unknown"
     return "no_adverse_findings", "low"
+
+
+def qualifying_lot_hits(evidence: dict[str, Any]) -> list[dict[str, Any]]:
+    """Lot hits whose product is corroborated, not a lot-string collision."""
+    return [
+        entry
+        for entry in evidence.get("exact_lot_hits") or []
+        if entry.get("match_kind") in _RECALL_LOT_KINDS
+    ]
 
 
 def _qualifying_all_lots(evidence: dict[str, Any]) -> list[dict[str, Any]]:
     """All-lots recalls that are actually about this product, not a sibling NDC."""
-    out = list(evidence.get("all_lots_hits") or [])
+    out = [
+        entry
+        for entry in evidence.get("all_lots_hits") or []
+        if entry.get("match_kind") in _RECALL_ALL_LOTS_KINDS
+    ]
     for entry in evidence.get("ndc_hits") or []:
         if entry.get("covers_all_lots") and entry.get("match_kind") in _PRECISE_NDC_KINDS:
             out.append(entry)
@@ -823,7 +900,7 @@ def _corroboration_finding(
     """Two weak-but-independent signals agreeing is worth saying, and only that."""
     if hardware.get("status") not in _HARDWARE_ADVERSE:
         return None
-    recalls = list(evidence.get("exact_lot_hits") or []) or _qualifying_all_lots(evidence)
+    recalls = qualifying_lot_hits(evidence) or _qualifying_all_lots(evidence)
     if not recalls:
         return None
     simulated = (
@@ -859,6 +936,8 @@ def _gaps(label: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
         )
     if not evidence.get("web_hits"):
         gaps.append("No live web pages were available for this medicine during this scan.")
+    if evidence.get("recall_lookup_failed"):
+        gaps.append(RECALL_LOOKUP_FAILED_GAP)
     gaps.append("What is actually inside the tablet was not measured.")
     return gaps
 
@@ -867,7 +946,7 @@ def _headline(
     verdict: str, label: dict[str, Any], evidence: dict[str, Any], mismatches: int
 ) -> str:
     if verdict == "recall_match":
-        if evidence.get("exact_lot_hits"):
+        if qualifying_lot_hits(evidence):
             return f"A recall or safety alert names lot {label.get('lot')} from this label."
         return "A recall covering every lot of this product matches this label."
     if verdict == "mismatch_found":
@@ -887,7 +966,7 @@ def _drug_facts(
     )
     facts: list[DrugFact] = []
 
-    recall_entry = _first(evidence.get("exact_lot_hits")) or _first(
+    recall_entry = _first(qualifying_lot_hits(evidence)) or _first(
         _qualifying_all_lots(evidence)
     ) or _first(evidence.get("ndc_hits"))
     if recall_entry:
@@ -963,39 +1042,14 @@ def web_source_id(page_id: str) -> str:
 
 
 def allowed_source_ids(
-    evidence: dict[str, Any], *, page_ids: Sequence[str] | None = None
+    evidence: dict[str, Any],
+    *,
+    tool_calls: list[dict[str, Any]] | None = None,
+    page_ids: Sequence[str] | None = None,
 ) -> set[str]:
-    """Every id the LLM is allowed to cite: anything that appears in the pack.
-
-    Derived ids count too: a web page is cited as `web-<page_id[:12]>` and an NDC
-    directory row as `ndc-<product_ndc>`, so both forms are admissible.
-    """
-    out: set[str] = set()
-    _collect_ids(evidence, out, 0)
-    for entry in evidence.get("web_hits") or []:
-        if entry.get("page_id"):
-            out.add(web_source_id(str(entry["page_id"])))
-    for entry in evidence.get("ndc_directory") or []:
-        if entry.get("product_ndc"):
-            out.add(ndc_source_id(str(entry["product_ndc"])))
-    for page_id in page_ids or []:
-        out.add(str(page_id))
-        out.add(web_source_id(str(page_id)))
-    return {value for value in out if value}
-
-
-def _collect_ids(node: Any, out: set[str], depth: int) -> None:
-    if depth > 8:
-        return
-    if isinstance(node, dict):
-        for key, value in node.items():
-            if key in _ID_KEYS and isinstance(value, (str, int)):
-                out.add(str(value))
-            else:
-                _collect_ids(value, out, depth + 1)
-    elif isinstance(node, list):
-        for item in node:
-            _collect_ids(item, out, depth + 1)
+    """Every string that resolves to a citable source: canonical ids and aliases."""
+    refs, aliases = source_index(evidence, tool_calls=tool_calls, page_ids=page_ids)
+    return set(refs) | set(aliases)
 
 
 def source_index(
@@ -1114,37 +1168,65 @@ def enforce_guardrails(
     data = _scrub_strings(report.model_dump())
 
     verdict, risk = verdict_from_evidence(evidence, has_mismatch=bool(data.get("mismatches")))
+    upgraded = False
     if data.get("verdict") == "recall_match" and verdict != "recall_match":
         # F2/F12: a product-line or fuzzy match is never a recall for this bottle.
         data["verdict"], data["risk_level"] = verdict, risk
         data["headline"] = NEUTRAL_HEADLINES[verdict]
         data["recall_hits"] = []
     elif verdict == "recall_match" and data.get("verdict") != "recall_match":
-        # F10: reporting a named-lot recall as "nothing found" is the worst failure here.
+        # F10: reporting a named-lot recall as "nothing found" is the worst failure
+        # here. The whole recall side of the report is rebuilt below, because the
+        # model wrote its findings, sources and next steps for the wrong verdict.
+        upgraded = True
         data["verdict"], data["risk_level"] = verdict, risk
-        data["headline"] = NEUTRAL_HEADLINES[verdict]
+    elif data.get("verdict") == "no_adverse_findings" and evidence.get("recall_lookup_failed"):
+        # A lookup that never ran cannot support "I found nothing".
+        data["verdict"], data["risk_level"] = "insufficient_evidence", "unknown"
+        data["headline"] = NEUTRAL_HEADLINES["insufficient_evidence"]
 
-    data["findings"] = _clean_findings(data.get("findings") or [], allowed)
+    data["findings"] = _clean_findings(data.get("findings") or [], refs, aliases)
     data["mismatches"] = [
-        item | {"source_ids": _keep_ids(item.get("source_ids"), allowed)}
+        item
+        | {
+            "source_ids": _keep_ids(item.get("source_ids"), refs, aliases),
+            # The field and the two claims are real evidence even when the
+            # explanation is not sayable, so neutralise the text, not the row.
+            "explanation": _safe_explanation(item.get("explanation")),
+        }
         for item in data.get("mismatches") or []
     ]
     data["drug_facts"] = [
-        item | {"source_ids": _keep_ids(item.get("source_ids"), allowed)}
+        item | {"source_ids": _keep_ids(item.get("source_ids"), refs, aliases)}
         for item in data.get("drug_facts") or []
         if not _unsafe(str(item.get("text") or ""))
     ]
-    data["sources"] = [item for item in data.get("sources") or [] if item.get("id") in allowed]
+    data["sources"] = _rebuild_sources(data, refs, aliases)
     data["recall_hits"] = [
-        item for item in data.get("recall_hits") or [] if item.get("id") in allowed
+        refs[canonical].model_dump()
+        for canonical in _resolved_ids(
+            [item.get("id") for item in data.get("recall_hits") or []], refs, aliases
+        )
     ]
     data["next_steps"] = [
         step for step in data.get("next_steps") or [] if not _unsafe(str(step))
     ]
-    data["gaps"] = [gap for gap in data.get("gaps") or [] if not _PII_RE.search(str(gap))]
+    data["gaps"] = [gap for gap in data.get("gaps") or [] if not _unsafe(str(gap))]
+
+    if upgraded:
+        # deterministic_report reads the label straight out of the pack, so it is
+        # the one source of truth for what a recall_match report must say.
+        fallback = deterministic_report(
+            {}, evidence, index_date=str(evidence.get("index_date") or "")
+        )
+        data["headline"] = fallback.headline
+        data["findings"] = [item.model_dump() for item in fallback.findings]
+        data["recall_hits"] = [item.model_dump() for item in fallback.recall_hits]
+        data["sources"] = [item.model_dump() for item in fallback.sources]
+        data["next_steps"] = list(_RECALL_NEXT_STEPS)
 
     headline = str(data.get("headline") or "")
-    if _positive_assurance(headline) or _PII_RE.search(headline):
+    if _unsafe(headline):
         data["headline"] = NEUTRAL_HEADLINES[data["verdict"]]
 
     index_date = str(evidence.get("index_date") or "the latest records indexed")
@@ -1157,23 +1239,54 @@ def enforce_guardrails(
     return ResearchReport.model_validate(data)
 
 
-def _clean_findings(findings: list[dict[str, Any]], allowed: set[str]) -> list[dict[str, Any]]:
+def _clean_findings(
+    findings: list[dict[str, Any]],
+    refs: dict[str, SourceRef],
+    aliases: dict[str, str],
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for item in findings:
         statement = str(item.get("statement") or "")
         if _unsafe(statement):
             continue
-        original = list(item.get("source_ids") or [])
-        kept = _keep_ids(original, allowed)
-        # A claim whose every citation was invented is a claim with no evidence.
-        if original and not kept:
-            continue
+        kept = _keep_ids(item.get("source_ids"), refs, aliases)
+        # A claim with no citation left is a claim with no evidence. The
+        # exemptions are the claims that legitimately have no external source:
+        # the device reading, the label itself, crowd signal, and the required
+        # "nothing found" disclaimer.
+        if not kept and item.get("evidence_type") not in _UNSOURCED_OK:
+            if DISCLAIMER_MARKER not in statement:
+                continue
         out.append(item | {"source_ids": kept})
     return out
 
 
-def _keep_ids(ids: Any, allowed: set[str]) -> list[str]:
-    return [str(value) for value in (ids or []) if str(value) in allowed]
+def _keep_ids(ids: Any, refs: dict[str, SourceRef], aliases: dict[str, str]) -> list[str]:
+    return _resolved_ids(list(ids or []), refs, aliases)
+
+
+def _resolved_ids(
+    ids: Sequence[Any], refs: dict[str, SourceRef], aliases: dict[str, str]
+) -> list[str]:
+    out: list[str] = []
+    for value in ids:
+        canonical = resolve_source_id(value, refs, aliases)
+        if canonical and canonical not in out:
+            out.append(canonical)
+    return out
+
+
+def _rebuild_sources(
+    data: dict[str, Any], refs: dict[str, SourceRef], aliases: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Canonical metadata only, and one entry for every id still cited."""
+    ids = _resolved_ids([item.get("id") for item in data.get("sources") or []], refs, aliases)
+    for group in ("findings", "mismatches", "drug_facts"):
+        for item in data.get(group) or []:
+            for value in item.get("source_ids") or []:
+                if value in refs and value not in ids:
+                    ids.append(value)
+    return [refs[value].model_dump() for value in ids]
 
 
 def _unsafe(text: str) -> bool:
@@ -1188,23 +1301,54 @@ def _stop_advice(text: str) -> bool:
 
 
 def _positive_assurance(text: str) -> bool:
-    """A banned word is a claim unless its own sentence negates it first.
+    """A banned word is a claim unless its own clause negates it first.
 
-    Sentence scope, not a character window: the required "this is not a
-    confirmation that this medicine is genuine or safe" disclaimer must survive,
-    while "it is genuine, not fake" must not.
+    Clause scope, not sentence scope: "No recall was found, so this medicine is
+    genuine" negates the recall, not the assurance that follows it. The one
+    sentence that must survive intact is the mandated disclaimer, which is
+    allowlisted by its marker rather than by the "not" inside it.
     """
+    if DISCLAIMER_MARKER in text:
+        return False
     for sentence in _SENTENCE_RE.split(text):
-        for match in _BANNED_RE.finditer(sentence):
-            negation = _NEGATION_RE.search(sentence[: match.start()])
-            if negation is None:
-                return True
+        for clause in _CLAUSE_RE.split(sentence):
+            for match in _BANNED_RE.finditer(clause):
+                if _NEGATION_RE.search(clause[: match.start()]) is None:
+                    return True
     return False
+
+
+_NEUTRAL_MISMATCH_EXPLANATION = (
+    "The label and the reference records disagree on this field; ask a pharmacist to compare them."
+)
+
+
+def _safe_explanation(value: object) -> str:
+    text = str(value or "")
+    return text if not _unsafe(text) else _NEUTRAL_MISMATCH_EXPLANATION
+
+
+def scrub_controls(text: str) -> str:
+    return _CONTROL_RE.sub("", text)
+
+
+def _scrub_strings(node: Any) -> Any:
+    if isinstance(node, str):
+        return scrub_controls(node)
+    if isinstance(node, dict):
+        return {key: _scrub_strings(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_scrub_strings(value) for value in node]
+    return node
+
+
+def _scrubbed(report: ResearchReport) -> ResearchReport:
+    return ResearchReport.model_validate(_scrub_strings(report.model_dump()))
 
 
 def _ensure_safe_wording(data: dict[str, Any], index_date: str) -> None:
     text = SAFE_NO_FINDINGS_TEXT.format(index_date=index_date)
-    marker = "That is not a confirmation"
+    marker = DISCLAIMER_MARKER
     blob = " ".join(
         [str(f.get("statement") or "") for f in data["findings"]] + [str(s) for s in data["next_steps"]]
     )
@@ -1250,7 +1394,12 @@ def _pill_source(candidate: dict[str, Any]) -> SourceRef:
     return SourceRef(
         id=str(candidate.get("source_id")),
         title=f"US Pillbox reference: imprint {candidate.get('imprint')}",
-        url=None,
+        # Pillbox itself is retired; the label it was built from lives on DailyMed.
+        url=(
+            f"https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid={candidate['setid']}"
+            if candidate.get("setid")
+            else None
+        ),
         source_org="NLM Pillbox (archived January 2021)",
         published_at=None,
         label_date="2021-01",

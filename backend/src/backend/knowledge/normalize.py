@@ -89,12 +89,19 @@ def normalize_lot(value: str | None) -> str | None:
     return cleaned if 3 <= len(cleaned) <= 32 else None
 
 
-def _ok_code(token: str, *, dateish: bool = False) -> str | None:
+def lot_code(token: str | None, *, dateish: bool = False) -> str | None:
     """Design B §1.1b `_ok()`: a usable lot/batch code or nothing.
+
+    Public because table parsers (Health Canada's "Affected products" grid) have
+    to gate every cell token through exactly the test the FDA `code_info` path
+    uses; splitting a cell and calling `normalize_lot` directly lets neighbouring
+    words ("EXPIRY", "CANADIAN") and date fragments ("2029") into lot_numbers.
 
     `dateish` is set once an explicit LOT label has been seen — a labelled
     `Lot# 20240524` is a real lot even though it reads as a date.
     """
+    if token is None:
+        return None
     norm = normalize_lot(token)
     if norm is None or norm in _CODE_STOPWORDS:
         return None
@@ -107,13 +114,59 @@ def _ok_code(token: str, *, dateish: bool = False) -> str | None:
     return norm
 
 
+_ok_code = lot_code
+
+
 def _ok_batch(token: str) -> str | None:
     """Stricter filter for prose: regulators write batches next to expiry dates
     and strengths, so date and unit shapes must not survive."""
-    norm = _ok_code(token)
+    norm = lot_code(token)
     if norm is None or _MONTH_DATE_RE.fullmatch(norm) or _STRENGTH_UNIT_RE.fullmatch(norm):
         return None
     return norm
+
+
+# A single whitespace-delimited token lifted out of a *table cell*, where the
+# column — not a nearby keyword — is what says "this is a batch". Promoted out of
+# seed.sources.who_alerts so the MHRA table parser applies the identical test.
+# `_` is in the class because MHRA prints real batches as `B231264_01`; it is
+# stripped by normalize_lot either way, so this only decides acceptance.
+_TOKEN_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-/._]{2,31}$")
+_TOKEN_DATE_RE = re.compile(
+    r"^(?:\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{4}[/.\-]\d{1,2}[/.\-]\d{1,2}"
+    r"|\d{1,2}[/.\-]\d{2,4}|\d{4}[/.\-]\d{1,2})$"
+)
+_TOKEN_MONTH_RE = re.compile(rf"^(?:\d{{1,2}}[-\s]?)?(?:{_M})[A-Z]*\.?(?:[-\s]?\d{{2,4}})?$", re.I)
+_TOKEN_STRENGTH_RE = re.compile(r"^\d+(?:[.,]\d+)?\s*(?:mg|mcg|ug|g|kg|ml|l|iu|units?|%)$", re.I)
+_TOKEN_YMD8_RE = re.compile(r"^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$")
+_TOKEN_STOPWORDS = {"EXP", "LOT", "LOTS", "BATCH", "BATCHES", "NDC", "ALL", "NA", "N0", "NO"}
+_TOKEN_STRIP = ",;|()[]<>\"'#"
+
+
+def code_token(token: str | None) -> str | None:
+    """A batch-column token that is really a code: not a date, not a strength."""
+    if token is None:
+        return None
+    token = token.strip(_TOKEN_STRIP)
+    if not token or not _TOKEN_SHAPE_RE.match(token):
+        return None
+    if _TOKEN_DATE_RE.match(token) or _TOKEN_MONTH_RE.match(token) or _TOKEN_STRENGTH_RE.match(token):
+        return None
+    code = normalize_lot(token)
+    if code is None or code in _TOKEN_STOPWORDS or not any(c.isdigit() for c in code):
+        return None
+    # Bare digits are only a batch because of the column they sit in, so keep the
+    # shapes real batches use and drop years, page numbers and packed dates.
+    if code.isdigit() and (len(code) < 5 or len(code) > 14 or _TOKEN_YMD8_RE.match(code)):
+        return None
+    return code
+
+
+def code_tokens(text: str | None) -> list[str]:
+    """Every code-shaped token in a table cell, in order: `T43157 (Almus)` -> ['T43157']."""
+    if not text:
+        return []
+    return _dedupe([code for code in (code_token(t) for t in str(text).split()) if code])
 
 # One alternation, scanned left to right: the longest/leftmost date shape wins so
 # that `t12-07-2016@97` is examined as `12-07-2016` (and then spared by the
@@ -161,6 +214,9 @@ _SCAN_RE = re.compile(
     rf"|(?P<tok>{_TOKEN})",
     re.I,
 )
+# Only punctuation (and an optional "and") between two labels: they name columns
+# together rather than one opening an aside inside the other's value list.
+_LABEL_JOIN_RE = re.compile(r"^[\s,;:/|&.\-]*(?:and)?[\s,;:/|&.\-]*$", re.I)
 _ALL_LOTS_RE = re.compile(
     r"\ball\s+(?:\w+\s+){0,3}?(?:lots?|batch(?:es)?|codes?|lot\s*numbers?|product\s*codes?)\b"
     r"|\bevery\s+(?:\w+\s+){0,2}?(?:lot|batch)s?\b"
@@ -169,8 +225,24 @@ _ALL_LOTS_RE = re.compile(
 )
 
 
+def mentions_all_lots(text: str | None) -> bool:
+    """`All lots`, `every batch`, `Lots: ALL` — the covers-all-lots phrasing.
+
+    Public so table-driven sources (Health Canada's lot cell) can set
+    `covers_all_lots` instead of emitting the literal token "ALL".
+    """
+    body = clean_text(text)
+    return bool(body and _ALL_LOTS_RE.search(_squash(body)))
+
+
 def _mask(text: str, start: int, end: int) -> str:
-    return text[:start] + " " * (end - start) + text[end:]
+    # A masked date/NDC/UPC also *breaks* the scan: an EXP/OTHER aside has to end
+    # with its value, or `Lots: H22V01 Exp. 8/29/2026, H22V02 ...` — comma- or
+    # space-separated lot/expiry pairs, not `;`-separated — keeps the aside open
+    # forever and every lot after the first is silently dropped. Every masked
+    # span is >= 4 characters (shortest `_DATE_RE` branch; NDC >= 8, UPC >= 14),
+    # so the break never overruns the span it replaces.
+    return text[:start] + ";" + " " * max(0, end - start - 1) + text[end:]
 
 
 def extract_lots(text: str | None) -> ExtractedCodes:
@@ -209,19 +281,30 @@ def extract_lots(text: str | None) -> ExtractedCodes:
     seen: set[str] = set()
     labelled = False
     aside: str | None = None
+    previous: str | None = None
+    previous_end = 0
     for match in _SCAN_RE.finditer(body):
         kind = match.lastgroup
         if kind == "lot":
             labelled, aside = True, None
         elif kind in ("oth", "exp"):
-            aside = kind
+            # "Lot, expiry:" / "Lot and expiration date:" is a compound *header*,
+            # not an aside — the values that follow lead with the lot column, so
+            # opening an aside here eats the FIRST lot (fda-enf-D-0672-2026).
+            header = previous == "lot" and bool(
+                _LABEL_JOIN_RE.match(body[previous_end : match.start()])
+            )
+            aside = None if header else kind
+            if header:
+                kind = "lot"  # a chained "Lot, exp, mfg:" stays one header
         elif kind == "brk":
             aside = None
         elif kind == "tok" and aside is None:
-            code = _ok_code(match.group(0), dateish=labelled)
+            code = lot_code(match.group(0), dateish=labelled)
             if code and code not in seen and len(lots) < MAX_LOTS:
                 seen.add(code)
                 lots.append(code)
+        previous, previous_end = kind, match.end()
 
     return ExtractedCodes(lots, covers_all, _dedupe(ndcs))
 

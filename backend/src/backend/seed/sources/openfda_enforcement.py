@@ -8,6 +8,7 @@ lot read off a bottle label into an exact verdict rather than a guess.
 from __future__ import annotations
 
 import json
+import re
 import zipfile
 from collections.abc import Iterator
 from pathlib import Path
@@ -39,6 +40,16 @@ SUMMARY_CAP = 400
 SEMANTIC_CAP = 900
 
 _MANIFEST_FILE = "manifest.json"
+
+# A US ZIP+4 in the firm's address has exactly the shape of a 5-4 product NDC, so
+# `Bethlehem, PA 18018-3524` was being indexed as ndc9 180183524 — including in
+# ndc_from_description, the field reserved for NDCs that identify this record.
+# Only the ZIP is dropped: requiring an `NDC` label instead would lose the real,
+# unlabelled NDCs that ~1,000 cached descriptions write (e.g. `76045-0004-1`).
+_ZIP4_RE = re.compile(
+    r"\b(?:A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|N[EVHJMYCD]"
+    r"|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\s+\d{5}-\d{4}\b"
+)
 
 
 def _add(target: list[str], value: str | None) -> None:
@@ -96,7 +107,7 @@ def to_doc(
     ndc9: list[str] = []
     ndc11: list[str] = []
     ndc_from_description: list[str] = []
-    own = normalize.extract_ndcs(f"{product} {code_info}")
+    own = normalize.extract_ndcs(_ZIP4_RE.sub(" ", f"{product} {code_info}"))
     siblings = _strings(openfda.get("product_ndc")) + _strings(openfda.get("package_ndc"))
     for raw, from_own_text in [(v, True) for v in own] + [(v, False) for v in siblings]:
         forms = normalize.normalize_ndc(raw)

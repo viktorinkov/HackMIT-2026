@@ -7,7 +7,12 @@ from pydantic import ValidationError
 
 from backend.knowledge.fields import SCAN_STATUSES
 from backend.photo_identification.bottle import BottlePhotoResult
+from backend.pill import PillHardwareResult
 from backend.scans.models import (
+    MAX_SPECTRUM_LEN,
+    MAX_TEXT_FIELD_LEN,
+    MAX_VISIBLE_WARNINGS,
+    MAX_WARNING_LEN,
     PhotoRef,
     ScanCreate,
     ScanEnvelope,
@@ -20,6 +25,17 @@ SHA = "a" * 64
 
 def _bottle(**kwargs: object) -> BottlePhotoResult:
     return BottlePhotoResult(is_medication_container=True, confidence=0.9, **kwargs)
+
+
+def _hardware(**kwargs: object) -> PillHardwareResult:
+    fields: dict[str, object] = {
+        "status": "real",
+        "spectrum": [0.1, 0.2],
+        "degraded": False,
+        "confidence": 0.9,
+    }
+    fields.update(kwargs)
+    return PillHardwareResult(**fields)
 
 
 def test_scan_status_matches_the_mapping_vocabulary() -> None:
@@ -41,6 +57,60 @@ def test_scan_create_accepts_a_bottle_alone() -> None:
 def test_scan_create_bounds_the_device_id(device_id: str) -> None:
     with pytest.raises(ValidationError):
         ScanCreate(device_id=device_id, bottle=_bottle())
+
+
+def test_scan_create_accepts_hardware_alone() -> None:
+    payload = ScanCreate(device_id="dev-1", hardware=_hardware())
+    assert payload.hardware is not None and payload.hardware.spectrum == [0.1, 0.2]
+
+
+def test_scan_create_rejects_an_oversized_spectrum() -> None:
+    with pytest.raises(ValidationError, match="spectrum"):
+        ScanCreate(
+            device_id="dev-1",
+            hardware=_hardware(spectrum=[0.1] * (MAX_SPECTRUM_LEN + 1)),
+        )
+
+
+def test_scan_create_accepts_a_spectrum_at_the_limit() -> None:
+    payload = ScanCreate(
+        device_id="dev-1", hardware=_hardware(spectrum=[0.1] * MAX_SPECTRUM_LEN)
+    )
+    assert payload.hardware is not None
+    assert len(payload.hardware.spectrum) == MAX_SPECTRUM_LEN
+
+
+def test_scan_create_rejects_too_many_visible_warnings() -> None:
+    with pytest.raises(ValidationError, match="visible_warnings"):
+        ScanCreate(
+            device_id="dev-1",
+            bottle=_bottle(visible_warnings=["warning"] * (MAX_VISIBLE_WARNINGS + 1)),
+        )
+
+
+def test_scan_create_rejects_an_oversized_visible_warning() -> None:
+    with pytest.raises(ValidationError, match="visible_warnings"):
+        ScanCreate(
+            device_id="dev-1",
+            bottle=_bottle(visible_warnings=["x" * (MAX_WARNING_LEN + 1)]),
+        )
+
+
+def test_scan_create_rejects_an_oversized_free_text_field() -> None:
+    with pytest.raises(ValidationError, match="other_label_text"):
+        ScanCreate(
+            device_id="dev-1",
+            bottle=_bottle(other_label_text="x" * (MAX_TEXT_FIELD_LEN + 1)),
+        )
+
+
+def test_scan_create_accepts_a_normal_payload() -> None:
+    payload = ScanCreate(
+        device_id="dev-1",
+        bottle=_bottle(generic_name="ibuprofen", visible_warnings=["Do not exceed dose"]),
+        hardware=_hardware(),
+    )
+    assert payload.bottle is not None and payload.hardware is not None
 
 
 def test_photo_ref_rejects_a_bad_digest() -> None:

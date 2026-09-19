@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime
 from functools import lru_cache
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConflictError, NotFoundError
 
 from backend.config import Settings
 from backend.knowledge import normalize
@@ -184,6 +184,17 @@ class CreditBudget:
         self._used += cost
         _daily_used += cost
         return cost
+
+    def refund(self, amount: int) -> None:
+        """Give back a reservation the call never spent, i.e. a cache hit.
+
+        Without this, a day of all-cache scans exhausts the daily cap without a
+        single Firecrawl call going out.
+        """
+        global _daily_used
+        cost = max(0, int(amount))
+        self._used = max(0, self._used - cost)
+        _daily_used = max(0, _daily_used - cost)
 
 
 @dataclass(frozen=True)
@@ -471,8 +482,46 @@ class WebResearcher:
         credits: int = 0,
         known_drug_names: list[str] | None = None,
     ) -> str:
+        """Read-modify-write, guarded by the version that was read.
+
+        `queries` and `scan_ids` accumulate across writers, so two searches of
+        one scan that return the same URL would otherwise lose one side's query
+        key — and with it the cache hit that key was meant to buy next time. A
+        conflict means someone else wrote first: re-read once and merge.
+        """
+        try:
+            return await self._write_page(
+                page,
+                scan_id=scan_id,
+                query=query,
+                via=via,
+                credits=credits,
+                known_drug_names=known_drug_names,
+            )
+        except ConflictError:
+            return await self._write_page(
+                page,
+                scan_id=scan_id,
+                query=query,
+                via=via,
+                credits=credits,
+                known_drug_names=known_drug_names,
+                create_guard=False,
+            )
+
+    async def _write_page(
+        self,
+        page: FetchedPage,
+        *,
+        scan_id: str | None,
+        query: WebQuery | None = None,
+        via: str = "backend",
+        credits: int = 0,
+        known_drug_names: list[str] | None = None,
+        create_guard: bool = True,
+    ) -> str:
         page_id = normalize.url_hash(page.url)
-        existing = await self._existing(page_id)
+        existing, seq_no, primary_term = await self._existing(page_id)
         now = datetime.now(UTC)
         now_iso = normalize.to_iso(now)
         content = page.markdown[:MAX_CONTENT_CHARS]
@@ -533,9 +582,18 @@ class WebResearcher:
         }
         doc[Web.IS_RECALL] = "recall" in doc[Web.FLAGS]
         doc[Web.IS_ALERT] = bool(_ALERT_FLAGS.intersection(doc[Web.FLAGS]))
+        guard: dict[str, Any] = {}
+        if existing is None and create_guard:
+            # A concurrent create must conflict instead of silently overwriting.
+            # Dropped on the retry: an unreadable document twice running means
+            # losing a page we already paid for, which is the worse outcome.
+            guard["op_type"] = "create"
+        elif seq_no is not None and primary_term is not None:
+            guard["if_seq_no"] = seq_no
+            guard["if_primary_term"] = primary_term
         # refresh="wait_for": the very next search_web must see this page.
         await self._es.index(
-            index=self._index, id=page_id, document=doc, refresh="wait_for"
+            index=self._index, id=page_id, document=doc, refresh="wait_for", **guard
         )
         return page_id
 
@@ -602,14 +660,21 @@ class WebResearcher:
                     continue
         return page_ids
 
-    async def _existing(self, page_id: str) -> dict[str, Any] | None:
+    async def _existing(
+        self, page_id: str
+    ) -> tuple[dict[str, Any] | None, int | None, int | None]:
+        """The stored document plus the version stamp the write is guarded by."""
         try:
             response = await self._es.get(index=self._index, id=page_id, realtime=True)
         except NotFoundError:
-            return None
+            return None, None, None
         except Exception:  # noqa: BLE001 - treat an unreadable doc as a new one
-            return None
-        return dict(response.get("_source") or {})
+            return None, None, None
+        return (
+            dict(response.get("_source") or {}),
+            _int(response.get("_seq_no")),
+            _int(response.get("_primary_term")),
+        )
 
     async def _append_scan_id(self, page_ids: list[str], scan_id: str) -> None:
         for page_id in page_ids:

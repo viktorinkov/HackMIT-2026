@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from elasticsearch import ApiError, AsyncElasticsearch, NotFoundError
+from elasticsearch import ApiError, AsyncElasticsearch, NotFoundError, TransportError
 from fastapi import Depends
 
 from backend.config import Settings, get_settings
@@ -69,7 +69,11 @@ class ScanStore:
                 payload.bottle, store_sensitive=self._settings.scans_store_sensitive
             )
         if payload.imprint is not None:
-            doc[Scan.IMPRINT] = imprint_doc(payload.imprint, size_mm=payload.imprint_size_mm)
+            doc[Scan.IMPRINT] = imprint_doc(
+                payload.imprint,
+                size_mm=payload.imprint_size_mm,
+                store_sensitive=self._settings.scans_store_sensitive,
+            )
         if payload.hardware is not None:
             doc[Scan.HARDWARE] = hardware_doc(payload.hardware, payload.hardware_model)
         # Refuse the scan rather than accept one we cannot persist.
@@ -87,6 +91,8 @@ class ScanStore:
             return None
         except ApiError as exc:
             raise _wrapped("could not read the scan", exc) from exc
+        except TransportError as exc:
+            raise _unreachable("could not read the scan", exc) from exc
         return dict(response["_source"])
 
     async def apply(
@@ -146,7 +152,13 @@ class ScanStore:
             )
             if value
         ]
-        query = {"bool": {"filter": filters}} if filters else {"match_all": {}}
+        if not filters:
+            # An unscoped query would dump every device's scan history; the
+            # router is expected to reject this before it ever reaches here.
+            raise KnowledgeError(
+                "at least one of device_id, lot or ndc9 is required", status_code=400
+            )
+        query = {"bool": {"filter": filters}}
         # scan_id breaks created_at ties so search_after never skips or repeats a row.
         sort = [{Scan.CREATED_AT: "desc"}, {Scan.SCAN_ID: "asc"}]
         with _api_errors("could not list scans"):
@@ -195,9 +207,16 @@ def _wrapped(message: str, exc: ApiError) -> KnowledgeError:
     return KnowledgeError(f"{message}: {exc.message}", status_code=502)
 
 
+def _unreachable(message: str, exc: TransportError) -> KnowledgeError:
+    # Timeouts and dropped connections are retryable: tell the app so with a 503.
+    return KnowledgeError(f"{message}: Elasticsearch is unreachable ({type(exc).__name__})", status_code=503)
+
+
 @contextmanager
 def _api_errors(message: str, status_code: int = 502) -> Iterator[None]:
     try:
         yield
     except ApiError as exc:
         raise KnowledgeError(f"{message}: {exc.message}", status_code=status_code) from exc
+    except TransportError as exc:
+        raise _unreachable(message, exc) from exc

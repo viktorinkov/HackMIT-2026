@@ -24,6 +24,9 @@ def build_client(settings: Settings, request_timeout: float = 120) -> AsyncElast
         request_timeout=request_timeout,
         retry_on_timeout=True,
         max_retries=3,
+        # A scan indexes pages, polls and searches concurrently; the default pool of
+        # 10 starves pollers and surfaces as ConnectionTimeout.
+        connections_per_node=32,
     )
 
 

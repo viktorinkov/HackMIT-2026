@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,7 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.drug_facts import router as drug_facts_router
 from backend.drug_facts.elastic import close_elastic_store
-from backend.knowledge.client import close_es
+from backend.config import get_settings
+from backend.knowledge.client import close_es, get_es
+from backend.knowledge.indices import ensure_indices
 from backend.knowledge.router import router as knowledge_router
 from backend.photo_identification import router as photo_identification_router
 from backend.pill import router as pill_router
@@ -13,9 +16,18 @@ from backend.research.agent_builder import close_agent_builder
 from backend.research.pipeline import cancel_all as cancel_research
 from backend.scans.router import router as scans_router
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Create the strict indices up front: an absent peel-scans would otherwise be
+    # auto-created with a dynamic mapping on the first POST /scans. Never fatal —
+    # the store answers 503 while the cluster is unreachable.
+    try:
+        await ensure_indices(get_es(get_settings()))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("could not ensure Peel indices at startup: %r", exc)
     yield
     await cancel_research(_app)
     await close_agent_builder()

@@ -39,9 +39,7 @@ def sanitize_bottle(bottle: BottlePhotoResult, *, store_sensitive: bool) -> dict
         "lot_number": bottle.lot_number,
         "imprint_on_label": bottle.imprint_on_label,
         "visible_warnings": list(bottle.visible_warnings),
-        "other_label_text": _capped(bottle.other_label_text),
         "confidence": bottle.confidence,
-        "notes": _capped(bottle.notes),
         "rx_number_present": _present(bottle.rx_number),
         "pharmacy_present": _present(bottle.pharmacy),
         "directions_present": _present(bottle.directions),
@@ -50,11 +48,17 @@ def sanitize_bottle(bottle: BottlePhotoResult, *, store_sensitive: bool) -> dict
         doc["rx_number"] = bottle.rx_number
         doc["pharmacy"] = bottle.pharmacy
         doc["directions"] = bottle.directions
+        # Free text a patient's name, address or pharmacy visit tends to end up
+        # in: never index it unless the deployment opted into sensitive storage.
+        doc["other_label_text"] = _capped(bottle.other_label_text)
+        doc["notes"] = _capped(bottle.notes)
     return doc
 
 
-def imprint_doc(imprint: ImprintPhotoResult, *, size_mm: float | None) -> dict[str, Any]:
-    return {
+def imprint_doc(
+    imprint: ImprintPhotoResult, *, size_mm: float | None, store_sensitive: bool
+) -> dict[str, Any]:
+    doc: dict[str, Any] = {
         "is_pill": imprint.is_pill,
         "imprint": imprint.imprint,
         "color": imprint.color,
@@ -64,8 +68,11 @@ def imprint_doc(imprint: ImprintPhotoResult, *, size_mm: float | None) -> dict[s
         "size_mm": vocab.parse_size_mm(size_mm),
         "additional_markings": imprint.additional_markings,
         "confidence": imprint.confidence,
-        "notes": _capped(imprint.notes),
     }
+    if store_sensitive:
+        # notes is free text, same rationale as bottle.other_label_text/notes.
+        doc["notes"] = _capped(imprint.notes)
+    return doc
 
 
 def build_norm(

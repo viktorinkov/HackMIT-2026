@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 from elastic_transport import ApiResponseMeta
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import AsyncElasticsearch, ConflictError, NotFoundError
 
 from backend.config import Settings
 from backend.knowledge import normalize
@@ -563,3 +563,142 @@ async def test_non_firecrawl_tool_calls_are_ignored() -> None:
     call = SimpleNamespace(tool_id="peel.recalls_by_lot", results=[{"data": {"columns": []}}])
 
     assert await researcher.harvest_agent_pages([call], scan_id="scan-1") == []
+
+
+# --------------------------------------------------------------------------- refunds
+
+
+def test_a_refund_gives_the_reservation_back_to_both_counters() -> None:
+    budget = CreditBudget(10, daily_cap=10)
+    budget.take(5)
+
+    budget.refund(5)
+
+    assert budget.used == 0
+    assert web_module.daily_credits_used() == 0
+    # The whole plan is affordable again, which is the point of the refund.
+    assert budget.take(10) == 10
+
+
+def test_a_refund_never_drives_a_counter_negative() -> None:
+    budget = CreditBudget(10, daily_cap=10)
+    budget.take(2)
+
+    budget.refund(50)
+
+    assert budget.used == 0
+    assert web_module.daily_credits_used() == 0
+
+
+# --------------------------------------------------------------------------- write concurrency
+
+
+def _conflict() -> ConflictError:
+    meta = ApiResponseMeta(status=409, http_version="1.1", headers={}, duration=0.0, node=None)
+    return ConflictError("version conflict", meta=meta, body={})
+
+
+class VersionedEs(FakeEs):
+    """An index that hands out version stamps and can lose a race on purpose."""
+
+    def __init__(
+        self,
+        *,
+        existing: dict[str, Any] | None = None,
+        seq_no: int = 7,
+        primary_term: int = 3,
+        conflicts: int = 0,
+        winner: dict[str, Any] | None = None,
+    ):
+        super().__init__(existing=existing)
+        self.seq_no = seq_no
+        self.primary_term = primary_term
+        self.conflicts = conflicts
+        self.winner = winner or {}
+        self.attempts = 0
+
+    async def get(self, **kwargs: Any) -> dict[str, Any]:
+        if self.existing is None:
+            raise _not_found()
+        return {
+            "_source": self.existing,
+            "_seq_no": self.seq_no,
+            "_primary_term": self.primary_term,
+        }
+
+    async def index(self, **kwargs: Any) -> dict[str, Any]:
+        self.attempts += 1
+        if self.attempts <= self.conflicts:
+            # Someone else wrote between our read and our write.
+            self.existing = dict(self.existing or {}) | self.winner
+            self.seq_no += 1
+            raise _conflict()
+        return await super().index(**kwargs)
+
+
+async def test_a_new_page_is_written_with_create_semantics() -> None:
+    es = VersionedEs()
+    researcher = WebResearcher(es, settings(), firecrawl=FakeFirecrawl())
+
+    await researcher.index_page(page(), scan_id="scan-1", query=QUERY)
+
+    assert es.indexed[0]["op_type"] == "create"
+    assert "if_seq_no" not in es.indexed[0]
+
+
+async def test_an_update_is_guarded_by_the_version_it_read() -> None:
+    es = VersionedEs(existing={Web.CONTENT_HASH: "other", Web.REVISION: 2})
+    researcher = WebResearcher(es, settings(), firecrawl=FakeFirecrawl())
+
+    await researcher.index_page(page(), scan_id="scan-1", query=QUERY)
+
+    assert es.indexed[0]["if_seq_no"] == 7
+    assert es.indexed[0]["if_primary_term"] == 3
+    assert "op_type" not in es.indexed[0]
+
+
+async def test_a_lost_race_is_retried_and_the_other_writer_is_merged_in() -> None:
+    other = WebQuery(text="levothyroxine counterfeit", key="levothyroxine counterfeit", tbs=None, purpose="t")
+    es = VersionedEs(
+        existing={Web.CONTENT_HASH: normalize.content_hash("content"), Web.QUERIES: [], Web.SCAN_IDS: []},
+        conflicts=1,
+        winner={Web.QUERIES: [other.key], Web.SCAN_IDS: ["scan-other"]},
+    )
+    researcher = WebResearcher(es, settings(), firecrawl=FakeFirecrawl())
+
+    page_id = await researcher.index_page(page(), scan_id="scan-1", query=QUERY)
+
+    assert es.attempts == 2
+    assert page_id == normalize.url_hash("https://www.fda.gov/recall/abc")
+    doc = es.indexed[0]["document"]
+    # Neither writer's query key is lost, so the next scan still hits the cache.
+    assert doc[Web.QUERIES] == [other.key, QUERY.key]
+    assert doc[Web.SCAN_IDS] == ["scan-other", "scan-1"]
+    assert es.indexed[0]["if_seq_no"] == 8
+
+
+async def test_the_retry_is_bounded_to_one_attempt() -> None:
+    es = VersionedEs(existing={Web.CONTENT_HASH: "other"}, conflicts=5)
+    researcher = WebResearcher(es, settings(), firecrawl=FakeFirecrawl())
+
+    with pytest.raises(ConflictError):
+        await researcher.index_page(page(), scan_id="scan-1", query=QUERY)
+
+    assert es.attempts == 2
+    assert es.indexed == []
+
+
+async def test_an_unreadable_document_is_still_written_on_the_retry() -> None:
+    class BlindEs(VersionedEs):
+        async def get(self, **kwargs: Any) -> dict[str, Any]:
+            raise RuntimeError("get timed out")
+
+    es = BlindEs(conflicts=1)
+    researcher = WebResearcher(es, settings(), firecrawl=FakeFirecrawl())
+
+    await researcher.index_page(page(), scan_id="scan-1", query=QUERY)
+
+    # The first write took create semantics and lost; the retry cannot read the
+    # winner, so it writes rather than dropping a page we already paid for.
+    assert es.attempts == 2
+    assert "op_type" not in es.indexed[0]

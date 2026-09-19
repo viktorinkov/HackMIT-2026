@@ -161,6 +161,60 @@ def test_empty_openfda_falls_back_to_the_record_text() -> None:
     assert Reg.EVENT_ID not in doc
 
 
+# A ZIP+4 in the firm's address has the shape of a 5-4 product NDC. 580 cached
+# FDA records carried one as a fabricated ndc9 — including in
+# ndc_from_description, the field that decides an `all_lots_product` verdict.
+ZIP4_ADDRESS: dict[str, Any] = {
+    "classification": "Class II",
+    "openfda": {},
+    "recalling_firm": "Fresenius Kabi USA, LLC",
+    "recall_number": "D-0788-2026",
+    "product_description": (
+        "Morphine Sulfate Injection, USP, 2 mg /mL, 1 mL single-dose prefilled syringes, "
+        "Rx only, Manufactured for: Accord Healthcare, Inc., Raleigh, NC 27617-1234, "
+        "Unit of Use NDC Number 76045-0004-1"
+    ),
+    "reason_for_recall": "Subpotent Drug",
+    "report_date": "20260902",
+    "code_info": "Lot #: 6402820, Exp. Date 12/2028",
+}
+
+# fda-enf-D-0823-2026, verbatim: lot/expiry pairs separated by commas.
+COMMA_PAIRS: dict[str, Any] = {
+    "classification": "Class II",
+    "openfda": {},
+    "recalling_firm": "Allies Group Pte Ltd",
+    "recall_number": "D-0823-2026",
+    "product_description": "THE ONE SPF 50 INVISIBLE SUNSCREEN GEL, 50ML - 1.7 fl. oz Tube",
+    "reason_for_recall": "Benzene contamination",
+    "report_date": "20260902",
+    "code_info": (
+        "Lots: H22V01 Exp. 8/29/2026, H22V02 Exp. 8/30/2026, K22V02A Exp. 10/29/2026, "
+        "M10V01 Exp. 01/21/2027, G23W02B Exp. 7/25/2027, G23W03 Exp. 8/4/2027, "
+        "G23W03D Exp. 8/4/2027, K10W01A Exp. 10/17/2028, K10W01C Exp. 10/17/2028, "
+        "M11W02 12/17/2028, F09X02 Exp. 6/17/2029."
+    ),
+}
+
+
+def test_a_postal_code_is_never_mistaken_for_this_record_s_ndc() -> None:
+    doc = to_doc(ZIP4_ADDRESS)
+    assert doc is not None
+    # The real, unlabelled NDC in the same description still resolves…
+    assert doc[Reg.NDC_FROM_DESCRIPTION] == ["760450004"]
+    # …while the ZIP+4 contributes nothing to any NDC field.
+    assert "276171234" not in doc[Reg.NDC9]
+    assert not any("27617" in raw for raw in doc[Reg.NDC_RAW])
+
+
+def test_comma_separated_lot_expiry_pairs_keep_every_lot() -> None:
+    doc = to_doc(COMMA_PAIRS)
+    assert doc is not None
+    assert len(doc[Reg.LOT_NUMBERS]) == 11
+    assert doc[Reg.LOT_NUMBERS][:4] == ["H22V01", "H22V02", "K22V02A", "M10V01"]
+    assert "F09X02" in doc[Reg.LOT_NUMBERS]
+
+
 def test_records_without_a_recency_date_or_id_are_skipped() -> None:
     assert to_doc({**ANCHOR, "report_date": None, "recall_initiation_date": None}) is None
     assert to_doc({**ANCHOR, "recall_number": ""}) is None
@@ -168,7 +222,7 @@ def test_records_without_a_recency_date_or_id_are_skipped() -> None:
 
 def test_every_emitted_field_is_mapped() -> None:
     allowed = mapped_fields(REGULATORY_INDEX) | {"_id"}
-    for record in (ANCHOR, ALL_LOTS, NO_OPENFDA):
+    for record in (ANCHOR, ALL_LOTS, NO_OPENFDA, ZIP4_ADDRESS, COMMA_PAIRS):
         doc = to_doc(record, indexed_at="2026-09-19T00:00:00Z", disclaimer="Do not rely…")
         assert doc is not None
         assert set(doc) <= allowed

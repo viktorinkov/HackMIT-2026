@@ -14,6 +14,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.knowledge import normalize
 from backend.knowledge.client import KnowledgeError
 from backend.knowledge.search import (
+    MAX_REGULATORY_SIZE,
+    MAX_RERANK_SIZE,
+    MAX_WEB_SIZE,
     KnowledgeSearch,
     SearchFilters,
     build_lot_query,
@@ -46,7 +49,9 @@ async def search_knowledge(
     country: Annotated[list[str] | None, Query()] = None,
     severity: Annotated[list[str] | None, Query()] = None,
     max_age_days: int | None = None,
-    size: int = 10,
+    source_tier: Annotated[list[str] | None, Query()] = None,
+    scan_id: str | None = None,
+    size: Annotated[int, Query(ge=1, le=MAX_REGULATORY_SIZE)] = 10,
     rerank: bool | None = None,
     debug: bool = False,
 ) -> dict[str, Any]:
@@ -59,15 +64,51 @@ async def search_knowledge(
         severities=severity or [],
         max_age_days=max_age_days,
     )
+    use_rerank = ks.rerank_enabled(rerank)
     origin = utc_origin()
+    applied: dict[str, Any]
+    if index == "web":
+        # The web index carries none of these, and silently ignoring them would
+        # return an unfiltered result set under a body claiming otherwise.
+        if not filters.is_empty() or rerank is not None:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "drug/dosage_form/doc_type/source_org/country/severity/max_age_days"
+                    " and rerank are regulatory-only; use source_tier and scan_id with index=web"
+                ),
+            )
+        if size > MAX_WEB_SIZE:
+            raise HTTPException(
+                status_code=422, detail=f"size must be <= {MAX_WEB_SIZE} for index=web"
+            )
+        applied = {"source_tiers": list(source_tier or []), "scan_id": scan_id}
+    else:
+        if source_tier or scan_id:
+            raise HTTPException(
+                status_code=422, detail="source_tier and scan_id apply to index=web only"
+            )
+        if use_rerank and size > MAX_RERANK_SIZE:
+            raise HTTPException(
+                status_code=422, detail=f"size must be <= {MAX_RERANK_SIZE} when rerank is on"
+            )
+        applied = filters.to_dict()
     try:
         if index == "web":
-            hits = await ks.search_web(q, size=size)
-            body = build_web_query(q, origin=origin, size=size)
+            hits = await ks.search_web(
+                q, size=size, source_tiers=source_tier or None, scan_id=scan_id
+            )
+            body = build_web_query(
+                q,
+                origin=origin,
+                size=size,
+                source_tiers=source_tier or None,
+                scan_id=scan_id,
+            )
         else:
-            hits = await ks.search_regulatory(q, filters, size=size, rerank=rerank)
+            hits = await ks.search_regulatory(q, filters, size=size, rerank=use_rerank)
             body = build_regulatory_query(
-                q, filters, origin=origin, size=size, rerank=bool(rerank)
+                q, filters, origin=origin, size=size, rerank=use_rerank
             )
     except KnowledgeError as exc:
         raise _fail(exc) from exc
@@ -75,7 +116,8 @@ async def search_knowledge(
         "query": q,
         "index": index,
         "origin": origin,
-        "filters": filters.to_dict(),
+        # Only the filters that were actually applied to this search.
+        "filters": applied,
         "count": len(hits),
         "hits": [hit.to_dict() for hit in hits],
     }

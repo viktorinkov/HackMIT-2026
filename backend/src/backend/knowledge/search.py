@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from elasticsearch import ApiError, AsyncElasticsearch
+from elasticsearch import ApiError, AsyncElasticsearch, TransportError
 from fastapi import Depends
 
 from backend.config import Settings, get_settings
@@ -64,13 +64,29 @@ _SEMANTIC_WEIGHT = 1.2
 _REG_WINDOW = 100
 _WEB_WINDOW = 50
 _RERANK_WINDOW = 30
+# A retriever rejects the request when `size` exceeds its rank window, so these
+# are the largest sizes an API surface may accept for each retrieval shape.
+MAX_REGULATORY_SIZE = _REG_WINDOW
+MAX_WEB_SIZE = _WEB_WINDOW
+MAX_RERANK_SIZE = _RERANK_WINDOW
 _EXACT_SIZE = 20
 _NDC_PRECISE_BOOST = 10.0
 _PILL_SIZE = 10
 _SIZE_TOLERANCE_MM = 2.0
 
 _INFERENCE_FIELDS = "_inference_fields"
-_PILL_EXACT_KINDS = ("imprint_exact", "imprint_sorted")
+_PILL_EXACT_KINDS = ("imprint_exact", "imprint_sorted", "imprint_all_parts")
+_ALL_PARTS_BOOST = 45.0
+
+# Corroboration is token overlap, never term equality: normalize_drug_name keeps
+# a label's "Lidocaine HCl" as "lidocaine hcl", which never equals the stored
+# "lidocaine hydrochloride". Tokens shorter than four characters ("hcl", "er")
+# and these dosage/salt words are shared by unrelated products, so they cannot
+# corroborate anything on their own.
+_MIN_NAME_TOKEN = 4
+_GENERIC_NAME_TOKENS = frozenset(
+    {"sodium", "hydrochloride", "tablets", "capsules", "usp"}
+)
 
 _REG_TEXT_FIELDS = (
     f"{Reg.TITLE}^3",
@@ -252,7 +268,9 @@ def build_regulatory_query(
 ) -> dict[str, Any]:
     linear = {
         "linear": {
-            "rank_window_size": _REG_WINDOW,
+            # A retriever rejects a request whose size exceeds its window, so the
+            # window follows an oversized size rather than failing the search.
+            "rank_window_size": max(_REG_WINDOW, size),
             "filter": _regulatory_filters(filters, origin),
             "retrievers": [
                 _decay_leg(
@@ -288,7 +306,7 @@ def build_regulatory_query(
                 "field": Reg.BODY,
                 "inference_id": RERANK_INFERENCE_ID,
                 "inference_text": query,
-                "rank_window_size": _RERANK_WINDOW,
+                "rank_window_size": max(_RERANK_WINDOW, size),
             }
         }
     # No min_score: the linear retriever's output is a weighted sum of minmax'd
@@ -321,7 +339,7 @@ def build_web_query(
         "_source": {"excludes": [Web.RAW, Web.PAGE_SEMANTIC]},
         "retriever": {
             "linear": {
-                "rank_window_size": _WEB_WINDOW,
+                "rank_window_size": max(_WEB_WINDOW, size),
                 "filter": clauses,
                 "retrievers": [
                     _decay_leg(
@@ -391,24 +409,41 @@ def build_pill_query(
     colors = colors or []
     filters: list[dict[str, Any]] = []
     should: list[dict[str, Any]] = []
+    imprint_tiers: list[dict[str, Any]] = []
 
     if imprint:
-        should.extend(
-            [
-                {"term": {Pill.IMPRINT_NORM: {"value": imprint.norm, "boost": 100}}},
-                {"term": {Pill.IMPRINT_SORTED: {"value": imprint.sorted, "boost": 60}}},
-                {"terms": {Pill.IMPRINT_PARTS: imprint.parts, "boost": 25}},
+        imprint_tiers = [
+            {"term": {Pill.IMPRINT_NORM: {"value": imprint.norm, "boost": 100}}},
+            {"term": {Pill.IMPRINT_SORTED: {"value": imprint.sorted, "boost": 60}}},
+            {"terms": {Pill.IMPRINT_PARTS: imprint.parts, "boost": 10}},
+            {
+                "match": {
+                    Pill.IMPRINT_TEXT: {
+                        "query": imprint.text,
+                        "fuzziness": "AUTO",
+                        "boost": 5,
+                    }
+                }
+            },
+        ]
+        if _parts_are_distinctive(imprint.parts):
+            # A phone photo shows ONE face of the pill, while Pillbox stores both
+            # ("b;972;1;0"). Every observed part being present is a strong match.
+            imprint_tiers.insert(
+                2,
                 {
-                    "match": {
-                        Pill.IMPRINT_TEXT: {
-                            "query": imprint.text,
-                            "fuzziness": "AUTO",
-                            "boost": 5,
-                        }
+                    "constant_score": {
+                        "filter": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {Pill.IMPRINT_PARTS: part}} for part in imprint.parts
+                                ]
+                            }
+                        },
+                        "boost": _ALL_PARTS_BOOST,
                     }
                 },
-            ]
-        )
+            )
 
     if rung == 1:
         clause = _shape_filter(shape, mode)
@@ -442,13 +477,19 @@ def build_pill_query(
                 }
             )
 
-    bool_query: dict[str, Any] = {"minimum_should_match": 1 if imprint else 0}
+    bool_query: dict[str, Any] = {}
     if filters:
         bool_query["filter"] = filters
     if should:
         bool_query["should"] = should
-    if not should and not filters:
-        bool_query["must"] = [{"match_all": {}}]
+    if imprint_tiers:
+        # Attribute boosts above must never satisfy the match on their own.
+        bool_query["must"] = [{"bool": {"should": imprint_tiers, "minimum_should_match": 1}}]
+    elif not should and not filters:
+        # Fail closed: nothing survived normalisation, so there is nothing to
+        # match on, and an empty bool (like match_all) would return ten arbitrary
+        # pills labelled as candidates.
+        bool_query["must"] = [{"match_none": {}}]
     return {
         "size": size,
         "_source": {"excludes": [Pill.RAW]},
@@ -498,6 +539,72 @@ def _constant(clause: dict[str, Any], boost: float) -> dict[str, Any]:
     return {"constant_score": {"filter": clause, "boost": boost}}
 
 
+def _as_list(value: Any) -> list[str]:
+    """A keyword field reads back as a string when it holds a single value."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if item is not None]
+    return [str(value)]
+
+
+def normalized_names(values: list[str] | None) -> list[str]:
+    out: list[str] = []
+    for value in values or []:
+        name = normalize.normalize_drug_name(value)
+        if name and name not in out:
+            out.append(name)
+    return out
+
+
+def _name_tokens(values: list[str] | None) -> set[str]:
+    tokens: set[str] = set()
+    for name in normalized_names(values):
+        for token in name.split():
+            if len(token) >= _MIN_NAME_TOKEN and token not in _GENERIC_NAME_TOKENS:
+                tokens.add(token)
+    return tokens
+
+
+def _corroborates(
+    source: dict[str, Any],
+    ndc9: str | None,
+    drug_names: list[str] | None,
+    *,
+    ndc_fields: tuple[str, ...] = (Reg.NDC9, Reg.NDC_FROM_DESCRIPTION),
+) -> bool:
+    """Does this record actually name the scanned product?
+
+    A lot number is unique per manufacturer only and openFDA copies every sibling
+    strength's NDC onto every recall, so neither a lot term hit nor an `ndc9` hit
+    identifies a product on its own. `ndc_fields` is therefore narrowed to
+    `ndc_from_description` (the NDCs written in the recall's own text) wherever the
+    sibling list is what did the retrieving.
+    """
+    if ndc9:
+        for name in ndc_fields:
+            if ndc9 in _as_list(source.get(name)):
+                return True
+    wanted = _name_tokens(drug_names)
+    if not wanted:
+        return False
+    recorded = _name_tokens(
+        _as_list(source.get(Reg.DRUG_NAMES)) + _as_list(source.get(Reg.DRUG_NAMES_EXTRACTED))
+    )
+    return bool(wanted & recorded)
+
+
+def corroborates_product(
+    source: dict[str, Any],
+    ndc9: str | None,
+    drug_names: list[str] | None,
+) -> bool:
+    """Public form of the corroboration test, shared with the evidence layer."""
+    return _corroborates(source, ndc9, drug_names)
+
+
 def _strip_source(source: dict[str, Any]) -> dict[str, Any]:
     return {
         key: value
@@ -538,11 +645,20 @@ class KnowledgeSearch:
         self.web = names.get("web", WEB_PAGES_INDEX)
         self.scans = names.get("scans", SCANS_INDEX)
 
+    def rerank_enabled(self, rerank: bool | None = None) -> bool:
+        """The rerank decision, so a caller can echo the query it actually ran."""
+        return self._settings.research_rerank if rerank is None else rerank
+
     async def _run(self, index: str, body: dict[str, Any]) -> dict[str, Any]:
         try:
             return await self._es.search(index=index, **_call_kwargs(body))
         except ApiError as exc:
             raise KnowledgeError(f"search on {index} failed: {exc.message}") from exc
+        except TransportError as exc:
+            raise KnowledgeError(
+                f"search on {index} failed: Elasticsearch is unreachable ({type(exc).__name__})",
+                status_code=503,
+            ) from exc
 
     async def _hits(
         self,
@@ -574,16 +690,37 @@ class KnowledgeSearch:
             highlight=_first_highlight(raw),
         )
 
-    async def recalls_by_lot(self, lot: str) -> list[Hit]:
+    async def recalls_by_lot(
+        self,
+        lot: str,
+        *,
+        ndc9: str | None = None,
+        drug_names: list[str] | None = None,
+    ) -> list[Hit]:
+        """Lot evidence, corroborated against the product the label names.
+
+        Lot strings are unique per manufacturer only, and the corpus also carries
+        extraction artefacts ("MG30", "080615"), so a bare term hit is a collision
+        as often as a match. A hit that does not also name this product is returned
+        as `lot_only_match` — still visible, but not the strongest evidence tier.
+        When the label yielded no product context at all, nothing better than the
+        lot is available and the hit keeps `exact_lot`.
+        """
         normalized = normalize.normalize_lot(lot)
         if not normalized:
             return []
-        return await self._hits(
-            self.regulatory,
-            build_lot_query(normalized),
-            recency_field=Reg.RECENCY_DATE,
-            match_kind="exact_lot",
+        hits = await self._hits(
+            self.regulatory, build_lot_query(normalized), recency_field=Reg.RECENCY_DATE
         )
+        has_context = bool(ndc9) or bool(normalized_names(drug_names))
+        for hit in hits:
+            corroborated = not has_context or _corroborates(hit.source, ndc9, drug_names)
+            hit.match_kind = "exact_lot" if corroborated else "lot_only_match"
+        # The body already sorts by severity then recency; this stable pass only
+        # lifts corroborated records above collisions, so the dedupe below keeps
+        # the corroborated record of an event rather than an arbitrary sibling.
+        hits.sort(key=lambda hit: hit.match_kind != "exact_lot")
+        return _dedupe_by_event(hits)
 
     async def recalls_covering_all_lots(
         self,
@@ -592,7 +729,7 @@ class KnowledgeSearch:
         drug_names: list[str] | None = None,
     ) -> list[Hit]:
         """Recalls that name no lots at all, so every lot of the product is in scope."""
-        names = [n for n in (normalize.normalize_drug_name(v) for v in drug_names or []) if n]
+        names = normalized_names(drug_names)
         should: list[dict[str, Any]] = []
         if ndc9:
             should.append({"term": {Reg.NDC_FROM_DESCRIPTION: ndc9}})
@@ -618,12 +755,18 @@ class KnowledgeSearch:
             },
             "sort": [{Reg.SEVERITY_RANK: "desc"}, {Reg.RECENCY_DATE: "desc"}],
         }
-        return await self._hits(
-            self.regulatory,
-            body,
-            recency_field=Reg.RECENCY_DATE,
-            match_kind="all_lots_product",
-        )
+        hits = await self._hits(self.regulatory, body, recency_field=Reg.RECENCY_DATE)
+        for hit in hits:
+            # The `ndc9` leg retrieves on openFDA's sibling list, so only the NDCs
+            # written in the recall's own text can corroborate the product here.
+            corroborated = _corroborates(
+                hit.source, ndc9, drug_names, ndc_fields=(Reg.NDC_FROM_DESCRIPTION,)
+            )
+            hit.match_kind = "all_lots_product" if corroborated else "all_lots_sibling"
+        hits.sort(key=lambda hit: hit.match_kind != "all_lots_product")
+        # One recall event is indexed once per sibling strength; without this a
+        # single valsartan recall becomes a dozen identical serious findings.
+        return _dedupe_by_event(hits)
 
     async def recalls_by_ndc(self, ndc: NdcForms) -> list[Hit]:
         """Product-line evidence only.
@@ -656,7 +799,7 @@ class KnowledgeSearch:
         size: int = 10,
         rerank: bool | None = None,
     ) -> list[Hit]:
-        use_rerank = self._settings.research_rerank if rerank is None else rerank
+        use_rerank = self.rerank_enabled(rerank)
         body = build_regulatory_query(
             query, filters, origin=utc_origin(), size=size, rerank=use_rerank
         )
@@ -710,10 +853,33 @@ class KnowledgeSearch:
         score_norm = vocab.normalize_score(score)
         size_norm = vocab.parse_size_mm(size_mm)
         mode = self._settings.shape_filter_mode
+        filters_applied = {
+            "imprint_norm": forms.norm if forms else None,
+            "shape": shape_norm,
+            "shape_family": vocab.shape_family(shape_norm),
+            "shape_filter_mode": mode,
+            "colors": color_tokens,
+            "score": score_norm,
+            "size_mm": size_norm,
+        }
+
+        # No attribute survived normalisation: there is no query to run, and any
+        # rows returned would be arbitrary rather than candidates.
+        if (
+            not forms
+            and not shape_norm
+            and not color_tokens
+            and score_norm is None
+            and size_norm is None
+        ):
+            return PillMatch(
+                hits=[], rung=0, shape_relaxed=False, filters_applied=filters_applied
+            )
 
         # Without an imprint there is nothing to be exact about, so only an empty
         # result justifies dropping the shape filter.
         rungs = (1, 2, 3) if forms else (1, 2)
+        rung1_shape = _shape_filter(shape_norm, mode)
         hits: list[Hit] = []
         used = rungs[0]
         for rung in rungs:
@@ -739,16 +905,12 @@ class KnowledgeSearch:
         return PillMatch(
             hits=hits,
             rung=used,
-            shape_relaxed=used > 1 and shape_norm is not None,
-            filters_applied={
-                "imprint_norm": forms.norm if forms else None,
-                "shape": shape_norm,
-                "shape_family": vocab.shape_family(shape_norm),
-                "shape_filter_mode": mode,
-                "colors": color_tokens,
-                "score": score_norm,
-                "size_mm": size_norm,
-            },
+            # Only true when a shape clause was actually applied on rung 1 and
+            # dropping it is what produced these candidates: an imprint that is
+            # simply absent from Pillbox climbs every rung and finds nothing,
+            # which is no evidence of a shape disagreement.
+            shape_relaxed=bool(hits) and used > 1 and rung1_shape is not None,
+            filters_applied=filters_applied,
         )
 
     async def ndc_directory(self, ndc: NdcForms) -> list[Hit]:
@@ -825,7 +987,18 @@ def _pill_match_kind(source: dict[str, Any], forms: ImprintForms | None) -> str:
         return "imprint_exact"
     if source.get(Pill.IMPRINT_SORTED) == forms.sorted:
         return "imprint_sorted"
+    parts = source.get(Pill.IMPRINT_PARTS) or []
+    if isinstance(parts, str):
+        parts = [parts]
+    if _parts_are_distinctive(forms.parts) and set(forms.parts) <= set(parts):
+        return "imprint_all_parts"
     return "imprint_partial"
+
+
+def _parts_are_distinctive(parts: list[str]) -> bool:
+    """One short fragment ("B", "10") appears on thousands of pills; two parts, or
+    one part of three or more characters, is specific enough to trust."""
+    return len(parts) >= 2 or any(len(part) >= 3 for part in parts)
 
 
 def _dedupe_by_event(hits: list[Hit]) -> list[Hit]:

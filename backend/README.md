@@ -176,6 +176,38 @@ Seeding spends **0 Firecrawl credits and 0 LLM tokens** (every source is a plain
 | `mhra` | `peel-regulatory` | gov.uk Search + Content APIs | 588 | batch numbers from HTML `<table>` and prose | Open Government Licence v3.0 |
 | `health_canada` | `peel-regulatory` | Health Canada bulk JSON export + up to 600 cached detail pages | 3,840 | lots/manufacturer from the newest detail pages' "Affected products" table | Open Government Licence – Canada |
 
+Of the 17,963 FDA enforcement records, 13,511 carry at least one lot number (75,290 lot numbers in
+total) — the rest are recalls that never named a batch, which is exactly what `covers_all_lots` /
+`recalls_covering_all_lots` exist to cover (see [Retrieval](#retrieval)).
+
+Parsing notes worth knowing, all in `knowledge/normalize.py` unless noted: `lot_code`/`code_token`
+(a single table-cell token is a real code, not a date/strength/stopword), `code_tokens` (every
+code-shaped token in a cell, so `"T43157 (Almus)"` yields `["T43157"]` instead of the
+un-matchable, whole-cell-normalized `"T43157ALMUS"`), and `mentions_all_lots` (the "all
+lots"/"every batch" phrasing) are now public and shared by every table-driven source rather than
+copied per module. `extract_lots`' date/NDC/UPC masking now inserts a break character (`;`) at the
+start of a masked span instead of blank padding — blank padding let an `EXP`/other aside opened
+before a masked expiry date swallow every lot listed after it, silently dropping them; a compound
+header like `"Lot, expiry:"` (where the values that follow lead with the lot column) is now
+recognised as one header instead of immediately opening an aside that ate the first lot.
+`openfda_enforcement` strips ZIP+4 postal codes from the firm's address before extracting NDCs,
+because `Bethlehem, PA 18018-3524` has the same 5-4 shape as a product NDC. `mhra`'s table parser
+validates the header's batch column against its first data rows before trusting it (gov.uk does
+not always follow its own header order), tokenizes each cell instead of normalizing it whole, and
+expands a `"From X to Y"` batch range into its two endpoints — or every code in between when the
+range is numeric, equal-width and no more than 200 codes wide; its recall-class detection is a
+widened title regex (`Class N ... Recall/Notification/Defect...`, not just `Class N:`) with a
+title-derived severity fallback so a `Class 2` alert can never silently fall to `unknown`
+severity. `health_canada` gates every "Affected products" table cell through the same code-shape
+test rather than a bare split, and sets `covers_all_lots` from the lot cell's own "All lots"
+wording. `openfda_ndc` picks the bulk zip's `.json` entry by extension, not position, so a bundled
+README or checksum file sorted first can't empty the whole source. The MHRA discovery listing
+(gov.uk Search API pages) is reused across runs only when a `search-index.complete` marker
+confirms an earlier *unlimited* run wrote it, or the cached listing already covers the current
+run's own `--limit` — a `--limit` run's partial listing is never mistaken for the full one. A
+source that parses to zero documents makes `peel-seed` exit non-zero with status `empty` rather
+than reporting `ok`.
+
 Raw downloads live in `backend/data/raw/<source>/`; parsed, index-ready documents are also
 tee'd to `backend/data/normalized/<source>.jsonl` on every run (`seed/cli.py: _tee_jsonl`). Both
 directories, plus the append-only `backend/data/seed-runs.jsonl` run log, are **gitignored**
@@ -198,6 +230,17 @@ Inference Service model `.jina-embeddings-v5-text-small`). Every mapping is `dyn
 (`knowledge/indices.py`): an unmapped field is a hard index-time rejection, which is what keeps
 `knowledge/fields.py` the single source of truth for field names across mappings, seed adapters,
 the search builder and the ES|QL tool strings.
+
+`app.py`'s `lifespan` calls `ensure_indices()` at startup so all five strict mappings exist before
+the first request — a `peel-scans` created implicitly by the first `POST /scans` would otherwise
+get a loose dynamic mapping instead. This is **non-fatal**: if the cluster is unreachable at boot
+it just logs a warning, and the store answers its normal 503 per-request instead. On shutdown,
+`lifespan` cancels every in-flight research `asyncio.Task` (`research.pipeline.cancel_all`)
+*before* closing the Elasticsearch and Agent Builder clients, so a task's own in-flight call
+cannot race a connection that has already been torn down. The Elasticsearch client itself raises
+its connection pool to `connections_per_node=32` (`knowledge/client.py`) — a scan indexes pages,
+polls its own status and searches concurrently, and the default pool of 10 was starving pollers
+and surfacing as `ConnectionTimeout`.
 
 **Three of the five indices carry no vector field at all** — `peel-pills` and `peel-ndc` are pure
 attribute/keyword lookups (pill physical features and NDC identity aren't semantic questions),
@@ -231,7 +274,7 @@ mean nothing semantically. Exact lot/NDC matching is handled separately, by keyw
 | Field(s) | Used for |
 |---|---|
 | `imprint_norm`, `imprint_sorted` | **Exact** term match — rungs 1–2 of the identification ladder. |
-| `imprint_parts`, `imprint_text` | Boosted `terms`/fuzzy `match` — the fallback rung. |
+| `imprint_parts`, `imprint_text` | `imprint_parts` also backs the **`imprint_all_parts`** strong-match tier (every observed marking present, for a photo of one face of a two-sided pill), then a boosted `terms` match; `imprint_text` is the fuzzy fallback rung. |
 | `shape`, `shape_family` | **Filter** (rung 1, mode-dependent) or **boost** (rung 2) — see [Retrieval](#retrieval). |
 | `colors`, `score`, `size_mm` | Boost / range boost, never a hard filter. |
 | `medicine_name`, `generic_name(.txt)`, `strength`, `ingredients(.txt)`, `labeler(.txt)`, `product_ndc`, `rxcui` | Display + cross-reference. |
@@ -304,6 +347,20 @@ A regulatory record never falls below 35% of its un-decayed relevance no matter 
 page decays much faster (7-day half-life) since a live search result is only interesting while
 it's fresh.
 
+**Lot corroboration.** A lot string is unique per manufacturer only, and the corpus also carries
+extraction artefacts ("MG30", "080615"), so a bare term hit on `lot_numbers` is a collision as
+often as a match. `recalls_by_lot(lot, *, ndc9=None, drug_names=None)` therefore classifies every
+hit *after* retrieval with the same corroboration check `recalls_covering_all_lots` uses, exposed
+publicly as `corroborates_product()` for tests and future callers: a hit whose
+`ndc9`/`ndc_from_description` or `drug_names`/`drug_names_extracted` token-overlaps the scanned
+product — or one where the label gave no product context to check against at all — keeps
+`match_kind = "exact_lot"`; a lot-string collision with a *different* product is downgraded to
+`"lot_only_match"`. `recalls_covering_all_lots` (recalls that name no lots at all, so the entire
+product line is in scope) applies the same test and tags `"all_lots_product"` vs
+`"all_lots_sibling"` (reached only through openFDA's sibling-strength NDC list). Both methods sort
+corroborated hits first and *then* dedupe by `event_id`, so a corroborated record — not an
+uncorroborated sibling that happens to share the same recall event — is the one kept.
+
 **NDC semantics.** `openfda.product_ndc`/`package_ndc` on an FDA enforcement record enumerate
 *every sibling strength* of the recalled product line — a 200 mcg levothyroxine recall's own
 `openfda` block lists all twelve Accord strengths. `Reg.NDC_FROM_DESCRIPTION` is populated
@@ -311,19 +368,51 @@ it's fresh.
 and is boosted 10× (`_NDC_PRECISE_BOOST`) over the sibling-NDC fields so the actually-relevant
 record survives the size cap and ranks first. `recalls_by_ndc` tags each hit's `match_kind` as
 `ndc_in_description` (precise) or `product_line_match` (a sibling strength) — **an NDC hit alone
-is never treated as a recall match**; only an exact lot hit, or an all-lots recall whose own text
-names this NDC, reaches verdict `recall_match` (`evidence.py: verdict_from_evidence`).
+is never treated as a recall match, whichever `match_kind` it carries**. Only the `exact_lot_hits`
+and `all_lots_hits` lookups can produce verdict `recall_match`, and then only for entries tagged
+`exact_lot`/`all_lots_product` (`evidence.py: verdict_from_evidence`); `lot_only_match` and
+`all_lots_sibling` — like every `recalls_by_ndc` hit — are folded into caution-level findings
+instead.
 
 **Pill identification ladder** (`KnowledgeSearch.identify_pill`) climbs rungs until an exact
-imprint form matches: **rung 1** — exact `imprint_norm`/`imprint_sorted` term match, shape as a
-**hard filter** (`SHAPE_FILTER_MODE`: `family` matches the shape family —
-round/elongated/quadrilateral/diamond/triangle/polygon/irregular — `strict` matches the literal
-shape, `boost` never filters); **rung 2** (only if rung 1 is empty) — same imprint match, shape
-downgraded to a **3× boost**; **rung 3** (only if an imprint exists but rung 2 found nothing
-exact) — fuzzy `imprint_text` match, no shape at all. `shape_relaxed = true` whenever rung 2/3 was
-needed, which `derive_mismatches` surfaces as a low-confidence "shape disagreement" rather than
-silently dropping the observation — a vision-read shape is far less reliable than the label's
-exact text, so it never zeroes out a lookup on its own.
+imprint form matches. Every imprint tier lives inside its own `must` clause
+(`bool_query["must"] = [{"bool": {"should": imprint_tiers, "minimum_should_match": 1}}]`) so a
+colour, score or size `should` boost can never satisfy the query by itself — those only re-rank
+among documents that already matched an imprint tier. The tiers, highest boost first:
+`imprint_norm` (100) and `imprint_sorted` (60) exact term matches; **`imprint_all_parts`** (45) —
+a phone photo shows only *one face* of a pill whose Pillbox reference lists both (`"b;972;1;0"`),
+so once the observed parts are "distinctive" (two or more parts, or one of three-plus characters)
+and every one of them is present in the stored `imprint_parts`, that counts as a strong match even
+though the full joined string never matches; then a boosted `terms` match on `imprint_parts` (10)
+and a fuzzy `imprint_text` `match` (5) as the lowest tier. `imprint_norm`, `imprint_sorted` and
+`imprint_all_parts` all count as "exact" for ladder purposes (`_PILL_EXACT_KINDS`). **Rung 1**
+additionally applies shape as a **hard filter** (`SHAPE_FILTER_MODE`: `family` matches the shape
+family — round/elongated/quadrilateral/diamond/triangle/polygon/irregular — `strict` matches the
+literal shape, `boost` never filters); **rung 2** (only if rung 1 found no exact-tier hit) repeats
+the imprint match with shape downgraded to a **3× boost**; **rung 3** (only if an imprint exists
+but rung 2 still found nothing exact) drops shape entirely, keeping only the fuzzy tier. The
+pipeline passes the imprint **as read** (`imprint.imprint`, e.g. `"b 972"`) rather than the
+already-joined `norm.imprint_norm`, because the all-parts tier depends on part boundaries that
+`"B972"` would lose. `shape_relaxed = true` only when rung 2/3 actually produced hits, the ladder
+needed rung > 1, *and* rung 1 had a real shape filter to drop (`rung1_shape is not None`) — an
+imprint simply absent from Pillbox climbs every rung and finds nothing, which is not a shape
+disagreement. `derive_mismatches` surfaces `shape_relaxed` as a low-confidence "shape
+disagreement" rather than silently dropping the observation, since a vision-read shape is far less
+reliable than the label's exact text. A query with no imprint, shape, colour, score or size at all
+fails closed before any Elasticsearch call (`rung = 0`, no hits); `build_pill_query` itself falls
+back to `match_none` as a second line of defence if it is ever called with nothing left to filter,
+boost or require.
+
+**Evidence pack trimming** (`research/evidence.py: build_evidence`, capped at
+`MAX_EVIDENCE_CHARS` = 14,000 characters): `web_hits` are ranked by importance — a page naming the
+label's own lot first, then a regulator alert about this drug, then any other regulator page,
+newest first within each tier — *before* the tail-first size cap trims the pack, so trimming can
+only drop the least useful hits, never reorder the ones that survive. A scan with no pill imprint
+skips identification entirely (`pill_skipped = "no imprint read"`) rather than matching on shape
+and colour alone, which tens of thousands of pills share. Neither the Agent Builder prompt nor the
+stage-5 coercion payload ever includes `hardware.spectrum`: `_trimmed_hardware` strips it before
+either call, since it is an unbounded float array no model can use and a non-conforming client
+could make megabytes long.
 
 **Freshness labels** (`normalize.freshness_label`): `today` (≤1 day), `this_week` (≤7),
 `this_month` (≤31), `this_year` (≤365), `older`, or `unknown` when no recency date exists.
@@ -332,7 +421,13 @@ exact text, so it never zeroes out a lookup on its own.
 url_hash(url)` before every write. New page → `first_seen_at = last_changed_at = now`,
 `revision = 1`. Unchanged `content_hash` → only `fetched_at` moves; `recency_date` (`published_at`
 or `last_changed_at`, **never `fetched_at`**) stays put, so re-fetching stale content can't make it
-rank as fresh. Changed content → `last_changed_at = now`, `revision` increments.
+rank as fresh. Changed content → `last_changed_at = now`, `revision` increments. Every write is
+guarded by optimistic concurrency: a brand-new page uses `op_type: create` so a racing concurrent
+create conflicts instead of silently overwriting, and an existing page is guarded by
+`if_seq_no`/`if_primary_term` from the version just read; a `ConflictError` retries the whole
+read-modify-write exactly once before giving up, because two searches for one scan that return the
+same URL must not let one side's `query_key` (and the cache hit it buys next time) get lost to the
+other's write.
 
 **TTL cache by source tier** (`WebResearcher.cached_page_ids`): before spending a credit, look for
 ≥2 pages already indexed under the same `query_key`/`queries` and still inside their tier's TTL
@@ -353,7 +448,7 @@ validated against the real mappings when they're created.
 | `peel.recalls_by_ndc` | Product-line recall lookup by 9-digit NDC; tags `ndc_in_recall_text` vs. `same_product_line`. | `ndc9` |
 | `peel.regulatory_search_text` | Keyword search with exact metadata filters and a recency decay boost. | `query`, `drug?`, `source_org?`, `doc_type?`, `dosage_form?`, `country?`, `max_age_days?` |
 | `peel.regulatory_search_semantic` | Unfiltered vector search over `body_semantic`, score-thresholded. | `query`, `min_score?` |
-| `peel.pill_lookup` | Imprint (+ optional shape/family) lookup in `peel-pills`. | `imprint`, `shape?` |
+| `peel.pill_lookup` | Imprint (+ optional shape/family) lookup in `peel-pills`, imprint passed **as read** and matched with `MATCH ... {"operator": "AND"}`. | `imprint`, `shape?` |
 | `peel.ndc_lookup` | Resolve a 9-digit NDC to its registered product identity. | `ndc9` |
 | `peel.web_evidence_search` | Search already-fetched web pages, decayed on a 7-day half-life. | `query`, `source_tier?` |
 | `peel.prior_scans` | Count earlier Peel scans of the same lot/NDC, by verdict. | `lot?`, `ndc9?` |
@@ -372,6 +467,13 @@ validated against the real mappings when they're created.
   `.jina-embeddings-v5-text-small` — not a universal Elasticsearch default.
 - Optional params use an `"any"` sentinel plus `optional: true` + `defaultValue: "any"`, checked
   with `?param == "any" OR ...` — ES|QL tool params have no native "unset" concept.
+- `peel.pill_lookup` takes the imprint **as read**, uppercase, with a single space between
+  markings (`"B 972"`, not the joined `"B972"`). The exact-form check strips spaces itself
+  (`compact = REPLACE(?imprint, " ", "")`) so it doesn't care either way, but
+  `MATCH(imprint_text, ?imprint, {"operator": "AND"})` tokenizes `?imprint` directly — a joined
+  `"B972"` becomes one token that may not match at all, where `"B 972"` requires the two tokens
+  `B` and `972` both be present. The agent's own instructions tell it to pass `imprint.imprint`
+  this way rather than a normalized form.
 
 **Enabling the optional Firecrawl connector:** set `AGENT_BUILDER_FIRECRAWL_CONNECTOR_ID` to a
 Kibana `.firecrawl` connector id. When set, it's attached to the agent's `connector_ids` so the
@@ -388,10 +490,18 @@ of which side did the fetching.
 | Endpoint | Notes |
 |---|---|
 | `POST /scans` | 202 Accepted. Creates the scan doc (`status: pending`) and launches background research. |
-| `GET /scans?device_id=&lot=&ndc=&limit=&after=` | Cursor-paginated history; `lot`/`ndc` are normalized server-side and a filter that normalizes to nothing returns an empty page rather than silently dropping the filter. |
-| `GET /scans/{scan_id}` | Full `ScanEnvelope`. |
-| `GET /scans/{scan_id}/context?as_string=` | The ElevenLabs `scan_context` handoff — `to_scan_context()` as a dict, or (with `as_string=true`) `{"scan_context": "<json string>"}`, because ElevenLabs dynamic variables must be strings. |
+| `GET /scans?device_id=&lot=&ndc=&limit=&after=` | Requires at least one of `device_id`, `lot` or `ndc` — **422** otherwise (`ScanStore.list` itself raises on an empty filter set as a second line of defense, since an unscoped query would dump every device's history). Cursor-paginated; `lot`/`ndc` are normalized server-side and a filter that normalizes to nothing returns an empty page rather than silently dropping the filter. |
+| `GET /scans/{scan_id}` | Full `ScanEnvelope`, including the top-level `country` field. |
+| `GET /scans/{scan_id}/context?as_string=` | The ElevenLabs `scan_context` handoff — `to_scan_context()` as a dict, or (with `as_string=true`) `{"scan_context": "<json string>"}`, because ElevenLabs dynamic variables must be strings. The `hardware` block carries both the derived `status`/`degradation` and the device's raw `reported_status`, so a "fake" reading with no identified pill type still reads as more than merely inconclusive. |
 | `POST /scans/{scan_id}/research` | Re-run research. `{"force": true}` cancels any in-flight run and restarts; otherwise 409 if one is already running, 503 if the pipeline module isn't loaded. |
+
+`ScanCreate` (`scans/models.py`) bounds every field an oversized payload could inflate:
+`hardware.spectrum` to `MAX_SPECTRUM_LEN` (4096) floats, `bottle.visible_warnings` to
+`MAX_VISIBLE_WARNINGS` (50) items of `MAX_WARNING_LEN` (500) characters each, every other
+free-text label/imprint field to `MAX_TEXT_FIELD_LEN` (4000) characters, and `hardware_model` to
+128 characters — all rejected with a validation error before the scan is ever stored. Elasticsearch
+transport errors (timeouts, dropped connections) surface as **503** from every `scans` endpoint,
+not a generic 502, so a client can tell "retry me" apart from "this request is wrong".
 
 ```bash
 curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
@@ -417,6 +527,16 @@ each stage's write immediately. Poll until `status` is `complete`/`error`; a `pa
 
 Debug/demo surface over retrieval, independent of the scan pipeline. Every endpoint accepts
 `?debug=true` to also return the exact query body sent to Elasticsearch.
+
+`GET /knowledge/search` bounds `size` per retrieval shape — `MAX_REGULATORY_SIZE` (100),
+`MAX_WEB_SIZE` (50) and `MAX_RERANK_SIZE` (30), `knowledge/search.py` — mirroring each retriever's
+own `rank_window_size`, since a retriever rejects a request whose `size` exceeds its window; every
+query itself sets `rank_window_size = max(window, size)`, so an oversized `size` widens the window
+rather than failing outright. It returns **422** when a regulatory-only filter (`drug`,
+`dosage_form`, `doc_type`, `source_org`, `country`, `severity`, `max_age_days`, `rerank`) is passed
+with `index=web`, when `source_tier`/`scan_id` is passed with the default `index=regulatory`, when
+`size` exceeds 50 for `index=web`, or when `size` exceeds 30 with `rerank` on — silently ignoring
+an unsupported filter would return an unfiltered result set under a body that claims otherwise.
 
 ```bash
 curl -s "localhost:8000/knowledge/lot/D2402430"
@@ -447,9 +567,14 @@ curl -s "localhost:8000/knowledge/stats"
 
 At the defaults, one scan costs at most `2 × (2 + 3) = 10` credits — exactly the per-scan cap.
 Stage 3 plans queries *against* this budget up front (`planned = min(max_searches_per_scan,
-max_credits_per_scan // cost_per_search)`), so it never builds a search it can't afford and then
-reports a false "budget spent" gap. A cache hit (≥2 pages already indexed for the query within
-its tier's TTL, see [Retrieval](#retrieval)) costs 0 credits. Blocked domains
+max_credits_per_scan // cost_per_search)`), reserves the whole plan before it runs, and then fires
+every planned search **concurrently** (`asyncio.gather`) inside a 75 s stage budget
+(`WEB_TIMEOUT_S`, `research/pipeline.py`) — so it never builds a search it can't afford and then
+reports a false "budget spent" gap, and a slow search cannot starve the others out of their share
+of the timeout. A cache hit (≥2 pages already indexed for the query within its tier's TTL, see
+[Retrieval](#retrieval)) costs 0 credits: its up-front reservation is handed back with
+`CreditBudget.refund()`, so the process-wide daily counter is not consumed by a call that never
+actually went out. Blocked domains
 (`EXCLUDED_DOMAINS` — facebook.com, instagram.com, tiktok.com, x.com, twitter.com, youtube.com,
 reddit.com, pinterest.com, linkedin.com) are appended to every query as `-site:` exclusions
 (advisory only) **and** enforced again after the fetch (`web.py: is_blocked`): a blocked page
@@ -460,12 +585,35 @@ become citable evidence.
 
 - The `Verdict` enum (`research/models.py`) is `no_adverse_findings | mismatch_found |
   recall_match | insufficient_evidence` — **there is no positive-assurance value**. The product
-  never says "safe", "genuine", "verified" or "authentic"; `enforce_guardrails` strips any
-  sentence containing those words unless the same sentence already negates them, and rewrites
-  the headline to a neutral one if it doesn't.
-- **Only an exact lot match, or an all-lots recall whose own text names this NDC, reaches
-  `recall_match`.** An NDC hit that merely shares a product line is downgraded to a caution-level
-  finding — see [Retrieval](#retrieval).
+  never says "safe", "genuine", "verified" or "authentic". `enforce_guardrails` checks banned
+  words **clause-scoped, not sentence-scoped** — "no recall was found, so this medicine is
+  genuine" still trips it, because the negation sits in a different clause than the assurance —
+  and neutralises the headline, every finding statement, mismatch explanation and gap that fails
+  the check, not just the top-level fields. The mandated no-findings disclaimer is allowlisted by
+  its own marker text rather than by the word "not" inside it, so it survives the same filter that
+  would otherwise strip it.
+- **Verdict corrections are two-way, and an upgrade rebuilds the whole recall side of the
+  report.** If the model wrote `recall_match` but the evidence does not support it,
+  `enforce_guardrails` downgrades the verdict and clears `recall_hits`. If the evidence supports
+  `recall_match` but the model wrote something weaker, it upgrades the verdict *and* replaces
+  `headline`, `findings`, `recall_hits`, `sources` and `next_steps` wholesale from
+  `deterministic_report` — a model that missed the recall wrote every one of those fields for the
+  wrong conclusion, so patching just the verdict field would leave a `recall_match` report that
+  still reads like nothing was found. Separately, a lot/all-lots lookup that itself failed
+  (`recall_lookup_failed`) forces `insufficient_evidence` instead of `no_adverse_findings`, even
+  when nothing else went wrong — a search that never ran cannot support "nothing was found".
+- **Only `exact_lot`/`all_lots_product` reach `recall_match`.** `lot_only_match` (a lot string
+  that collides with a different product) and `all_lots_sibling` (reached only through openFDA's
+  sibling-strength NDC list) are downgraded to caution-level findings — see
+  [Retrieval](#retrieval).
+- **Every citation is rebuilt from canonical evidence, never trusted verbatim from the model.**
+  The model may only choose *which* stored source id to cite; `source_index`/`resolve_source_id`
+  resolve whatever id, URL or title it wrote back to the evidence pack's own record, so a retyped
+  title or a mangled id can never introduce fabricated metadata. A finding left with no resolvable
+  id is dropped unless its `evidence_type` is one of the sourceless exemptions (hardware result,
+  bottle label, prior-scan signal) or it carries the mandated disclaimer. Every string is scrubbed
+  of C0 control characters before any of these checks run — gpt-4o has been observed turning a
+  retyped JSON escape into a stray control byte that could otherwise split a banned word.
 - Every `no_adverse_findings` verdict is required to carry `SAFE_NO_FINDINGS_TEXT` verbatim
   ("...that is not a confirmation that this medicine is genuine or safe..."), enforced by
   `_ensure_safe_wording` even if the LLM omitted it.
@@ -478,10 +626,13 @@ become citable evidence.
   it is simulated and "not proof that this particular tablet is falsified or substandard"
   (`_corroboration_finding`) — never a compounded certainty claim.
 - **Sensitive label fields are dropped at the API boundary, not just from a display layer.**
-  `sanitize_bottle()` (`scans/normalizer.py`) never writes `rx_number`, `pharmacy` or
-  `directions` into `peel-scans` unless `SCANS_STORE_SENSITIVE=true`; it stores boolean
-  `*_present` flags instead, so an Rx number, a pharmacy name and a photo timestamp — together a
-  re-identifiable record — cannot be reconstructed from the default index.
+  `sanitize_bottle()` (`scans/normalizer.py`) never writes `rx_number`, `pharmacy`, `directions`
+  or the free-text `other_label_text` into `peel-scans` unless `SCANS_STORE_SENSITIVE=true`; it
+  stores boolean `*_present` flags for the first three instead. `imprint_doc()` applies the same
+  rule to the imprint photo's own free-text `notes` field. A patient's name, address or pharmacy
+  visit tends to end up in exactly these free-text fields, so an Rx number, a pharmacy name and a
+  photo timestamp — together a re-identifiable record — cannot be reconstructed from the default
+  index.
 - **Image bytes are never stored.** `photos[]` carries only `{target, sha256, bytes,
   media_type}` (`ScanCreate.photos: list[PhotoRef]`); the fingerprint, not the picture.
 - **Licensing travels with the data.** openFDA's disclaimer and terms URL are stored per
@@ -496,7 +647,7 @@ become citable evidence.
 ## Testing and verification
 
 ```bash
-uv run pytest                    # 744+ unit tests; live-cluster tests auto-skipped
+uv run pytest                    # 922 passed, 14 skipped; live-cluster tests auto-skipped
 PEEL_LIVE=1 uv run pytest -m live   # also run the live-cluster suite
 uv run python scripts/smoke.py      # read-only smoke test against the real cluster (17/17 checks)
 uv run python scripts/smoke.py --e2e   # + one full scan (<=10 Firecrawl credits, OpenAI tokens)
@@ -575,8 +726,16 @@ curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
 ## Known limitations and future work
 
 - **Pillbox is frozen at January 2021** — a product launched after that date is simply absent.
-- **Lot *ranges* are not modelled** — only literal lot strings (`extract_lots`,
-  `extract_batches_from_prose`); "lots D24024xx through D24025xx" is not expanded into codes.
+- **Lot *ranges* are not modelled outside one table-driven source.** Prose extraction
+  (`extract_lots`, `extract_batches_from_prose`) only ever reads literal lot strings — "lots
+  D24024xx through D24025xx" is not expanded. The MHRA table parser is the one exception: a
+  `"From X to Y"` batch-column cell expands to every code between the endpoints when the range is
+  numeric, equal-width and at most 200 codes wide, and otherwise falls back to just the endpoints.
+- **Bare 3-4 digit batch codes in MHRA/Health Canada table cells are not indexed.**
+  `code_token`'s code-shape rule requires an all-digit code to be 5-14 digits
+  (`knowledge/normalize.py`), specifically so page numbers, short counters and truncated years in
+  a table cell are never indexed as lots — a genuine short bare-digit batch is therefore missed by
+  the table parser, though it may still be recovered from prose.
 - **Health Canada lots exist only for the newest `--hc-detail-limit` (600) detail pages** — older
   recalls have a title/description but no parsed lot table.
 - **Tier-2 regulators (EMA, TGA, CDSCO, SAHPRA, PMDA, …) are not seeded** — they appear only as
@@ -585,9 +744,17 @@ curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
 - **Hardware is mocked** (`HARDWARE_MODEL = "mock-spectrometry"`); a future `peel-spectra` index
   with real kNN spectral matching is out of scope here, and `hardware.spectrum` is stored
   `index: false, doc_values: false` — write-only today.
-- **Agent latency is real:** one end-to-end run measured 30 s (web) + 77 s (agent) + 7 s (coerce);
-  `AGENT_BUILDER_TIMEOUT_S` (120 s) + a 5 s margin is the stage's own ceiling, which is why
-  stage 2's ~0.3 s deterministic `partial` report exists at all.
+- **Agent Builder latency is real, usually 60-100 s:** one measured end-to-end run took 30 s
+  (web) + 77 s (agent) + 7 s (coerce). `AGENT_BUILDER_TIMEOUT_S` (120 s) + a 5 s margin is the
+  stage's own ceiling, so a client must render the stage-2 `partial` report while stage 4 is still
+  running rather than block on `complete`.
+- **The daily Firecrawl credit cap is per process, not durable.** `_daily_used`
+  (`research/web.py`) lives in memory and resets on a UTC date rollover *or* a process restart, so
+  redeploying or crash-looping resets the counter early — it is a soft guard against runaway spend
+  within one process's uptime, not a hard account-wide limit.
+- **A process restart mid-pipeline leaves a scan at `partial` forever.** The background
+  `asyncio.Task` driving research dies with the process and nothing resumes it automatically;
+  call `POST /scans/{id}/research` (`{"force": true}` if needed) to re-run research on that scan.
 - **Social/video/forum domains are excluded** from Firecrawl (`EXCLUDED_DOMAINS`) — a Facebook or
   Reddit post is never evidence, at the cost of missing genuinely useful crowd reports there.
 - **No authentication.** `device_id` is an arbitrary client string with no verification, and CORS

@@ -22,12 +22,12 @@ from backend.knowledge.fields import REGULATORY_INDEX, Reg
 from backend.knowledge.normalize import (
     classify_doc_type,
     clean_text,
+    code_token,
     extract_batches_from_prose,
     extract_countries,
     html_to_text,
     normalize_dosage_form,
     normalize_drug_name,
-    normalize_lot,
     parse_date,
     severity_for,
     to_iso,
@@ -350,29 +350,12 @@ _MONTH = r"jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec"
 _MONTH_TOKEN_RE = re.compile(
     rf"^(?:\d{{1,2}}[-\s]?)?(?:{_MONTH})[a-z]*\.?(?:[-\s]?\d{{2,4}})?$", re.I
 )
-_STRENGTH_TOKEN_RE = re.compile(r"^\d+(?:[.,]\d+)?\s*(?:mg|mcg|ug|g|kg|ml|l|iu|units?|%)$", re.I)
-_YMD8_RE = re.compile(r"^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])$")
-_CODE_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-/.]{2,31}$")
-_CODE_STOPWORDS = {"EXP", "LOT", "LOTS", "BATCH", "BATCHES", "NDC", "ALL", "NA", "N0", "NO"}
 _LOT_SENTENCE_RE = re.compile(r"\b(?:batch|lot)\b", re.I)
 _TABLE_LOOKAHEAD = 3
 
-
-def _code(token: str) -> str | None:
-    """A batch-column token that is really a code: not a date, not a strength."""
-    token = token.strip(",;|()[]<>\"'")
-    if not token or not _CODE_SHAPE_RE.match(token):
-        return None
-    if _DATE_TOKEN_RE.match(token) or _MONTH_TOKEN_RE.match(token) or _STRENGTH_TOKEN_RE.match(token):
-        return None
-    code = normalize_lot(token)
-    if code is None or code in _CODE_STOPWORDS or not any(c.isdigit() for c in code):
-        return None
-    # Bare digits are only a batch because of the column they sit in, so keep the
-    # shapes real batches use and drop years, page numbers and packed dates.
-    if code.isdigit() and (len(code) < 5 or len(code) > 14 or _YMD8_RE.match(code)):
-        return None
-    return code
+# Promoted to backend.knowledge.normalize so the MHRA table parser applies the
+# identical test; the annex parser keeps calling it under the old local name.
+_code = code_token
 
 
 def _codes_in(text: str, *, first_only: bool = False) -> list[str]:

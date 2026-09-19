@@ -141,8 +141,49 @@ def test_detail_table_din_style_no_nested_tags() -> None:
 
 def test_detail_table_nhp_style_p_wrapped_cells() -> None:
     detail = _extract_detail(NHP_TABLE_HTML)
-    assert detail.lot_numbers == ["737", "737A", "737B", "737C"]
+    # A bare 3-digit run is rejected by the shared code test (the FDA path's
+    # rule): it matches far too much in an exact-match keyword field.
+    assert detail.lot_numbers == ["737A", "737B", "737C"]
     assert detail.manufacturers == ["Platinum Naturals Inc."]
+
+
+def _lot_table(cell: str) -> str:
+    return f"""
+<html><body><main><table id="tablefield-affected_products">
+<thead><tr><th><p>Product Name</p></th><th><p>Lot Number</p></th></tr></thead>
+<tbody><tr><td><p>Ifosfamide for Injection</p></td><td><p>{cell}</p></td></tr></tbody>
+</table></main></body></html>
+"""
+
+
+def test_detail_table_tokens_are_gated_through_the_shared_code_test() -> None:
+    # hc-82226, verbatim: the whole cell used to be split and normalized, so
+    # 'EXPIRY' and '2029' landed in the exact-match lot field.
+    detail = _extract_detail(_lot_table("Lot #: FA2B6004A Expiry: 2029/04/19"))
+    assert detail.lot_numbers == ["FA2B6004A"]
+
+    # hc-82156: the label word must go, the real lots must stay.
+    detail = _extract_detail(_lot_table("Canadian lots: 3213779, 3213780"))
+    assert detail.lot_numbers == ["3213779", "3213780"]
+    assert "CANADIAN" not in detail.lot_numbers
+
+
+def test_an_all_lots_cell_sets_the_flag_instead_of_the_lot_ALL() -> None:
+    # 54 cached records indexed the literal lot 'ALL' and never set the flag, so
+    # recalls_covering_all_lots could not return a Health Canada all-lots recall.
+    detail = _extract_detail(_lot_table("All lots (since July 2023)"))
+    assert detail.covers_all_lots is True
+    assert detail.lot_numbers == []
+
+    doc = to_doc(DRUG_RECORD, detail_html=_lot_table("All lots"))
+    assert doc is not None
+    assert doc[Reg.COVERS_ALL_LOTS] is True
+    assert Reg.LOT_NUMBERS not in doc
+
+    # A record with real lots must not carry the flag at all.
+    doc = to_doc(DRUG_RECORD, detail_html=NHP_TABLE_HTML)
+    assert doc is not None
+    assert Reg.COVERS_ALL_LOTS not in doc
 
 
 def test_detail_table_missing_degrades_to_no_lots() -> None:
@@ -156,7 +197,7 @@ def test_detail_table_missing_degrades_to_no_lots() -> None:
 def test_to_doc_merges_detail_page_lots_into_the_record() -> None:
     doc = to_doc(DRUG_RECORD, detail_html=NHP_TABLE_HTML)
     assert doc is not None
-    assert doc[Reg.LOT_NUMBERS] == ["737", "737A", "737B", "737C"]
+    assert doc[Reg.LOT_NUMBERS] == ["737A", "737B", "737C"]
     assert doc[Reg.MANUFACTURER] == ["Platinum Naturals Inc."]
     assert "737" in doc[Reg.BODY]  # lot table text is in body (BM25 + display)…
     assert "737" not in doc[Reg.BODY_SEMANTIC]  # …never in the embedded excerpt

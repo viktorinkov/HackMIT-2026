@@ -135,6 +135,38 @@ async def test_create_never_stores_prescription_fields() -> None:
     assert doc[Scan.BOTTLE]["rx_number_present"] is True
 
 
+async def test_create_drops_free_text_label_fields_by_default() -> None:
+    es = FakeEs(index={"result": "created"})
+    bottle = payload(
+        bottle=BottlePhotoResult(
+            is_medication_container=True,
+            generic_name="ibuprofen",
+            other_label_text="JANE Q PATIENT 12 ELM ST",
+            notes="Patient name was legible on the label.",
+            confidence=0.9,
+        )
+    )
+    doc = await store(es).create(bottle)
+    assert "other_label_text" not in doc[Scan.BOTTLE]
+    assert "notes" not in doc[Scan.BOTTLE]
+
+
+async def test_create_keeps_free_text_label_fields_when_opted_in() -> None:
+    es = FakeEs(index={"result": "created"})
+    bottle = payload(
+        bottle=BottlePhotoResult(
+            is_medication_container=True,
+            generic_name="ibuprofen",
+            other_label_text="JANE Q PATIENT 12 ELM ST",
+            notes="Patient name was legible on the label.",
+            confidence=0.9,
+        )
+    )
+    doc = await store(es, scans_store_sensitive=True).create(bottle)
+    assert doc[Scan.BOTTLE]["other_label_text"] == "JANE Q PATIENT 12 ELM ST"
+    assert doc[Scan.BOTTLE]["notes"] == "Patient name was legible on the label."
+
+
 async def test_create_omits_blocks_the_scan_did_not_produce() -> None:
     es = FakeEs(index={"result": "created"})
     doc = await store(es).create(payload())
@@ -228,40 +260,42 @@ async def test_list_filters_on_the_normalized_join_keys() -> None:
     assert call["search_after"] is None
 
 
-async def test_list_without_filters_matches_everything() -> None:
+async def test_list_without_filters_raises() -> None:
     es = FakeEs(search=hits(source("scan-1")))
-    await store(es).list()
-    assert es.call("search")["query"] == {"match_all": {}}
+    with pytest.raises(KnowledgeError) as excinfo:
+        await store(es).list()
+    assert excinfo.value.status_code == 400
+    assert es.calls == []
 
 
 async def test_list_returns_a_cursor_only_on_a_full_page() -> None:
     es = FakeEs(search=hits(source("scan-1"), source("scan-2")))
-    docs, cursor = await store(es).list(limit=2)
+    docs, cursor = await store(es).list(device_id="dev-1", limit=2)
     assert [doc[Scan.SCAN_ID] for doc in docs] == ["scan-1", "scan-2"]
     assert cursor is not None
 
     partial = FakeEs(search=hits(source("scan-1")))
-    _, no_cursor = await store(partial).list(limit=2)
+    _, no_cursor = await store(partial).list(device_id="dev-1", limit=2)
     assert no_cursor is None
 
 
 async def test_list_round_trips_its_own_cursor() -> None:
     es = FakeEs(search=hits(source("scan-1")))
-    _, cursor = await store(es).list(limit=1)
+    _, cursor = await store(es).list(device_id="dev-1", limit=1)
     resumed = FakeEs(search=hits(source("scan-2")))
-    await store(resumed).list(limit=1, after=cursor)
+    await store(resumed).list(device_id="dev-1", limit=1, after=cursor)
     assert resumed.call("search")["search_after"] == ["2026-09-19T00:00:00Z", "scan-1"]
 
 
 async def test_list_rejects_a_corrupt_cursor() -> None:
     with pytest.raises(KnowledgeError) as excinfo:
-        await store(FakeEs()).list(after="!!!not-base64!!!")
+        await store(FakeEs()).list(device_id="dev-1", after="!!!not-base64!!!")
     assert excinfo.value.status_code == 400
 
 
 async def test_list_caps_the_page_size() -> None:
     es = FakeEs(search=hits(source("scan-1")))
-    await store(es).list(limit=10_000)
+    await store(es).list(device_id="dev-1", limit=10_000)
     assert es.call("search")["size"] == 100
 
 

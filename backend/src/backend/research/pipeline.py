@@ -36,6 +36,7 @@ from backend.research.agent_builder import (
 )
 from backend.research.evidence import (
     NO_IMPRINT_SKIP,
+    RECALL_LOOKUP_FAILED_GAP,
     build_evidence,
     deterministic_report,
     enforce_guardrails,
@@ -65,6 +66,9 @@ REG_QUERY_TAIL = "recall falsified substandard"
 
 # The label fields that must never reach a third-party model.
 _SENSITIVE_BOTTLE_KEYS = ("rx_number", "pharmacy", "directions", "other_label_text")
+# The raw spectrum is an unbounded float array a model can do nothing with, and
+# a non-conforming client can make it megabytes long.
+_BULKY_HARDWARE_KEYS = ("spectrum",)
 
 COERCE_INSTRUCTIONS = """\
 You convert an already-completed medicine investigation into one structured report. You do not \
@@ -78,6 +82,13 @@ VERDICT SEMANTICS
 - recall_match: ONLY when an exact lot match exists, or a recall that covers every lot of this \
 product names this NDC in its own text. A product-line NDC hit is never recall_match, because one \
 recall record lists every sibling strength of the product.
+- Read match_kind on every regulatory hit. In exact_lot_hits, "exact_lot" means the record also \
+corroborates this product (or no product context was available) and may support recall_match, \
+while "lot_only_match" means the record names the same lot string for a DIFFERENT product: report \
+it as a caution telling the reader to compare the product name carefully, never as recall_match. \
+In all_lots_hits, "all_lots_product" may support recall_match, while "all_lots_sibling" was \
+reached only through openFDA's sibling-strength NDC list and is product-line evidence, worded \
+exactly like a product-line NDC recall and never recall_match.
 - mismatch_found: the label, the imprint reference and the NDC directory disagree.
 - insufficient_evidence: nothing usable was read from the label or the pill.
 - no_adverse_findings: the searches ran and found nothing adverse. This is NOT a clean bill of \
@@ -324,10 +335,27 @@ class ResearchPipeline:
         )
         lookups = state.lookups
 
+        def recall_lookup_failed(exc: BaseException) -> None:
+            # The anchor lookup: swallowing it silently turns a real recall into
+            # "nothing found", so the pack and the report both have to say so.
+            lookups["recall_lookup_failed"] = True
+            state.note_gap(RECALL_LOOKUP_FAILED_GAP)
+
+        # Product context, so the search layer can tell an exact lot match from a
+        # lot string that collides with an unrelated product.
+        product_names = _product_names(norm)
         if norm.get("lot"):
-            lookups["exact_lot_hits"] = await _try(search.recalls_by_lot(norm["lot"]), [])
+            lookups["exact_lot_hits"] = await _try(
+                search.recalls_by_lot(
+                    norm["lot"], ndc9=norm.get("ndc9"), drug_names=product_names
+                ),
+                [],
+                on_error=recall_lookup_failed,
+            )
         lookups["all_lots_hits"] = await _try(
-            search.recalls_covering_all_lots(ndc9=norm.get("ndc9"), drug_names=names), []
+            search.recalls_covering_all_lots(ndc9=norm.get("ndc9"), drug_names=product_names),
+            [],
+            on_error=recall_lookup_failed,
         )
         if ndc is not None:
             lookups["ndc_hits"] = await _try(search.recalls_by_ndc(ndc), [])
@@ -335,7 +363,9 @@ class ResearchPipeline:
         if norm.get("imprint_norm"):
             lookups["pill"] = await _try(
                 search.identify_pill(
-                    imprint=norm.get("imprint_norm"),
+                    # The imprint AS READ: "b 972" keeps its part boundaries, which the
+                    # one-face-of-a-two-sided-pill match depends on; "B972" loses them.
+                    imprint=(state.scan.get("imprint") or {}).get("imprint") or norm.get("imprint_norm"),
                     shape=norm.get("shape"),
                     colors=list(norm.get("colors") or []),
                     score=norm.get("score"),
@@ -453,6 +483,10 @@ class ResearchPipeline:
         except Exception as exc:  # noqa: BLE001 - one failed search, not the whole stage
             # The reservation stands whether or not the call came back.
             outcome = WebOutcome(credits=cost, error=f"search failed: {_reason(exc)}")
+        if outcome.cache_hit and not outcome.credits:
+            # Answered from the index: no Firecrawl call went out, so the daily
+            # counter must not be consumed by the up-front reservation.
+            budget.refund(cost)
         # Recorded as each search finishes, so a later timeout keeps this one.
         state.web_queries.append(query.to_dict() | outcome.to_dict())
         state.credits += outcome.credits
@@ -537,7 +571,7 @@ class ResearchPipeline:
         payload = {
             "bottle": _safe_bottle(state.scan.get(Scan.BOTTLE)),
             "imprint": state.scan.get(Scan.IMPRINT),
-            "hardware": state.scan.get(Scan.HARDWARE),
+            "hardware": _trimmed_hardware(state.scan.get(Scan.HARDWARE)),
             "norm": state.norm,
             "country": state.scan.get(Scan.COUNTRY),
             "evidence_pack": state.evidence,
@@ -593,6 +627,7 @@ class ResearchPipeline:
             regulatory_hits=lookups.get("regulatory_hits") or [],
             web_hits=lookups.get("web_hits") or [],
             prior_scans=lookups.get("prior_scans"),
+            recall_lookup_failed=bool(lookups.get("recall_lookup_failed")),
         )
 
     def _report(self, state: _RunState) -> ResearchReport:
@@ -678,17 +713,37 @@ class ResearchPipeline:
             return
 
 
-async def _try(awaitable: Any, default: Any) -> Any:
+async def _try(awaitable: Any, default: Any, *, on_error: Any = None) -> Any:
     try:
         return await awaitable
-    except Exception:  # noqa: BLE001 - one dead lookup must not lose the others
+    except Exception as exc:  # noqa: BLE001 - one dead lookup must not lose the others
+        if on_error is not None:
+            on_error(exc)
         return default
+
+
+def _product_names(norm: dict[str, Any]) -> list[str]:
+    """Every name this product is known by, for the product-corroboration check."""
+    out: list[str] = []
+    values = list(norm.get("drug_names") or []) + [norm.get("generic_name"), norm.get("brand_name")]
+    for value in values:
+        text = str(value).strip() if value else ""
+        if text and text not in out:
+            out.append(text)
+    return out
 
 
 def _safe_bottle(bottle: dict[str, Any] | None) -> dict[str, Any] | None:
     if not bottle:
         return None
     return {key: value for key, value in bottle.items() if key not in _SENSITIVE_BOTTLE_KEYS}
+
+
+def _trimmed_hardware(hardware: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The reading without its raw spectrum: floats a model cannot use anyway."""
+    if not hardware:
+        return None
+    return {key: value for key, value in hardware.items() if key not in _BULKY_HARDWARE_KEYS}
 
 
 def _index_date(hits: list[Any]) -> str:

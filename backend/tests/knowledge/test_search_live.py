@@ -127,6 +127,36 @@ REG_DOCS = [
         },
     ),
     _reg(
+        "zz-all-lots-named",
+        **{
+            Reg.TITLE: "Valsartan tablets recall covering all lots",
+            Reg.BODY: "Valsartan tablets 40 mg are recalled for a nitrosamine impurity; all lots are within scope.",
+            Reg.BODY_SEMANTIC: "Valsartan tablets recalled for a nitrosamine impurity, all lots.",
+            Reg.DRUG_NAMES: ["valsartan"],
+            Reg.DRUG_NAMES_EXTRACTED: ["valsartan"],
+            Reg.COVERS_ALL_LOTS: True,
+            Reg.NDC9: ["435470367", "435470320", "435470160"],
+            Reg.NDC_FROM_DESCRIPTION: ["435470367"],
+            Reg.EVENT_ID: "zz-event-80525",
+        },
+    ),
+    _reg(
+        # Same recall event, a different strength: openFDA copies the whole
+        # sibling NDC list onto it, so only ndc_from_description tells them apart.
+        "zz-all-lots-sibling",
+        **{
+            Reg.TITLE: "Valsartan tablets 320 mg recall covering all lots",
+            Reg.BODY: "Valsartan tablets 320 mg are recalled for a nitrosamine impurity; all lots are within scope.",
+            Reg.BODY_SEMANTIC: "Valsartan tablets 320 mg recalled for a nitrosamine impurity, all lots.",
+            Reg.DRUG_NAMES: ["valsartan"],
+            Reg.DRUG_NAMES_EXTRACTED: ["valsartan"],
+            Reg.COVERS_ALL_LOTS: True,
+            Reg.NDC9: ["435470367", "435470320", "435470160"],
+            Reg.NDC_FROM_DESCRIPTION: ["435470320"],
+            Reg.EVENT_ID: "zz-event-80525",
+        },
+    ),
+    _reg(
         "zz-who-falsified",
         **{
             Reg.SOURCE_ORG: "who",
@@ -244,8 +274,62 @@ async def test_recent_doc_outranks_its_older_twin(live) -> None:
 async def test_exact_lot_lookup_finds_the_old_record(live) -> None:
     hits = await live.recalls_by_lot(_LOT_2016)
     assert [h.source[Reg.RECORD_ID] for h in hits] == ["zz-lot-2016"]
+    # No product context was supplied, so nothing better than the lot is available.
     assert hits[0].match_kind == "exact_lot"
     assert hits[0].age_days is not None and hits[0].age_days > 3000
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_exact_lot_survives_a_differently_spelled_product(live) -> None:
+    hits = await live.recalls_by_lot(_LOT_2016, drug_names=["Levothyroxine Sodium 100 mcg"])
+    assert [h.match_kind for h in hits] == ["exact_lot"]
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_a_lot_that_collides_with_another_product_is_downgraded(live) -> None:
+    # Same lot string, a different medicine: still returned, never the top tier.
+    hits = await live.recalls_by_lot(_LOT_2016, drug_names=["amoxicillin"])
+    assert [h.source[Reg.RECORD_ID] for h in hits] == ["zz-lot-2016"]
+    assert hits[0].match_kind == "lot_only_match"
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_all_lots_prefers_the_recall_that_names_the_ndc_and_dedupes_the_event(live) -> None:
+    hits = await live.recalls_covering_all_lots(ndc9="435470367", drug_names=[])
+    # Both strengths carry the NDC in openFDA's sibling list and share an event.
+    assert [h.source[Reg.RECORD_ID] for h in hits] == ["zz-all-lots-named"]
+    assert hits[0].match_kind == "all_lots_product"
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_all_lots_classification_follows_the_text_not_the_sibling_list(live) -> None:
+    hits = await live.recalls_covering_all_lots(ndc9="435470320", drug_names=[])
+    # The other strength lists this NDC too, but only this record's text names it.
+    assert {h.source[Reg.RECORD_ID]: h.match_kind for h in hits} == {
+        "zz-all-lots-sibling": "all_lots_product"
+    }
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_an_ndc_only_in_the_sibling_list_is_never_a_product_match(live) -> None:
+    # 43547-0160 is a third strength: both records list it, neither names it.
+    hits = await live.recalls_covering_all_lots(ndc9="435470160", drug_names=[])
+    assert hits and all(h.match_kind == "all_lots_sibling" for h in hits)
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_pill_ladder_reports_no_relaxed_shape_when_it_found_nothing(live) -> None:
+    match = await live.identify_pill(imprint="ZZQX99", shape="round", colors=["white"])
+    assert match.hits == []
+    assert match.rung == 3
+    assert match.shape_relaxed is False
+
+
+@pytest.mark.asyncio(loop_scope="module")
+async def test_pill_lookup_without_any_usable_attribute_returns_nothing(live) -> None:
+    match = await live.identify_pill(imprint=None, shape=None, colors=[])
+    assert match.hits == []
+    assert match.rung == 0
 
 
 @pytest.mark.asyncio(loop_scope="module")

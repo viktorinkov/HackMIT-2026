@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
+import zipfile
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from backend.knowledge.fields import NDC_INDEX, Ndc
 from backend.knowledge.indices import mapped_fields
-from backend.seed.sources.openfda_ndc import OpenFdaNdcSource, to_doc
+from backend.seed.sources.openfda_ndc import OpenFdaNdcSource, _read_results, to_doc
 
 NOW = datetime(2026, 9, 19, tzinfo=UTC)
 
@@ -142,6 +145,21 @@ def test_every_emitted_field_is_mapped() -> None:
         assert set(doc) <= allowed
         assert not any(value in (None, "", [], {}) for value in doc.values())
         assert "raw" not in doc  # kept out entirely to keep the index small
+
+
+def test_the_inner_zip_entry_is_picked_by_extension_not_position(tmp_path: Path) -> None:
+    # openFDA has always shipped a single entry; a README or checksum shipped
+    # first used to raise into the except clause and index nothing, silently.
+    archive = tmp_path / "drug-ndc.json.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("README.txt", "not json")
+        bundle.writestr("drug-ndc-0001-of-0001.json", json.dumps({"results": [RECORD]}))
+    assert [r["product_ndc"] for r in _read_results(archive)] == ["70771-1050"]
+
+    no_json = tmp_path / "empty.json.zip"
+    with zipfile.ZipFile(no_json, "w") as bundle:
+        bundle.writestr("README.txt", "not json")
+    assert _read_results(no_json) == []
 
 
 def test_source_declares_the_ndc_index_with_no_semantic_text() -> None:

@@ -116,6 +116,18 @@ def test_post_scan_rejects_an_empty_observation(client: TestClient) -> None:
     assert client.post("/scans", json={"device_id": "dev-1"}).status_code == 422
 
 
+def test_post_scan_rejects_an_oversized_spectrum(client: TestClient) -> None:
+    hardware = {"status": "real", "spectrum": [0.1] * 5000, "degraded": False, "confidence": 0.9}
+    response = client.post("/scans", json={"device_id": "dev-1", "hardware": hardware})
+    assert response.status_code == 422
+
+
+def test_post_scan_rejects_too_many_visible_warnings(client: TestClient) -> None:
+    bottle = dict(BOTTLE) | {"visible_warnings": ["warning"] * 51}
+    response = client.post("/scans", json={"device_id": "dev-1", "bottle": bottle})
+    assert response.status_code == 422
+
+
 def test_post_scan_survives_a_missing_research_pipeline(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -183,11 +195,10 @@ def test_list_normalizes_the_filters(client: TestClient, stub: StubStore) -> Non
     assert body["next"] == "cursor-1"
 
 
-def test_list_without_filters_passes_none(client: TestClient, stub: StubStore) -> None:
-    client.get("/scans")
-    assert stub.list_kwargs == {
-        "device_id": None, "lot": None, "ndc9": None, "limit": 20, "after": None
-    }
+def test_list_without_any_filter_is_rejected(client: TestClient, stub: StubStore) -> None:
+    response = client.get("/scans")
+    assert response.status_code == 422
+    assert stub.list_kwargs == {}
 
 
 @pytest.mark.parametrize("params", [{"lot": "??"}, {"ndc": "not-an-ndc"}])
