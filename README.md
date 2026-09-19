@@ -8,7 +8,7 @@ Stack:
 
 Mobile App
 - Flutter
-- ElevenLabs Agents
+- Deepgram Agents
 
 Backend:
 - FastAPI on Runpod
@@ -24,7 +24,7 @@ Workflow
 - Scan pill imprint
 - Launch research agent
 - Get hardware info
-- Use ElevenLabs agent to see results and be able to report as needed.
+- Use Deepgram agent to see results and be able to report as needed.
 
 Cases:
 
