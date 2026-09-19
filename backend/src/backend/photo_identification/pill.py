@@ -12,36 +12,24 @@ from backend.photo_identification.vision import (
 )
 
 INSTRUCTIONS = """\
-This is photo identification of a single pill or capsule.
-Describe the pill from the photo so it can be looked up later.
+This is photo observation of a single pill or capsule, not identification of the drug.
+Read only what is visible in this one photo: imprint, color, shape, form, and score marks.
 Transcribe imprint characters exactly as printed, including case, slashes, and spacing.
-Describe color, shape, form, and score marks from the photo only.
-likely_identifications are optional hypotheses for a later research step, not a diagnosis. Leave the list empty if the imprint is missing or unreadable.
-This is not medical advice and not a confirmed identification.
 If the photo is not a pill or capsule, set is_pill to false and leave fields null.
 confidence is how readable the imprint and physical features are, from 0 to 1.
 """
 
-PROMPT = "Identify this pill from the photo and extract the imprint and physical features."
-
-
-class PillIdentificationGuess(BaseModel):
-    name: str
-    strength: str | None = None
-    reason: str
-    confidence: float = Field(ge=0, le=1)
+PROMPT = "Read the pill photo and extract only the imprint and physical features."
 
 
 class PillPhotoResult(BaseModel):
     is_pill: bool
-    imprint_front: str | None = None
-    imprint_back: str | None = None
+    imprint: str | None = None
     color: str | None = None
     shape: str | None = None
     form: str | None = None
     score: str | None = None
     additional_markings: str | None = None
-    likely_identifications: list[PillIdentificationGuess] = Field(default_factory=list)
     confidence: float = Field(ge=0, le=1)
     notes: str | None = None
 
