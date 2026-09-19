@@ -23,6 +23,20 @@ Start the development server:
 uv run backend
 ```
 
+MongoDB Atlas stores scans and concern reports. If `MONGODB_URI` is empty, scans stay in process memory. If the URI is set and Mongo is unreachable, requests fail with 502 — there is no silent memory fallback.
+
+Scan report (always returns `bottle`, `imprint`, and `pill`). Voice Agent clients call `POST /deepgram/session` instead of pasting a prompt:
+
+```bash
+curl --fail -X POST http://127.0.0.1:8000/scans?fixture=mismatch
+curl --fail http://127.0.0.1:8000/scans/$SCAN_ID
+curl --fail -X POST http://127.0.0.1:8000/deepgram/session \
+  -H 'Content-Type: application/json' \
+  -d "{\"scan_id\":\"$SCAN_ID\"}"
+```
+
+`GET /scans/{scan_id}/playground-prompt` remains for debugging. Product path: [docs/deepgram/VALIDATION.md](../docs/deepgram/VALIDATION.md).
+
 ## Runpod deployment
 
 - Pod: `peel-fastapi` (`m2cw0a06ep8e5g`), `US-CA-2`.
@@ -48,7 +62,7 @@ as environment variables when the container boots. The pod env maps each variabl
 to a secret of the same name, for example
 `OPENAI_API_KEY={{ RUNPOD_SECRET_OPENAI_API_KEY }}`. Secrets in use:
 `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `ELASTICSEARCH_URL`,
-`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`. Rotating a secret takes effect on the
+`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`, `MONGODB_URI`. Rotating a secret takes effect on the
 next pod start. Editing the pod env replaces the container, so keep the app on the
 network volume.
 

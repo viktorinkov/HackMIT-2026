@@ -36,3 +36,8 @@ local.properties
 *.iml
 .DS_Store
 Thumbs.db
+
+# design folder
+design/
+# docs folder
+docs/

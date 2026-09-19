@@ -37,10 +37,10 @@ router = APIRouter(tags=["pill"])
 
 @router.post("/pill", response_model=PillHardwareAnalysis)
 async def analyze_pill(request: PillHardwareRequest) -> PillHardwareAnalysis:
-    return PillHardwareAnalysis(model=HARDWARE_MODEL, result=_mock_result(request))
+    return PillHardwareAnalysis(model=HARDWARE_MODEL, result=mock_hardware_result(request))
 
 
-def _mock_result(request: PillHardwareRequest) -> PillHardwareResult:
+def mock_hardware_result(request: PillHardwareRequest) -> PillHardwareResult:
     degraded = request.status == "substandard"
     confidence = {
         "real": 0.92,
