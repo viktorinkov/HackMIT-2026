@@ -1,5 +1,6 @@
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
+from backend.pill import PillHardwareResult
 
 
 def normalize_query(query: str) -> str:
@@ -47,3 +48,15 @@ def bottle_search_query(result: BottlePhotoResult) -> str:
         result.manufacturer,
     ]
     return " ".join(part.strip() for part in parts if part and part.strip())
+
+
+def pill_search_query(result: PillHardwareResult) -> str:
+    """Turn a hardware contents identity into a Firecrawl search string.
+
+    Do not include bottle or imprint fields. This lookup is for the type the
+    spectrometer matched, independent of the label and the marking.
+    Return "" if there is no searchable pill_type.
+    """
+    if result.pill_type and result.pill_type.strip():
+        return result.pill_type.strip()
+    return ""

@@ -40,6 +40,7 @@ def root() -> dict[str, object]:
         "drug_facts": {
             "bottle": "/drug-facts/bottle",
             "imprint": "/drug-facts/imprint",
+            "pill": "/drug-facts/pill",
         },
         "pill": "/pill",
     }
