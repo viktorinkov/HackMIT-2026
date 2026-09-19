@@ -1,9 +1,20 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.drug_facts import router as drug_facts_router
+from backend.drug_facts.elastic import close_elastic_store
 from backend.photo_identification import router as photo_identification_router
 
-app = FastAPI(title="Peel", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    await close_elastic_store()
+
+
+app = FastAPI(title="Peel", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -11,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(photo_identification_router)
+app.include_router(drug_facts_router)
 
 
 @app.get("/")
@@ -23,10 +35,13 @@ def root() -> dict[str, object]:
             "bottle": "/photo-identification/bottle",
             "pill": "/photo-identification/pill",
         },
+        "drug_facts": {
+            "bottle": "/drug-facts/bottle",
+            "pill": "/drug-facts/pill",
+        },
     }
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
-

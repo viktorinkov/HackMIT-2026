@@ -24,7 +24,7 @@ Workflow
 - Scan pill imprint
 - Launch research agent
 - Get hardware info
-- Use ElevenLabs agent to see results
+- Use ElevenLabs agent to see results and be able to report as needed.
 
 Cases:
 

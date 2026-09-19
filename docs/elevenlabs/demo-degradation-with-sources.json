@@ -1,0 +1,77 @@
+{
+  "scan_id": "demo-nitroglycerin",
+  "revision": 1,
+  "demo": true,
+  "status": "complete",
+  "bottle": {
+    "status": "read",
+    "medication_id": "nitroglycerin-sublingual",
+    "generic_name": "nitroglycerin",
+    "strength": "0.4 mg",
+    "form": "sublingual tablet"
+  },
+  "imprint": {
+    "status": "candidate_found",
+    "observed_text": "DEMO-N (synthetic test marking)",
+    "candidates": [
+      {
+        "medication_id": "nitroglycerin-sublingual",
+        "generic_name": "nitroglycerin",
+        "strength": "0.4 mg",
+        "form": "sublingual tablet",
+        "source_id": "demo-reference"
+      }
+    ]
+  },
+  "hardware": {
+    "status": "candidate_found",
+    "candidate": {
+      "medication_id": "nitroglycerin-sublingual",
+      "generic_name": "nitroglycerin",
+      "strength": null,
+      "form": "sublingual tablet"
+    },
+    "degradation": {
+      "status": "detected",
+      "evidence": [
+        "Synthetic backend degradation flag for testing the explanation only."
+      ],
+      "remaining_potency": null
+    },
+    "limitations": [
+      "Simulated result; no physical measurement or device validation was performed.",
+      "No potency amount, degradation product, or toxicity measurement is available."
+    ]
+  },
+  "drug_facts": [
+    {
+      "medication_id": "nitroglycerin-sublingual",
+      "topic": "use",
+      "text": "Sublingual nitroglycerin is labeled for relief or prevention of angina attacks due to coronary artery disease.",
+      "source_ids": [
+        "dailymed-nitroglycerin"
+      ]
+    },
+    {
+      "medication_id": "nitroglycerin-sublingual",
+      "topic": "storage_and_potency",
+      "text": "The label directs keeping tablets in their original glass container and closing it tightly after use to prevent loss of potency. This is a general product warning, not a measurement of this specimen.",
+      "source_ids": [
+        "dailymed-nitroglycerin"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "demo-reference",
+      "title": "Synthetic test fixture, not a real imprint reference",
+      "url": null
+    },
+    {
+      "id": "dailymed-nitroglycerin",
+      "title": "DailyMed — Nitroglycerin sublingual tablets",
+      "url": "https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=041f127e-5166-4484-bc1a-0a373d1187ae",
+      "label_date": "2024-10-15"
+    }
+  ]
+}
