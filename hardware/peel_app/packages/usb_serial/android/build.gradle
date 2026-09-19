@@ -1,0 +1,27 @@
+// Vendored from usb_serial 0.5.2, whose build file used jcenter() (removed in Gradle 9) and
+// the pre-AGP-7 DSL. The Java sources are unchanged.
+group 'dev.bessems.usbserial'
+version '1.0'
+
+apply plugin: 'com.android.library'
+
+repositories {
+    google()
+    mavenCentral()
+    maven { url "https://jitpack.io" }   // com.github.felHR85:UsbSerial
+}
+
+android {
+    namespace 'dev.bessems.usbserial'
+    compileSdk 36
+    defaultConfig { minSdk 21 }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { disable 'InvalidPackage' }
+}
+
+dependencies {
+    implementation 'com.github.felHR85:UsbSerial:6.1.0'
+}

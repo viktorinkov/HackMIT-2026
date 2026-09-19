@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Boards that open the app when plugged in. Vendor IDs are decimal. -->
+<resources>
+    <!-- 0x303A Espressif: the ESP32-S3's own USB port, marked USB on the DevKitC -->
+    <usb-device vendor-id="12346" />
+    <!-- 0x10C4 Silicon Labs CP210x: the DevKitC's UART port on some revisions -->
+    <usb-device vendor-id="4292" />
+    <!-- 0x1A86 WCH CH34x / CH343: the UART port on others -->
+    <usb-device vendor-id="6790" />
+</resources>
