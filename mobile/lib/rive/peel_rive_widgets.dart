@@ -34,7 +34,7 @@ class _PeelRiveHostState extends State<PeelRiveHost> {
           key: peelRiveStage.hostKey,
           children: [
             widget.child,
-            if (controller != null && rect != null)
+            if (controller != null && rect != null && !peelRiveStage.covered)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 240),
                 curve: Curves.easeOutCubic,

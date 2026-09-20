@@ -43,6 +43,16 @@ class PeelRiveStage extends ChangeNotifier {
   rive.RiveWidgetController? get controller => _controller;
   bool get failed => _error != null;
 
+  /// The artboard is painted above the navigator, so it has to step aside for
+  /// dialogs and sheets. The state machine keeps running while it is hidden.
+  bool get covered => _modalRoutes > 0;
+  int _modalRoutes = 0;
+
+  void _modalChanged(int delta) {
+    _modalRoutes += delta;
+    notifyListeners();
+  }
+
   /// The rect of the slot that should currently hold the artboard, in global
   /// coordinates. Screens lower in the navigator stack keep their slots
   /// registered, so the most recent one wins.
@@ -120,6 +130,24 @@ class PeelRiveStage extends ChangeNotifier {
     _controller?.dispose();
     _file?.dispose();
     super.dispose();
+  }
+}
+
+/// Hides the artboard while a dialog, sheet or other popup route is up.
+class PeelRiveNavigatorObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) peelRiveStage._modalChanged(1);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) peelRiveStage._modalChanged(-1);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute) peelRiveStage._modalChanged(-1);
   }
 }
 
