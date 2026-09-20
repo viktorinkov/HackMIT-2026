@@ -26,7 +26,6 @@ class Settings(BaseSettings):
     elasticsearch_api_key: str = ""
     deepgram_api_key: str = ""
     deepgram_websocket_url: str = "wss://agent.deepgram.com/v1/agent/converse"
-    public_api_base_url: str = ""
 
     # Kibana hosts Agent Builder. Blank derives it from the Elasticsearch URL.
     kibana_url: str = ""

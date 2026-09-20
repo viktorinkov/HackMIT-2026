@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 
 from backend.config import Settings, get_settings
 from backend.deepgram.router import router
-from backend.deepgram.store import MemoryReportStore, get_report_store
 from backend.knowledge.client import KnowledgeError
 from backend.scans.store import get_scan_store
 from tests.deepgram.conftest import complete_scan
@@ -32,21 +31,15 @@ def stub() -> StubStore:
 
 
 @pytest.fixture
-def reports() -> MemoryReportStore:
-    return MemoryReportStore()
-
-
-@pytest.fixture
 def settings() -> Settings:
-    return Settings(openai_api_key="test", public_api_base_url="https://api.example")
+    return Settings(openai_api_key="test")
 
 
 @pytest.fixture
-def client(stub: StubStore, reports: MemoryReportStore, settings: Settings) -> Iterator[TestClient]:
+def client(stub: StubStore, settings: Settings) -> Iterator[TestClient]:
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_scan_store] = lambda: stub
-    app.dependency_overrides[get_report_store] = lambda: reports
     app.dependency_overrides[get_settings] = lambda: settings
     with TestClient(app) as test_client:
         yield test_client
@@ -68,6 +61,18 @@ def test_session_returns_200_for_a_completed_scan(client: TestClient) -> None:
     ]
 
 
+def test_session_advertises_a_client_side_draft_report(client: TestClient) -> None:
+    response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
+    functions = response.json()["settings"]["agent"]["think"]["functions"]
+    assert [function["name"] for function in functions] == ["draft_report"]
+    assert "endpoint" not in functions[0]
+
+
+def test_session_needs_no_public_api_base_url(client: TestClient) -> None:
+    # Deepgram no longer POSTs back to the API, so nothing here depends on it.
+    assert client.post("/deepgram/session", json={"scan_id": "scan-1"}).status_code == 200
+
+
 def test_session_allows_a_partial_scan_with_research(client: TestClient, stub: StubStore) -> None:
     stub.doc = complete_scan(status="partial")
     assert client.post("/deepgram/session", json={"scan_id": "scan-1"}).status_code == 200
@@ -84,15 +89,6 @@ def test_session_409s_when_research_is_not_ready(client: TestClient, stub: StubS
     assert response.status_code == 409
 
 
-def test_session_503s_without_a_public_api_base_url(
-    client: TestClient, settings: Settings
-) -> None:
-    settings.public_api_base_url = ""
-    response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
-    assert response.status_code == 503
-    assert "PUBLIC_API_BASE_URL" in response.json()["detail"]
-
-
 def test_session_surfaces_a_store_error(client: TestClient, stub: StubStore) -> None:
     stub.error = KnowledgeError("cluster down", status_code=503)
     response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
@@ -100,87 +96,5 @@ def test_session_surfaces_a_store_error(client: TestClient, stub: StubStore) -> 
     assert response.json()["detail"] == "cluster down"
 
 
-def test_create_report_stores_the_scan_context(
-    client: TestClient, reports: MemoryReportStore
-) -> None:
-    response = client.post(
-        "/deepgram/scan-1/reports",
-        json={
-            "purchased_on": "2026-03-12",
-            "purchase_location": {
-                "label": "CVS on Mass Ave",
-                "city": "Cambridge",
-                "region": "MA",
-                "country": "US",
-            },
-            "seller": "CVS Pharmacy",
-        },
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["scan_id"] == "scan-1"
-    assert body["purchased_on"] == "2026-03-12"
-    assert body["purchase_location"]["city"] == "Cambridge"
-    assert body["seller"] == "CVS Pharmacy"
-    assert body["snapshot"]["scan_id"] == "scan-1"
-    assert body["snapshot"]["bottle"]["generic_name"] == "acetaminophen"
-
-
-def test_create_report_can_file_more_than_once(client: TestClient) -> None:
-    first = client.post("/deepgram/scan-1/reports", json={"seller": "CVS Pharmacy"})
-    second = client.post("/deepgram/scan-1/reports", json={"seller": "a friend"})
-    assert first.status_code == second.status_code == 200
-    assert first.json()["report_id"] != second.json()["report_id"]
-    assert second.json()["seller"] == "a friend"
-
-
-def test_create_report_keeps_scan_id_from_the_path(client: TestClient) -> None:
-    response = client.post(
-        "/deepgram/scan-1/reports",
-        json={"scan_id": "scan-other", "seller": "a friend"},
-    )
-    assert response.status_code == 200
-    assert response.json()["scan_id"] == "scan-1"
-    assert response.json()["seller"] == "a friend"
-
-
-def test_create_report_unwraps_a_deepgram_payload(client: TestClient) -> None:
-    response = client.post(
-        "/deepgram/scan-1/reports",
-        json={
-            "arguments": {
-                "purchased_on": "2026-03-12",
-                "seller": "CVS Pharmacy",
-            }
-        },
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["purchased_on"] == "2026-03-12"
-    assert body["seller"] == "CVS Pharmacy"
-    assert body["concern_type"] == "mismatch"
-
-
-def test_create_report_autofills_the_problem_from_the_scan(client: TestClient) -> None:
-    response = client.post("/deepgram/scan-1/reports", json={})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["concern_type"] == "mismatch"
-    assert body["summary"] == "The label and the reference records do not agree."
-    assert body["user_description"].startswith("Bottle: the label says acetaminophen 500 mg.")
-    assert "Imprint:" in body["user_description"]
-    assert "Pill:" in body["user_description"]
-    assert body["purchased_on"] is None
-    assert body["purchase_location"] is None
-    assert body["seller"] is None
-
-
-def test_create_report_autofills_an_empty_deepgram_call(client: TestClient) -> None:
-    response = client.post("/deepgram/scan-1/reports", json={"arguments": {}})
-    assert response.status_code == 200
-    assert response.json()["concern_type"] == "mismatch"
-
-
-def test_create_report_404s_when_the_scan_is_missing(client: TestClient, stub: StubStore) -> None:
-    stub.doc = None
-    assert client.post("/deepgram/scan-x/reports", json={}).status_code == 404
+def test_reports_no_longer_live_under_deepgram(client: TestClient) -> None:
+    assert client.post("/deepgram/scan-1/reports", json={}).status_code == 404

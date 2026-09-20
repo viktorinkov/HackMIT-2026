@@ -335,13 +335,9 @@ def _reports() -> dict[str, Any]:
     return {
         Report.REPORT_ID: KW,
         Report.SCAN_ID: KW,
-        Report.CONCERN_TYPE: KW,
-        Report.SUMMARY: TEXT,
-        Report.USER_DESCRIPTION: STORED_TEXT,
-        Report.SELLER: TEXT_KW,
         Report.PURCHASED_ON: DATE,
         Report.PURCHASE_LOCATION: {"properties": location},
-        Report.SNAPSHOT: RAW,
+        Report.SELLER: TEXT_KW,
         Report.CREATED_AT: DATE,
     }
 

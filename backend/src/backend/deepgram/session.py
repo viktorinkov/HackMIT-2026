@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.config import Settings
-from backend.deepgram.lead import lead_from_context
-from backend.deepgram.models import ConcernReportCreate
 from backend.deepgram.prompt import build_playground_prompt
 from backend.research.contract import to_scan_context
 
@@ -77,49 +74,6 @@ def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
     return _source_lines(to_scan_context(doc))
 
 
-def _clean_report_field(value: str | None) -> str | None:
-    cleaned = (value or "").strip()
-    return cleaned or None
-
-
-def concern_type_from_context(context: dict[str, Any]) -> str:
-    hardware = context.get("hardware") or {}
-    research = context.get("research") or {}
-    if hardware.get("reported_status") == "fake":
-        return "fake"
-    if research.get("verdict") == "recall_match":
-        return "recall"
-    degradation = (hardware.get("degradation") or {}).get("status")
-    if degradation in {"suspected", "detected"} or hardware.get("reported_status") == "substandard":
-        return "quality"
-    if research.get("verdict") == "mismatch_found":
-        return "mismatch"
-    if research.get("verdict") == "insufficient_evidence":
-        return "uncertain"
-    return "other"
-
-
-def problem_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
-    parts = list(_source_lines(context))
-    lead = lead_from_context(context)
-    if lead:
-        parts.append(lead)
-    return " ".join(parts)
-
-
-def fill_concern_report(doc: dict[str, Any], body: ConcernReportCreate) -> ConcernReportCreate:
-    context = to_scan_context(doc)
-    return ConcernReportCreate(
-        purchased_on=body.purchased_on,
-        purchase_location=body.purchase_location,
-        seller=_clean_report_field(body.seller),
-        concern_type=_clean_report_field(body.concern_type) or concern_type_from_context(context),
-        summary=_clean_report_field(body.summary) or lead_from_context(context) or "Scan concern",
-        user_description=_clean_report_field(body.user_description) or problem_from_scan(doc),
-    )
-
-
 def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
     context = to_scan_context(doc)
     terms: list[str] = []
@@ -144,19 +98,18 @@ def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
     return terms
 
 
-def reports_url(settings: Settings, scan_id: str) -> str:
-    return f"{settings.public_api_base_url.rstrip('/')}/deepgram/{scan_id}/reports"
-
-
-def draft_concern_report_function(url: str) -> dict[str, Any]:
+def draft_report_function() -> dict[str, Any]:
+    """Client-side function: no `endpoint`, so Deepgram sends FunctionCallRequest to
+    the app instead of POSTing. The app opens the preview; Submit is a button there."""
     return {
-        "name": "draft_concern_report",
+        "name": "draft_report",
         "description": (
-            "Save a concern report for the current scan. The scan id and the "
-            "problem are already filled from this scan — do not ask the user "
-            "to describe the problem, and do not send a scan id. Ask at most "
-            "the three optional provenance questions, one at a time, then call. "
-            "Omit any field the user does not know. An empty call is valid."
+            "Open the report in the app, prefilled with what the user told you. "
+            "The app already shows this scan, so never ask them to describe the "
+            "problem and never send a scan id. Call once after the optional "
+            "questions about when, where, and from whom they bought this "
+            "medicine; omit any field they do not know. An empty call is valid. "
+            "The user reviews and submits in the app; this call does not submit."
         ),
         "parameters": {
             "type": "object",
@@ -195,16 +148,13 @@ def draft_concern_report_function(url: str) -> dict[str, Any]:
             },
             "required": [],
         },
+        # Wait for the confirmed end of turn: a speculative call would open the
+        # preview while the user is still mid-sentence.
         "defer_until_eot": True,
-        "endpoint": {
-            "url": url,
-            "method": "post",
-        },
     }
 
 
-def build_voice_agent_settings(doc: dict[str, Any], settings: Settings) -> dict[str, Any]:
-    scan_id = str(doc.get("scan_id") or "")
+def build_voice_agent_settings(doc: dict[str, Any]) -> dict[str, Any]:
     prompt = build_playground_prompt(doc).prompt
     return {
         "type": "Settings",
@@ -229,7 +179,7 @@ def build_voice_agent_settings(doc: dict[str, Any], settings: Settings) -> dict[
                     "temperature": 0.3,
                 },
                 "prompt": prompt,
-                "functions": [draft_concern_report_function(reports_url(settings, scan_id))],
+                "functions": [draft_report_function()],
             },
             "speak": {
                 "provider": {

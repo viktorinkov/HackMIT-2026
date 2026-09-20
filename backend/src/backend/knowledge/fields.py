@@ -217,17 +217,16 @@ class Scan:
 
 
 class Report:
-    """peel-reports: one document per filing, joined to a scan by scan_id."""
+    """peel-reports: one document per Submit tap, joined to a scan by scan_id.
+
+    Only the three provenance answers live here; the scan is never copied.
+    """
 
     REPORT_ID = "report_id"
     SCAN_ID = "scan_id"
-    CONCERN_TYPE = "concern_type"
-    SUMMARY = "summary"
-    USER_DESCRIPTION = "user_description"
-    SELLER = "seller"
     PURCHASED_ON = "purchased_on"
     PURCHASE_LOCATION = "purchase_location"
-    SNAPSHOT = "snapshot"
+    SELLER = "seller"
     CREATED_AT = "created_at"
 
 

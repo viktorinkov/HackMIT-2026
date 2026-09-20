@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from backend.config import Settings
 from backend.deepgram.lead import FAKE_LEAD, RECALL_LEAD
-from backend.deepgram.models import ConcernReportCreate
 from backend.deepgram.session import (
     build_voice_agent_settings,
-    fill_concern_report,
+    draft_report_function,
     greeting_from_scan,
     keyterms_from_scan,
     opening_messages_from_scan,
-    reports_url,
 )
 from tests.deepgram.conftest import complete_scan
 
@@ -42,8 +39,6 @@ def test_opening_does_not_include_the_headline_or_fake_lead() -> None:
     assert len(messages) == 3
     assert FAKE_LEAD not in messages
     assert "The label and the reference records do not agree." not in messages
-    filled = fill_concern_report(doc, ConcernReportCreate())
-    assert filled.summary == FAKE_LEAD
 
 
 def test_opening_does_not_include_the_recall_lead() -> None:
@@ -58,17 +53,6 @@ def test_opening_does_not_include_the_recall_lead() -> None:
     )
     assert len(messages) == 3
     assert RECALL_LEAD not in messages
-    filled = fill_concern_report(
-        complete_scan(
-            research={
-                "verdict": "recall_match",
-                "risk_level": "high",
-                "headline": "The label and the reference records do not agree.",
-            }
-        ),
-        ConcernReportCreate(),
-    )
-    assert filled.summary == RECALL_LEAD
 
 
 def test_keyterms_include_names_and_the_imprint_marking() -> None:
@@ -81,56 +65,26 @@ def test_keyterms_include_names_and_the_imprint_marking() -> None:
     assert "200 mg" in terms
 
 
-def test_reports_url_points_at_the_deepgram_route() -> None:
-    settings = Settings(openai_api_key="test", public_api_base_url="https://api.example/")
-    assert reports_url(settings, "scan-1") == "https://api.example/deepgram/scan-1/reports"
+def test_draft_report_is_a_client_side_function() -> None:
+    function = draft_report_function()
+    assert function["name"] == "draft_report"
+    # No endpoint: Deepgram sends FunctionCallRequest to the app instead of POSTing.
+    assert "endpoint" not in function
+    # Deferred so a speculative call cannot open the preview mid-sentence.
+    assert function["defer_until_eot"] is True
+    assert function["parameters"]["required"] == []
+    assert set(function["parameters"]["properties"]) == {
+        "purchased_on",
+        "purchase_location",
+        "seller",
+    }
+    assert "scan_id" not in function["parameters"]["properties"]
+    assert "does not submit" in function["description"]
 
 
-def test_voice_settings_include_the_greeting_and_the_prompt() -> None:
-    settings = Settings(openai_api_key="test", public_api_base_url="https://api.example")
-    payload = build_voice_agent_settings(complete_scan(), settings)
+def test_voice_settings_include_the_greeting_the_prompt_and_the_draft_tool() -> None:
+    payload = build_voice_agent_settings(complete_scan())
     assert payload["type"] == "Settings"
     assert payload["agent"]["greeting"] == "Hi, I'm Peel. These findings are a simulated demo."
     assert "acetaminophen" in payload["agent"]["think"]["prompt"]
-    assert payload["agent"]["think"]["functions"][0]["endpoint"]["url"].endswith(
-        "/deepgram/scan-1/reports"
-    )
-    assert payload["agent"]["think"]["functions"][0]["parameters"]["required"] == []
-    properties = payload["agent"]["think"]["functions"][0]["parameters"]["properties"]
-    assert set(properties) == {"purchased_on", "purchase_location", "seller"}
-    assert "scan_id" not in properties
-
-
-def test_fill_concern_report_uses_the_scan_problem() -> None:
-    filled = fill_concern_report(complete_scan(), ConcernReportCreate())
-    assert filled.concern_type == "mismatch"
-    assert filled.summary == "The label and the reference records do not agree."
-    assert filled.user_description == (
-        "Bottle: the label says acetaminophen 500 mg. "
-        "Imprint: the marking lookup returned ibuprofen 200 mg. "
-        "Pill: the hardware analysis reports the contents as ibuprofen. "
-        "The label and the reference records do not agree."
-    )
-    assert filled.purchased_on is None
-    assert filled.purchase_location is None
-    assert filled.seller is None
-
-
-def test_fill_concern_report_keeps_provenance_the_user_gave() -> None:
-    from datetime import date
-
-    from backend.deepgram.models import PurchaseLocation
-
-    filled = fill_concern_report(
-        complete_scan(),
-        ConcernReportCreate(
-            purchased_on=date(2026, 3, 12),
-            purchase_location=PurchaseLocation(label="CVS on Mass Ave", city="Cambridge"),
-            seller="CVS Pharmacy",
-        ),
-    )
-    assert filled.concern_type == "mismatch"
-    assert filled.purchased_on == date(2026, 3, 12)
-    assert filled.purchase_location is not None
-    assert filled.purchase_location.city == "Cambridge"
-    assert filled.seller == "CVS Pharmacy"
+    assert payload["agent"]["think"]["functions"] == [draft_report_function()]
