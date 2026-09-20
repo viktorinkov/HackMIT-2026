@@ -7,6 +7,7 @@ streams one reading a second over USB. An Android app shows the readings live.
 firmware/17_stream/     ESP32-S3 firmware (Arduino). The source of truth for the protocol.
 peel_app/               Flutter Android app: USB OTG serial → parser → live dashboard.
 tools/peel_monitor.py   Desktop reference client: the same stream as a terminal dashboard, plus CSV.
+classify/               Classification layer: stream → dose and release verdict → the scan's hardware field.
 docs/PROTOCOL.md        The line protocol between the board and the phone.
 docs/HARDWARE.md        Parts in hand, pin map, wiring, the USB chain to the phone.
 DEVIN_HANDOFF.md        Current task: have the signal path ready before the board arrives.
