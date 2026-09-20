@@ -37,13 +37,13 @@ def to_scan_context(scan_doc: dict[str, Any]) -> dict[str, Any]:
     context: dict[str, Any] = {
         "scan_id": scan_doc.get("scan_id"),
         "revision": int(scan_doc.get("revision") or 1),
-        "demo": bool(scan_doc.get("demo", False)),
+        "demo": bool(scan_doc.get("demo") or research.get("demo")),
         "status": scan_doc.get("status") or "pending",
         "bottle": _bottle(scan_doc.get("bottle")),
         "imprint": _imprint(scan_doc.get("imprint"), evidence),
         "hardware": _hardware(scan_doc.get("hardware"), norm),
         "drug_facts": _drug_facts(research),
-        "sources": _sources(research),
+        "sources": _sources(research.get("sources") or []),
     }
     if research:
         context["research"] = _research(research)
@@ -180,9 +180,9 @@ def _drug_facts(research: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _sources(research: dict[str, Any]) -> list[dict[str, Any]]:
+def _sources(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     sources: list[dict[str, Any]] = []
-    for item in research.get("sources") or []:
+    for item in items:
         if not isinstance(item, dict):
             continue
         source = {
@@ -190,7 +190,7 @@ def _sources(research: dict[str, Any]) -> list[dict[str, Any]]:
             "title": item.get("title"),
             "url": item.get("url"),
         }
-        for key in ("label_date", "published_at"):
+        for key in ("source_org", "label_date", "published_at"):
             if item.get(key):
                 source[key] = item[key]
         sources.append(source)
@@ -207,6 +207,7 @@ def _research(research: dict[str, Any]) -> dict[str, Any]:
                 "statement": finding.get("statement"),
                 "evidence_type": finding.get("evidence_type"),
                 "severity": finding.get("severity"),
+                "country_scope": finding.get("country_scope"),
                 "source_ids": list(finding.get("source_ids") or []),
             }
             for finding in (research.get("findings") or [])
@@ -224,8 +225,11 @@ def _research(research: dict[str, Any]) -> dict[str, Any]:
             for mismatch in (research.get("mismatches") or [])
             if isinstance(mismatch, dict)
         ],
+        "recall_hits": _sources(research.get("recall_hits") or []),
         "gaps": [str(gap) for gap in (research.get("gaps") or [])],
         "next_steps": [str(step) for step in (research.get("next_steps") or [])],
+        "agent_used": bool(research.get("agent_used")),
+        "demo": bool(research.get("demo")),
     }
 
 

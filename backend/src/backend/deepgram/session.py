@@ -62,26 +62,26 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     observed = (context.get("imprint") or {}).get("observed_text") if context.get("imprint") else None
 
     if bottle:
-        bottle_line = f"Bottle: the label says {bottle}."
+        bottle_line = f"The bottle says {bottle}."
     else:
-        bottle_line = "Bottle: no label result yet."
+        bottle_line = "There is no bottle result yet."
 
     if imprint:
-        imprint_line = f"Imprint: the marking lookup returned {imprint}."
+        imprint_line = f"The imprint says {imprint}."
     elif observed:
-        imprint_line = f"Imprint: the marking is {observed}, with no drug name yet."
+        imprint_line = f"The imprint says {observed}, with no drug name yet."
     else:
-        imprint_line = "Imprint: no marking lookup yet."
+        imprint_line = "There is no imprint result yet."
 
     if pill:
-        pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
+        pill_line = f"The hardware analysis reports the contents as {pill}."
     elif hardware:
         if hardware.get("reported_status") == "unknown":
-            pill_line = "Pill: the hardware result is unknown."
+            pill_line = "The hardware result is unknown."
         else:
-            pill_line = "Pill: the hardware analysis did not identify the contents."
+            pill_line = "The hardware analysis did not identify the contents."
     else:
-        pill_line = "Pill: no hardware analysis yet."
+        pill_line = "There is no hardware analysis yet."
 
     return [bottle_line, imprint_line, pill_line]
 

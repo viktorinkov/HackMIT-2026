@@ -77,9 +77,9 @@ def test_session_returns_a_bearer_token_for_a_completed_scan(client: TestClient)
         "Hi, I'm Peel. These findings are a simulated demo."
     )
     assert body["opening_messages"] == [
-        "Bottle: the label says acetaminophen 500 mg.",
-        "Imprint: the marking lookup returned ibuprofen 200 mg.",
-        "Pill: the hardware analysis reports the contents as ibuprofen.",
+        "The bottle says acetaminophen 500 mg.",
+        "The imprint says ibuprofen 200 mg.",
+        "The hardware analysis reports the contents as ibuprofen.",
     ]
 
 

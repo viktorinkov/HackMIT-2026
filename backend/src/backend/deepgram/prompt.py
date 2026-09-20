@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.deepgram.models import PlaygroundPrompt
-from backend.research.contract import scan_context_json, to_scan_context
+from backend.research.contract import to_scan_context
 
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "system-prompt.txt"
 PROMPT_LIMIT = 25_000
@@ -16,13 +16,33 @@ def load_system_prompt() -> str:
 
 
 def build_playground_prompt(doc: dict[str, Any]) -> PlaygroundPrompt:
-    scan_json = scan_context_json(doc)
-    prompt = load_system_prompt().replace("{{scan_context}}", scan_json)
+    context = to_scan_context(doc)
+    template = load_system_prompt()
+
+    def render() -> str:
+        scan_json = json.dumps(context, separators=(",", ":"), ensure_ascii=False)
+        return template.replace("{{scan_context}}", scan_json)
+
+    prompt = render()
     if len(prompt) > PROMPT_LIMIT:
-        slim = to_scan_context(doc)
-        slim["sources"] = []
-        scan_json = json.dumps(slim, separators=(",", ":"), ensure_ascii=False)
-        prompt = load_system_prompt().replace("{{scan_context}}", scan_json)
+        # Keep citations for every spoken fact, finding, mismatch, and recall.
+        report = context.get("research") or {}
+        cited = {
+            source_id
+            for item in [
+                *context["drug_facts"],
+                *report.get("findings", []),
+                *report.get("mismatches", []),
+            ]
+            for source_id in item["source_ids"]
+        }
+        cited.update(item["id"] for item in report.get("recall_hits", []))
+        cited.update(
+            item.get("source_id")
+            for item in (context.get("imprint") or {}).get("candidates", [])
+        )
+        context["sources"] = [item for item in context["sources"] if item["id"] in cited]
+        prompt = render()
     if len(prompt) > PROMPT_LIMIT:
         raise ValueError(
             f"Playground prompt is {len(prompt)} characters; managed Deepgram prompts cap at {PROMPT_LIMIT}."
