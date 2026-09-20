@@ -73,4 +73,6 @@ class AtlasStaticFiles(StaticFiles):
         return response
 
 
-atlas_static = AtlasStaticFiles(directory=STATIC_DIR, html=True)
+# check_dir=False: a deployment that ships without the page fails only requests under
+# /atlas/, instead of failing the import of backend.app and taking the whole API down.
+atlas_static = AtlasStaticFiles(directory=STATIC_DIR, html=True, check_dir=False)
