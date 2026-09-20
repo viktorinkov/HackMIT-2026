@@ -6,12 +6,9 @@ page is the bug.
 
 ## Transport
 
-- USB serial, 115200 8N1. On the ESP32-S3's native USB port the baud rate is ignored,
-  but set it anyway: the bridge-chip port needs it.
-- The firmware is built with `CDCOnBoot=cdc`, so `Serial` comes out of the
-  **DevKitC port marked USB**: the native USB-Serial/JTAG, vendor ID `0x303A`. The port
-  marked UART goes through a bridge chip (CP210x `0x10C4` or CH34x `0x1A86`,
-  depending on board revision) and stays **silent** with this build.
+- USB serial, 115200 8N1. On the ESP32-S3's native USB port the baud rate is ignored; set it anyway.
+- The board is a **Seeed XIAO ESP32-S3**. `Serial` is its native USB-Serial/JTAG, vendor ID
+  `0x303A`, on its one USB-C port.
 - Lines end in `\n`. Some lines are printed with `println`, which ends them in `\r\n`, so
   strip `\r`.
 - The host opens the port the way a desktop serial monitor does: assert DTR, then assert
@@ -41,11 +38,10 @@ Two kinds of line. Anything else is noise: boot ROM output, fragments. Ignore it
 | `tC` | number (2 dp) or `null` | DS18B20 temperature in °C. `null` when no probe answered at boot. |
 | `sweep` | object | Latest four-colour sweep: transmission mV under each LED, keys `red` `yellow` `green` `blue`. Each is `null` until the first sweep. Runs every `SWEEP_EVERY_MS = 10000`. |
 | `stir` | integer | Stirrer PWM percent, or `0` when off. |
-| `swept` | boolean | `true` if a sweep ran during this second. The fast channel was disturbed, so a kinetics fit should drop this line. |
+| `swept` | boolean | `true` if a sweep ran during this second. **That line's `trans` and `scat` are disturbed**: measured, `trans` falls to 0–218 mV from a 332 mV mean and `scat` rises to 197–386 mV from 54. Drop the line from any rate calculation. The firmware itself ignores swept lines for automatic t = 0. |
 
-**Older firmware** printed a bare `nan` instead of `null` for a dark or unplugged sensor,
-which is not valid JSON. Current firmware prints `null`. Parsers should still map
-`nan`/`inf` to `null` field-by-field, not reject the whole line; `peel_app` does.
+Parsers should still map a bare `nan` or `inf` to `null` field by field rather than reject the
+line.
 
 ### Note line: human-readable, starts with `#`
 
@@ -69,7 +65,7 @@ waiting in the buffer, so send one command at a time.
 |---|---|
 | `b` | Take a blank now: clear water in the vial, lid on. Enables `absT` / `absS`. |
 | `z` | Mark t = 0 by hand. |
-| `a` | Toggle auto t = 0. **On at boot.** Fires when transmission falls more than 6 % (`DROP_FRACTION`) between two reports, and only after a blank. |
+| `a` | Toggle auto t = 0. **On at boot.** Fires when transmission falls more than 6 % (`DROP_FRACTION`) between two **unswept** reports, and only after a blank. |
 | `s` | Stop the run: `t` goes back to `-1`. |
 | `m` | Toggle the stirrer. **Running at boot.** |
 
@@ -81,3 +77,35 @@ know it for sure:
 - **auto t = 0**: assume on, as at boot, then follow the `auto t=0 on/off` notes.
 - **blank**: known from the data line (`absT` is non-null).
 - **run in progress**: known from the data line (`t >= 0`).
+
+## The second link: ESP-NOW to the screen in the orange
+
+The XIAO also broadcasts every reading over **ESP-NOW, channel 1, to `FF:FF:FF:FF:FF:FF`**, for
+the ESP32-S3-BOX-3 that acts as the instrument's face. It is additive: the USB JSON above is
+unchanged and remains the source of truth for the phone.
+
+```c
+struct __attribute__((packed)) PeelPacket {   // 36 bytes
+  uint8_t  magic;        // 'P'
+  uint8_t  version;      // 1
+  float    t, trans, scat, absT, absS, tC;   // NAN where the JSON says null
+  uint16_t sweep[4];     // red, yellow, green, blue in mV; 0xFFFF = not swept yet
+  uint8_t  stir;         // percent
+  uint8_t  flags;        // 1 swept, 2 blank stored, 4 auto t=0 on, 8 stirring
+};
+```
+
+Commands come back the same way: **one ASCII byte**, the same letters as over USB
+(`b z a s m`), broadcast. The XIAO feeds them into the same handler as serial input.
+
+Rules that keep it alive: never call `WiFi.begin()` on either board; both hold the channel
+(see `SYSTEM_SETTINGS.md`). If the packet ever has to change, bump `version` and update
+`firmware/21_box3_face` in the same commit: it drops anything that is not version 1.
+
+## Not in the protocol yet
+
+The hardware has **six** LEDs (IR 940 on D0, violet on D1); `17_stream` sweeps four. The
+diagnostics in `firmware/18_selftest` (diode check, lock-in, noise) are not reachable from
+`17_stream`. `SIGNALS.md` lists every signal that exists but is not on the wire.
+
+A real capture of this protocol, commands included, is in `../data/session_full_cycle.jsonl`.

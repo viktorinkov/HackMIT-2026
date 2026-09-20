@@ -1,22 +1,26 @@
 # Peel: hardware
 
-The instrument side of Peel. An ESP32-S3 watches a tablet dissolve through light and
-streams one reading a second over USB. An Android app shows the readings live.
+The instrument side of Peel. A Seeed XIAO ESP32-S3 watches a tablet dissolve through light and
+streams one reading a second over USB to an Android phone, which also powers it. An
+ESP32-S3-BOX-3 in the wall of the orange is its face, linked over ESP-NOW.
 
 ```
-firmware/17_stream/     ESP32-S3 firmware (Arduino). The source of truth for the protocol.
-peel_app/               Flutter Android app: USB OTG serial → parser → live dashboard.
-tools/peel_monitor.py   Desktop reference client: the same stream as a terminal dashboard, plus CSV.
-docs/PROTOCOL.md        The line protocol between the board and the phone.
-docs/HARDWARE.md        Parts in hand, pin map, wiring, the USB chain to the phone.
-DEVIN_HANDOFF.md        Current task: have the signal path ready before the board arrives.
+firmware/17_stream/      XIAO firmware. The source of truth for the protocol.
+firmware/18_selftest/    Bench diagnostic: lock-in LED test, diode check, noise.
+firmware/21_box3_face/   The BOX-3's face: eyes, moods, one-button blank / start / stop.
+firmware/19_box3_link/, 22_box3_probe/    Bring-up tools.
+peel_app/                Flutter Android app: USB serial → parser → session.
+tools/                   Desktop serial clients: peel_monitor.py, capture.py, flash_when_ready.py.
+data/                    Real captures from this hardware. Start with data/README.md.
+docs/HARDWARE.md         Overview, and the index to every other document.
+DEVIN_HANDOFF.md         The current brief.
 ```
 
 ## Flash the board
 
 ```bash
-arduino-cli compile --upload -p /dev/cu.usbmodemXXXX \
-  --fqbn "esp32:esp32:esp32s3:CDCOnBoot=cdc,PSRAM=opi,FlashSize=8M" firmware/17_stream
+arduino-cli compile --upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:XIAO_ESP32S3 firmware/17_stream
+arduino-cli compile --upload -p /dev/cu.usbmodemYYYY --fqbn esp32:esp32:esp32s3box   firmware/21_box3_face
 ```
 
 ## Run the app

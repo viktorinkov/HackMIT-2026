@@ -1,81 +1,42 @@
-# Hardware in hand
+# Hardware overview
 
-This is what the build is actually using at HackMIT: parts checked out from the hardware
-desk, plus a few brought from home. It is not a wish list.
+Peel measures a tablet dissolving in a stirred vial by shining LEDs through it. Two boards:
 
-## Controller
-
-**Espressif ESP32-S3-DevKitC-1-N8R8** (Espressif sponsor unit). Same chip as the Seeed
-XIAO ESP32-S3 the firmware was first developed on, so the firmware runs on both.
-
-- Two **micro-USB** ports: **USB** (the native USB-Serial/JTAG, where the firmware's
-  `Serial` appears) and **UART** (via a bridge chip; silent with this build, but it can
-  power the board).
-- Build: `arduino-cli compile --fqbn "esp32:esp32:esp32s3:CDCOnBoot=cdc,PSRAM=opi,FlashSize=8M" firmware/17_stream`
-- Libraries: `OneWire`, `DallasTemperature`.
-- **Do not use:** GPIO 35–37 (octal PSRAM on the N8R8), 19/20 (USB), 43/44 (UART0), 0/45/46 (strapping pins).
-
-## Pin map
-
-The DevKitC plugs into a 400-point breadboard. It is wide enough to bury one header, so
-everything is on the **J1** header.
-
-| function | DevKitC GPIO | XIAO pin |
+| board | job | firmware |
 |---|---|---|
-| red / yellow / green / blue LED, each through 220 Ω | 3 / 4 / 5 / 6 | D2 / D3 / D4 / D5 |
-| DS18B20 data (4.7 k pull-up to 3V3) | 7 | D8 |
-| transmission sensor | 8 | D9 |
-| scatter sensor | 9 | D10 |
-| stirrer PWM → TB6612 `PWMA` | 14 | D7 |
+| **Seeed XIAO ESP32-S3** | the instrument: drives six LEDs and the stirrer, reads two light sensors and a temperature probe, streams to the phone over USB | `firmware/17_stream` |
+| **Espressif ESP32-S3-BOX-3** (main unit, no dock) | the face in the wall of the enclosure: shows state, takes a blank, starts and stops a run | `firmware/21_box3_face` |
 
-## Light sensors: photoresistors, not TEMT6000
+```
+ Android phone ──USB-C (data + XIAO power)──► XIAO ESP32-S3 ──ESP-NOW ch 1──► ESP32-S3-BOX-3
+                                                │                                   ▲
+              LEDs ×6, TEMT6000 ×2, DS18B20, stirrer driver                 power bank (USB-C)
+```
 
-HackMIT had no TEMT6000 phototransistors. The build uses **5 mm CdS photoresistors
-(GL5539)** from the Elegoo kit, each in a divider: LDR from 3V3 to the pin, 10 k from the
-pin to GND. More light means a higher voltage, the same polarity as the TEMT6000, so the
-firmware and the protocol are unchanged.
+## Where everything is written down
 
-Consequence: a photoresistor takes about **600 ms** to settle after the light changes.
-
-- The fast channel is fine: the green LED stays on, so the light never switches.
-- The four-colour **sweep is not fine**: `SETTLE_MS = 12` was tuned for the TEMT6000. See the handoff.
-
-## Stirrer
-
-Yellow **TT gear motor** (brought from home), driven by a **TB6612FNG**
-(WWZMDiB module). The direction pins are hardwired, so the firmware only needs PWM:
-
-| TB6612 pin | connect to |
+| file | contents |
 |---|---|
-| VM | 5V |
-| VCC | 3V3 |
-| GND | GND |
-| STBY, AIN1 | 3V3 |
-| AIN2 | GND |
-| PWMA | GPIO 14 |
-| AO1 / AO2 | motor |
+| `BOM.md` | every part, with values and markings |
+| `PINMAP.md` | XIAO and BOX-3 pin assignments |
+| `WIRING.md` | the breadboard, hole by hole |
+| `POWER.md` | who powers what, current budget, the rule that protects the phone |
+| `SIGNALS.md` | every signal the device produces: source, unit, range, rate |
+| `BASELINES.md` | measured electrical behaviour: floors, noise, diode drops, timing |
+| `FAULTS.md` | what each fault looks like in the data, with thresholds |
+| `PROTOCOL.md` | the USB line protocol and the ESP-NOW packet |
+| `SYSTEM_SETTINGS.md` | toolchain versions, build targets, firmware constants, radio and display settings |
+| `BOX3.md` | the BOX-3: display bring-up, reset polarity, touch, audio, buttons |
+| `ENCLOSURE.md` | the printed enclosure: datums and where each part sits |
+| `../data/` | real captures from this hardware; see `data/README.md` |
 
-The firmware drives PWM at 20 kHz with a 250 ms full-power kick to break stiction.
+## State of the build
 
-## Other parts on the bench
+Electronics are complete and running on two snapped mini breadboards. Verified on the real parts:
+USB streaming, all six LEDs in circuit and correctly oriented, both light sensors responding and
+independent, the temperature probe, the stirrer driver, the radio link in both directions, and
+the BOX-3 face driving a run from its button.
 
-- **DS18B20** waterproof probes (Gikfun EK1083, 6 × 50 mm, 1 m cable)
-- **ADS1115** 16-bit ADC (Lonely Binary 3-pack). **Not used by the firmware yet**, a future upgrade over the ESP32's ADC.
-- **940 nm IR emitter/receiver pairs** (HiLetgo): future break-beam t = 0 and tachometer.
-- LEDs (BOJACK 5-colour kit), resistor kit, jumpers, neodymium magnets (hub and stir bar).
-
-## The USB chain to the phone
-
-```
-Samsung Galaxy A16 (SM-A165M, Android 15, USB-C)
-  └─ USB-C (male) → USB-A (female) OTG adapter
-       └─ USB-A → micro-USB cable
-            └─ DevKitC port marked "USB"
-```
-
-- **Power:** a phone's OTG port supplies limited current. If the board resets when the
-  stirrer kicks in, plug a charger into the DevKitC's **UART** port as well; the board
-  takes power from either or both.
-- **Debugging while the phone hosts the board:** the phone's only USB port is busy, so use
-  wireless debugging (Developer options → Wireless debugging → `adb pair`, then
-  `adb connect`).
+Not yet done: the parts are **not in the enclosure**, so there is no optical path and no light
+reading means anything in absolute terms. The IR LED's emission is unverified. The power bank is
+not fitted. The phone app has not yet talked to the board.
