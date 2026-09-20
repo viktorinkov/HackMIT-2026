@@ -14,7 +14,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
-  siri_wave: ^2.3.0
+  waveform_flutter: ^1.2.0
 
 dev_dependencies:
   flutter_test:

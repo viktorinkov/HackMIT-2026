@@ -1,13 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:siri_wave/siri_wave.dart';
 
 import '../services/voice_service.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
+import '../widgets/voice_waveform.dart';
 
 class VoiceScreen extends StatefulWidget {
   const VoiceScreen({super.key});
@@ -17,7 +17,6 @@ class VoiceScreen extends StatefulWidget {
 }
 
 class _VoiceScreenState extends State<VoiceScreen> {
-  final _waveController = IOS9SiriWaveformController(amplitude: 1, speed: 0.15);
   final _service = VoiceService(
     verdict: scanSession.result.verdict,
     apiKey: const String.fromEnvironment('DEEPGRAM_API_KEY'),
@@ -51,11 +50,6 @@ class _VoiceScreenState extends State<VoiceScreen> {
         _state = event.state;
         _text = event.text;
       });
-      _waveController.amplitude = switch (event.state) {
-        VoiceState.listening => 1,
-        VoiceState.thinking => 0.25,
-        VoiceState.speaking => 0.8,
-      };
     });
   }
 
@@ -74,13 +68,7 @@ class _VoiceScreenState extends State<VoiceScreen> {
       ),
       content: [
         const SizedBox(height: PeelSpace.x24),
-        AspectRatio(
-          aspectRatio: 13 / 10,
-          child: SiriWaveform.ios9(
-            controller: _waveController,
-            options: const IOS9SiriWaveformOptions(height: 180, width: 320),
-          ),
-        ),
+        PeelVoiceWaveform(state: _state),
         const SizedBox(height: PeelSpace.x16),
         Center(
           child: Text(
