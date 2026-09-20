@@ -29,6 +29,10 @@ class PeelRiveStage extends ChangeNotifier {
   static const asset = 'assets/rive/peel_scan_flow.riv';
   static const aspectRatio = 364 / 416;
 
+  /// Identifies the stack the artboard is positioned in, so slots can report
+  /// their rect in that stack's coordinates rather than global ones.
+  final hostKey = GlobalKey();
+
   final List<PeelRiveSlotHandle> _slots = [];
 
   rive.File? _file;

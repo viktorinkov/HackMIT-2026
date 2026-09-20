@@ -31,6 +31,7 @@ class _PeelRiveHostState extends State<PeelRiveHost> {
         final controller = peelRiveStage.controller;
         final rect = peelRiveStage.rect;
         return Stack(
+          key: peelRiveStage.hostKey,
           children: [
             widget.child,
             if (controller != null && rect != null)
@@ -90,7 +91,6 @@ class _PeelRiveSlotState extends State<PeelRiveSlot> {
   void didUpdateWidget(PeelRiveSlot oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.stage != widget.stage) peelRiveStage.show(widget.stage);
-    _scheduleMeasure();
   }
 
   @override
@@ -99,18 +99,28 @@ class _PeelRiveSlotState extends State<PeelRiveSlot> {
     super.dispose();
   }
 
+  /// Re-measured every frame: the slot moves with scrolling and route
+  /// transitions without rebuilding, and [PeelRiveSlotHandle.moveTo] only
+  /// notifies when the rect actually changes.
   void _scheduleMeasure() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final box = _key.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.hasSize) return;
-      _handle.moveTo(box.localToGlobal(Offset.zero) & box.size);
+      _measure();
+      if (_handle.rect == null) WidgetsBinding.instance.scheduleFrame();
+      _scheduleMeasure();
     });
+  }
+
+  void _measure() {
+    final box = _key.currentContext?.findRenderObject();
+    final host = peelRiveStage.hostKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || host is! RenderBox) return;
+    if (!box.hasSize || box.size.isEmpty) return;
+    _handle.moveTo(box.localToGlobal(Offset.zero, ancestor: host) & box.size);
   }
 
   @override
   Widget build(BuildContext context) {
-    _scheduleMeasure();
     return AspectRatio(
       key: _key,
       aspectRatio: widget.aspectRatio,
