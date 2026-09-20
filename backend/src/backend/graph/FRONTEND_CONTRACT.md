@@ -126,6 +126,23 @@ falls back to demo data.
 - Embed (`?embed=1`): tier forced to mobile, no rail, note becomes a bottom sheet, `js/bridge.js`
   posts `ready / graph_loaded / node_selected / open_scan / open_url / error` to
   `window.PeelBridge` and receives `set_device / focus_node` through `window.PeelAtlas.receive`.
+- **Colour means one thing, everywhere on the page.** Purple is yours (your scans, and
+  nothing else). White is only "what you are looking at" (hover/selection: `HIGHLIGHT_LINK`
+  and `SELECTION_RING` in `config.js` — near-white, deliberately not purple, so a selected
+  node never reads as a second kind of finding next to a red recall path). Red/orange/yellow
+  plus three moving dots means a recall names this exact lot, the dots flowing from the
+  recall to your lot (`exact_lot`/`all_lots_product`/`ndc_in_description`, `alert=True`
+  only). Sand means a crowd report — your own, unverified account of a purchase
+  (`REPORT_KINDS`), never a finding, never coloured by severity. A faint thin line is a plain
+  relation; nothing moves on it and nothing glows.
+- **The Key** (`js/panels/key.js`, "How to read this"): an always-on, collapsible panel
+  anchored bottom-left of the free canvas, above `#chips`, stating the rule above as six
+  short rows. Collapses to a single "Key" pill; the collapsed state is remembered in
+  `localStorage`. Hidden on mobile/embed behind a "?" button that opens the same rows as a
+  bottom sheet. The rail's own Legend section is built from the same row function
+  (`legendRows()`), so the two can never drift apart. A note's header carries a small ring
+  glyph next to the title, the same white as `SELECTION_RING`, so the panel and the scene's
+  own selection ring visibly read as one thing.
 
 ## Rules that are tested
 
@@ -136,6 +153,11 @@ falls back to demo data.
 - `copy.js` and `index.html` never contain the words safe, genuine, verified or authentic
   (`safe-area-inset` in CSS is fine). Backend prose that must contain them renders only inside
   `[data-backend-text]`.
+- `copy.js` never contains fake, counterfeit, illegal, fraud, scam, guilty, unsafe or
+  dangerous: a crowd report is one person's unverified account (`REPORT_KINDS`), and no
+  string may accuse the seller or place it names of anything.
 - `no_adverse_findings` is slate with no tick. "Low risk" is never shown. Expiry and hardware
   degradation are separate badges. Simulated hardware is always badged with its limitation text.
 - While any `demo` node is on screen, `#chips` shows `t('chip.demo')`.
+- A `seller`/`place` node never renders a severity, verdict or risk badge, whatever its
+  `NodeDetail` carries — reports cluster; they never accuse.
