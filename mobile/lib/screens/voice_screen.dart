@@ -6,7 +6,6 @@ import 'package:siri_wave/siri_wave.dart';
 import '../services/voice_service.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
-import '../widgets/animation_placeholder.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 
@@ -75,9 +74,7 @@ class _VoiceScreenState extends State<VoiceScreen> {
       ),
       content: [
         const SizedBox(height: PeelSpace.x24),
-        AnimationPlaceholder(
-          description: '',
-          tone: PlaceholderTone.mint,
+        AspectRatio(
           aspectRatio: 13 / 10,
           child: SiriWaveform.ios9(
             controller: _waveController,
