@@ -89,11 +89,12 @@ class _ChatScreenState extends State<ChatScreen> {
               title: 'Chat',
               onBack: () => Navigator.of(context).pop(),
               trailing: IconButton(
-                tooltip: 'Voice chat',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const VoiceScreen()),
-                ),
-                icon: const Icon(Icons.graphic_eq, color: PeelColors.ink),
+                tooltip: 'Start over',
+                onPressed: () {
+                  scanSession.reset();
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                },
+                icon: const Icon(Icons.home_outlined, color: PeelColors.ink),
               ),
             ),
             Expanded(
