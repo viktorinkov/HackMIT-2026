@@ -1,36 +1,8 @@
-// The Key ("How to read this"): the answer to "what do these colours mean and
-// why is something moving". Always on screen, anchored bottom-left of the free
-// canvas above #chips, collapsible to a "Key" pill (remembered in
-// localStorage), and — on mobile/embed, where there is no room for it inline —
-// reachable through a small "?" button that opens the same rows as a sheet.
-//
-// `legendRows()` is the one place the six-row legend is built. panels/rail.js
-// imports it for the rail's own Legend section so the two can never drift: a
-// change here is a change everywhere the legend appears.
-//
-// Not one of index.html's documented mount points (like panels/help.js, this
-// panel owns its own container end to end), so it creates its own elements
-// and appends them to `document.body` rather than looking one up.
+// The legend rows: what the colours mean and why something is moving. There is no
+// floating key on the canvas; the rail's collapsed Legend section (panels/rail.js) is the
+// only place these rows appear, and it builds them here so there is one source of truth.
 
 import { LINK_STYLE, NODE_TYPES, PARTICLE_COLOR, SELECTION_RING } from '../config.js';
-
-const STORAGE_KEY = 'atlas.key.collapsed';
-
-function readStoredCollapsed() {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) === '1';
-  } catch {
-    return false; // private browsing / blocked storage: default to expanded
-  }
-}
-
-function writeStoredCollapsed(collapsed) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0');
-  } catch {
-    // Nothing to fall back to; the panel still works for this session.
-  }
-}
 
 function keyRow(dom, swatch, text, sub) {
   const textChildren = [dom.el('span', { class: 'atlas-key-row-line' }, [text])];
@@ -94,86 +66,4 @@ export function legendRows(ctx) {
     keyRow(dom, reportSwatch, t('key.row_report')),
     keyRow(dom, selectionRing, t('key.row_selected')),
   ];
-}
-
-export function mountKey(ctx) {
-  const { t, dom } = ctx;
-
-  const root = dom.el('div', { class: 'atlas-panel atlas-key', id: 'atlas-key' });
-  const titleLabel = dom.el('span', { class: 'atlas-key-toggle-label' }, [t('key.title')]);
-  const toggle = dom.el(
-    'button',
-    {
-      type: 'button',
-      class: 'atlas-key-toggle',
-      'aria-expanded': 'true',
-      onClick: () => setCollapsed(!collapsed),
-    },
-    [titleLabel]
-  );
-  const body = dom.el('div', { class: 'atlas-key-body' });
-  for (const rowEl of legendRows(ctx)) body.appendChild(rowEl);
-  root.appendChild(toggle);
-  root.appendChild(body);
-  document.body.appendChild(root);
-
-  let collapsed = readStoredCollapsed();
-
-  function setCollapsed(next) {
-    collapsed = next;
-    root.classList.toggle('atlas-key--collapsed', collapsed);
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    titleLabel.textContent = collapsed ? t('key.pill') : t('key.title');
-    writeStoredCollapsed(collapsed);
-  }
-  setCollapsed(collapsed);
-
-  // Mobile / embed: chrome.css hides `.atlas-key` outright (no room for a
-  // fifth floating panel on a phone). A small "?" FAB opens the same six rows
-  // as a bottom sheet instead — built from the very same `legendRows()`.
-  const fab = dom.el(
-    'button',
-    { type: 'button', class: 'atlas-key-fab', 'aria-label': t('key.open') },
-    ['?']
-  );
-  document.body.appendChild(fab);
-
-  const sheet = dom.el('div', { class: 'atlas-key-sheet' });
-  const card = dom.el('div', { class: 'atlas-key-sheet-card atlas-panel' });
-  const sheetTitle = dom.el('div', { class: 'atlas-key-sheet-title' }, [t('key.title')]);
-  const sheetBody = dom.el('div', { class: 'atlas-key-body atlas-key-body--sheet' });
-  for (const rowEl of legendRows(ctx)) sheetBody.appendChild(rowEl);
-  const closeBtn = dom.el(
-    'button',
-    { type: 'button', class: 'atlas-btn', style: 'margin-top:12px;width:100%', onClick: () => closeSheet() },
-    [t('help.close')]
-  );
-  card.appendChild(sheetTitle);
-  card.appendChild(sheetBody);
-  card.appendChild(closeBtn);
-  sheet.appendChild(card);
-  document.body.appendChild(sheet);
-
-  sheet.addEventListener('mousedown', (event) => {
-    if (event.target === sheet) closeSheet();
-  });
-
-  function isSheetOpen() {
-    return sheet.classList.contains('atlas-open');
-  }
-  function openSheet() {
-    sheet.classList.add('atlas-open');
-  }
-  function closeSheet() {
-    sheet.classList.remove('atlas-open');
-  }
-  fab.addEventListener('click', () => (isSheetOpen() ? closeSheet() : openSheet()));
-
-  return {
-    isCollapsed: () => collapsed,
-    setCollapsed,
-    isSheetOpen,
-    openSheet,
-    closeSheet,
-  };
 }

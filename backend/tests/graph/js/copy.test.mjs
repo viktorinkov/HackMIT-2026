@@ -122,9 +122,9 @@ test('no string ever accuses a seller or alarms about a crowd report', () => {
   }
 });
 
-test('the key panel names every colour on screen and matches the shared legend rows', () => {
+test('the legend names every colour on screen', () => {
   for (const key of [
-    'key.title', 'key.pill', 'key.row_scan', 'key.row_alert', 'key.row_alert_sub',
+    'key.row_scan', 'key.row_alert', 'key.row_alert_sub',
     'key.row_uncorroborated', 'key.row_relation', 'key.row_report', 'key.row_selected',
   ]) {
     assert.equal(hasKey(key), true, `copy.js is missing the key "${key}"`);

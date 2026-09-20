@@ -577,73 +577,9 @@ body[data-embed="1"] .atlas-chip {
 }
 
 /* ---------------------------------------------------------------------
- * Key ("How to read this") — always-on, anchored bottom-left of the free
- * canvas, above #chips. Same left anchor as #chips (beside the rail); the
- * bottom offset clears #chips's own row, which can wrap to two lines (each
- * ~32px) when both the demo and offline/demo-data chips show at once.
- * Collapses to a single pill (the header IS the pill when collapsed, so
- * there is only ever one element to position). Hidden on mobile/embed in
- * favour of the "?" FAB + sheet below.
+ * Legend rows: the rail's collapsed Legend section is the only place the key
+ * lives. There is no floating panel: the canvas stays clear.
  * ------------------------------------------------------------------- */
-.atlas-key {
-  left: calc(var(--rail-w) + 2 * var(--sp-3));
-  bottom: calc(var(--sp-3) + 88px);
-  width: 280px;
-  max-width: calc(100vw - var(--rail-w) - var(--note-w) - 5 * var(--sp-3));
-  padding: 10px var(--sp-3);
-  transition: opacity var(--t-fast) linear;
-}
-
-.atlas-key-toggle {
-  appearance: none;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  background: none;
-  border: none;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-s);
-  font-weight: 600;
-  padding: 0;
-  cursor: pointer;
-}
-
-.atlas-key-toggle::after {
-  content: "\2212"; /* − */
-  flex: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1;
-}
-
-.atlas-key-body {
-  margin-top: var(--sp-2);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.atlas-key--collapsed {
-  width: auto;
-  padding: 6px 14px;
-  border-radius: 999px;
-}
-
-.atlas-key--collapsed .atlas-key-toggle {
-  width: auto; /* the toggle hugs its own text once the panel is pill-sized */
-}
-
-.atlas-key--collapsed .atlas-key-toggle::after {
-  content: "\002B"; /* + */
-}
-
-.atlas-key--collapsed .atlas-key-body {
-  display: none;
-}
-
 .atlas-key-row {
   display: flex;
   align-items: flex-start;
@@ -772,98 +708,6 @@ body[data-embed="1"] .atlas-chip {
   border-radius: 50%;
   border: 2px solid var(--text);
   background: transparent;
-}
-
-/* Mobile/embed: the "?" FAB opens the same rows as a bottom sheet instead of
-   the floating panel above (no room for a fifth panel on a phone). */
-.atlas-key-fab {
-  display: none;
-  position: fixed;
-  left: calc(var(--sp-3) + env(safe-area-inset-left, 0px));
-  bottom: calc(96px + var(--sp-3) + env(safe-area-inset-bottom, 0px));
-  z-index: var(--z-chrome);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  align-items: center;
-  justify-content: center;
-  border: var(--panel-border);
-  background: var(--panel-bg-solid);
-  color: var(--text);
-  font-weight: 700;
-  box-shadow: var(--shadow-panel);
-  cursor: pointer;
-}
-
-.atlas-key-sheet {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity var(--t-panel) var(--ease-out), visibility 0s linear var(--t-panel);
-}
-
-.atlas-key-sheet.atlas-open {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity var(--t-panel) var(--ease-out);
-}
-
-.atlas-key-sheet-card {
-  width: 100%;
-  max-width: 480px;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  border-bottom: none;
-  padding: var(--sp-4);
-  padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
-  transform: translateY(12px);
-  transition: transform var(--t-panel) var(--ease-out);
-}
-
-.atlas-key-sheet.atlas-open .atlas-key-sheet-card {
-  transform: translateY(0);
-}
-
-.atlas-key-sheet-title {
-  font-size: var(--fs-h2);
-  font-weight: 600;
-  margin-bottom: var(--sp-3);
-}
-
-.atlas-key-sheet .atlas-key-body {
-  margin-top: 0;
-  gap: var(--sp-2);
-}
-
-.atlas-key-sheet .atlas-key-row-line {
-  font-size: var(--fs-s);
-}
-
-body[data-embed="1"] .atlas-key,
-body[data-tier="mobile"] .atlas-key {
-  display: none;
-}
-
-body[data-embed="1"] .atlas-key-fab,
-body[data-tier="mobile"] .atlas-key-fab {
-  display: flex;
-}
-
-@media (max-width: 600px) {
-  .atlas-key {
-    display: none;
-  }
-
-  .atlas-key-fab {
-    display: flex;
-  }
 }
 
 /* ---------------------------------------------------------------------
@@ -1245,16 +1089,6 @@ button.atlas-btn--primary {
  * ===================================================================== */
 body[data-chrome="hidden"] #topbar,
 body[data-chrome="hidden"] #chips {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--t-panel) var(--ease-out);
-}
-
-/* `.atlas-key` is a class, not one of index.html's hard-cut ids above, so this
-   one IS effective today: H fades the Key panel and its mobile/embed FAB out
-   with everything else, smoothly. */
-body[data-chrome="hidden"] .atlas-key,
-body[data-chrome="hidden"] .atlas-key-fab {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--t-panel) var(--ease-out);

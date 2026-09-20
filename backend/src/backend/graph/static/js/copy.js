@@ -110,9 +110,6 @@ export const STRINGS = {
   // Key panel ("How to read this") — panels/key.js builds both the always-on
   // panel and the rail's Legend section from these same six rows, so the two
   // can never drift apart.
-  'key.title': 'How to read this',
-  'key.pill': 'Key',
-  'key.open': 'How to read this',
   'key.row_scan': 'Your scans',
   'key.row_alert': 'A recall names this exact lot — dots flow from the recall to your lot.',
   'key.row_alert_sub': 'Red critical · orange high · yellow moderate',

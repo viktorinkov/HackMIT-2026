@@ -135,14 +135,10 @@ falls back to demo data.
   only). Sand means a crowd report — your own, unverified account of a purchase
   (`REPORT_KINDS`), never a finding, never coloured by severity. A faint thin line is a plain
   relation; nothing moves on it and nothing glows.
-- **The Key** (`js/panels/key.js`, "How to read this"): an always-on, collapsible panel
-  anchored bottom-left of the free canvas, above `#chips`, stating the rule above as six
-  short rows. Collapses to a single "Key" pill; the collapsed state is remembered in
-  `localStorage`. Hidden on mobile/embed behind a "?" button that opens the same rows as a
-  bottom sheet. The rail's own Legend section is built from the same row function
-  (`legendRows()`), so the two can never drift apart. A note's header carries a small ring
-  glyph next to the title, the same white as `SELECTION_RING`, so the panel and the scene's
-  own selection ring visibly read as one thing.
+- **The legend** lives in the rail's collapsed Legend section only; there is no floating key
+  on the canvas. Its six rows state the rule above and come from `legendRows()`
+  (`js/panels/key.js`). A note's header carries a small ring glyph next to the title, the same
+  white as `SELECTION_RING`, so the panel and the scene's selection ring read as one thing.
 
 ## Rules that are tested
 
