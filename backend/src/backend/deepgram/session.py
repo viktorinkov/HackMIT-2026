@@ -38,7 +38,7 @@ def _pill_name(hardware: dict[str, Any] | None) -> str | None:
 
 OFFER_DISAGREE = (
     "These results do not agree, so I can help you report this medicine. "
-    "It takes three short questions. Do you want to?"
+    "Do you want to?"
 )
 OFFER_LIGHT = "If anything about this medicine seems wrong, I can help you report it."
 
@@ -151,8 +151,9 @@ def draft_report_function() -> dict[str, Any]:
                 "purchased_on": {
                     "type": "string",
                     "description": (
-                        "Calendar date they bought this medicine, as YYYY-MM-DD. "
-                        "An approximate day is fine. Omit if unknown."
+                        "The day they bought this medicine, written the way "
+                        "they said it. An approximate day is fine. "
+                        "Omit if unknown. Never ask them for a format."
                     ),
                 },
                 "purchase_location": {

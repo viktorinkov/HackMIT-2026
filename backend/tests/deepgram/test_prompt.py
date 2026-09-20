@@ -21,7 +21,12 @@ def test_prompt_embeds_the_scan_context() -> None:
     assert "One moment, I'll open the report" in prompt.prompt
     assert "call draft_report once" in prompt.prompt
     assert "Never say it was submitted" in prompt.prompt
-    assert "YYYY-MM-DD" in prompt.prompt
+    assert "March twelfth, twenty twenty-six" in prompt.prompt
+    assert "When did you buy this?" in prompt.prompt
+    assert "Never ask the user how to format a date" in prompt.prompt
+    assert "Never ask them to give year, month, and day as digits" in prompt.prompt
+    assert "YYYY-MM-DD" not in prompt.prompt
+    assert "yy/mm/dd" not in prompt.prompt
     assert "seller or shop" in prompt.prompt
     assert "concern report" not in prompt.prompt
     assert "fills the problem" not in prompt.prompt
