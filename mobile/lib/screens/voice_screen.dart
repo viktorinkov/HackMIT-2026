@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:siri_wave/siri_wave.dart';
 
 import '../services/voice_service.dart';
+import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/animation_placeholder.dart';
 import '../widgets/peel_button.dart';
@@ -19,6 +20,7 @@ class VoiceScreen extends StatefulWidget {
 class _VoiceScreenState extends State<VoiceScreen> {
   final _waveController = IOS9SiriWaveformController(amplitude: 1, speed: 0.15);
   final _service = VoiceService(
+    verdict: scanSession.result.verdict,
     apiKey: const String.fromEnvironment('DEEPGRAM_API_KEY'),
   );
 

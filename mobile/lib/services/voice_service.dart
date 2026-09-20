@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../data/mock_data.dart';
+
 /// Voice states shown by the prototype.
 enum VoiceState { listening, thinking, speaking }
 
@@ -11,14 +13,14 @@ enum VoiceState { listening, thinking, speaking }
 /// `deepgram.speak.text(reply)` back. That needs a Deepgram API key, so the
 /// demo cycles through the same three states with canned copy instead.
 class VoiceService {
-  VoiceService({this.apiKey});
+  VoiceService({required this.verdict, this.apiKey});
+
+  final ScanVerdict verdict;
 
   /// Pass with `--dart-define=DEEPGRAM_API_KEY=...` to wire the real service.
   final String? apiKey;
 
   static const String _transcript = 'Is it safe to take this pill?';
-  static const String _reply =
-      'No. The imprint does not match the bottle, so do not take it.';
 
   bool get isMocked => apiKey == null || apiKey!.isEmpty;
 
@@ -29,6 +31,9 @@ class VoiceService {
     await Future<void>.delayed(const Duration(milliseconds: 2600));
     yield (state: VoiceState.thinking, text: _transcript);
     await Future<void>.delayed(const Duration(milliseconds: 1800));
-    yield (state: VoiceState.speaking, text: _reply);
+    yield (
+      state: VoiceState.speaking,
+      text: MockBackend.reply(verdict, _transcript)
+    );
   }
 }

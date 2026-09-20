@@ -27,8 +27,11 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final _messages = <ChatMessage>[
-    const ChatMessage(MockBackend.chatPrompt, fromPeel: true),
+  late final _messages = <ChatMessage>[
+    ChatMessage(
+      MockBackend.chatPrompt(scanSession.result.verdict),
+      fromPeel: true,
+    ),
   ];
   bool _thinking = false;
   bool _reportReady = false;
@@ -53,7 +56,12 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     setState(() {
       _thinking = false;
-      _messages.add(ChatMessage(MockBackend.reply(text), fromPeel: true));
+      _messages.add(
+        ChatMessage(
+          MockBackend.reply(scanSession.result.verdict, text),
+          fromPeel: true,
+        ),
+      );
       _reportReady = scanSession.result.canReport;
     });
     _scrollToEnd();

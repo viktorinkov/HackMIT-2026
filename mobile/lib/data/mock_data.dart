@@ -119,13 +119,33 @@ class MockBackend {
     return all[(index + 1) % all.length];
   }
 
-  static const String chatPrompt =
-      'All three checks match. What would you like to ask?';
-
   static const String chatSuggestion = 'I have a question about this pill.';
 
-  static String reply(String question) =>
-      'The imprint on your pill reads I-2, which belongs to ibuprofen 200 mg, '
-      'not the acetaminophen on the bottle. Do not take it, and report the '
-      'bottle so someone can check it.';
+  static String chatPrompt(ScanVerdict verdict) => switch (verdict) {
+        ScanVerdict.match =>
+          'All three checks match. What would you like to ask?',
+        ScanVerdict.mismatch =>
+          'The pill does not match the bottle. What would you like to ask?',
+        ScanVerdict.unconfirmed =>
+          'I could not confirm the pill. What would you like to ask?',
+        ScanVerdict.degradation =>
+          'The pill looks degraded. What would you like to ask?',
+      };
+
+  static String reply(ScanVerdict verdict, String question) =>
+      switch (verdict) {
+        ScanVerdict.match =>
+          'The imprint L484 belongs to acetaminophen 500 mg, the same medicine '
+              'as the bottle. Follow the dose on the label.',
+        ScanVerdict.mismatch =>
+          'The imprint on your pill reads I-2, which belongs to ibuprofen '
+              '200 mg, not the acetaminophen on the bottle. Do not take it, '
+              'and report the bottle so someone can check it.',
+        ScanVerdict.unconfirmed =>
+          'The imprint photo was too blurry to read. Take it again in better '
+              'light, or report the bottle if the pill still looks wrong.',
+        ScanVerdict.degradation =>
+          'The device readings are outside the expected range, so the pill may '
+              'have spoiled. Do not take it, and report the bottle.',
+      };
 }
