@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/main.dart';
+import 'package:peel_mobile/main.dart';
 
 void main() {
   testWidgets('onboarding leads into the bottle scan', (tester) async {
