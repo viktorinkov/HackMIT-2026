@@ -37,7 +37,8 @@ class PeelScaffold extends StatelessWidget {
             if (topBar != null) topBar!,
             Expanded(
               child: Padding(
-                padding: padding ??
+                padding:
+                    padding ??
                     const EdgeInsets.fromLTRB(
                       PeelSpace.x24,
                       PeelSpace.x16,
@@ -127,11 +128,7 @@ class PeelStageScaffold extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     header,
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: PeelRiveSlot(stage: stage),
-                    ),
-                    const Spacer(),
+                    Expanded(child: PeelRiveSlot(stage: stage)),
                     bottom ?? const SizedBox(height: ScanSteps.extent),
                   ],
                 ),
@@ -178,7 +175,10 @@ class PeelStageHeader extends StatelessWidget {
       height: height,
       width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.only(top: PeelSpace.x16, bottom: PeelSpace.x8),
+        padding: const EdgeInsets.only(
+          top: PeelSpace.x16,
+          bottom: PeelSpace.x8,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

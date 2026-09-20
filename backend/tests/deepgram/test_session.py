@@ -20,9 +20,9 @@ from backend.deepgram.session import (
 from tests.deepgram.conftest import complete_scan
 
 THREE_SOURCES = [
-    "Bottle: the label says acetaminophen 500 mg.",
-    "Imprint: the marking lookup returned ibuprofen 200 mg.",
-    "Pill: the hardware analysis reports the contents as ibuprofen.",
+    "The label says acetaminophen 500 mg.",
+    "The marking on the pill matches a reference for ibuprofen 200 mg.",
+    "The sensor analysis reports ibuprofen.",
 ]
 
 
@@ -73,7 +73,7 @@ def test_greeting_uses_the_light_offer_when_there_is_no_concern() -> None:
     )
     assert scan_has_concern(doc) is False
     greeting = greeting_from_scan(doc)
-    assert "Pill: the hardware result is unknown." in greeting
+    assert "The sensor hasn’t identified a match yet." in greeting
     assert greeting.endswith(OFFER_LIGHT)
     assert OFFER_DISAGREE not in greeting
 
@@ -119,7 +119,7 @@ def test_opening_messages_are_exactly_the_three_sources() -> None:
 
 def test_opening_uses_observed_imprint_when_there_is_no_candidate() -> None:
     messages = opening_messages_from_scan(complete_scan(evidence={"pill_candidates": []}))
-    assert messages[1] == "Imprint: the marking is L484, with no drug name yet."
+    assert messages[1] == "I can read L484 on the pill, but haven’t found a name for it yet."
 
 
 def test_opening_does_not_include_the_headline_or_a_fake_line() -> None:

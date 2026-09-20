@@ -15,6 +15,7 @@ from backend.knowledge import normalize, vocab
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
 from backend.pill import HARDWARE_MODEL, PillHardwareResult
+from backend.reference_match import match_readings
 
 TEXT_CAP = 500
 MOCK_LIMITATION = "Simulated result; no physical measurement was performed."
@@ -131,9 +132,13 @@ def hardware_doc(hardware: PillHardwareResult, model: str | None) -> dict[str, A
         "model": name,
         "spectrum": [float(value) for value in hardware.spectrum],
     }
+    if hardware.sensor_readings:
+        doc["sensor_readings"] = [r.model_dump() for r in hardware.sensor_readings]
+        doc["sensor_sample_count"] = hardware.sensor_sample_count or len(hardware.sensor_readings)
     if name == HARDWARE_MODEL:
         # The voice agent must never narrate a mock spectrum as a measurement.
         doc["limitations"] = MOCK_LIMITATION
+    doc["reference_match"] = match_readings(doc)
     return doc
 
 

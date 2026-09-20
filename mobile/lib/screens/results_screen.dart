@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../state/scan_session.dart';
+import '../rive/peel_rive_stage.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/field_card.dart';
 import '../widgets/peel_button.dart';
@@ -10,8 +11,19 @@ import '../widgets/peel_scaffold.dart';
 import 'report_details_screen.dart';
 import 'voice_screen.dart';
 
-class ResultsScreen extends StatelessWidget {
+class ResultsScreen extends StatefulWidget {
   const ResultsScreen({super.key});
+
+  @override
+  State<ResultsScreen> createState() => _ResultsScreenState();
+}
+
+class _ResultsScreenState extends State<ResultsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    peelRiveStage.show(PeelStage.clear);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,9 +35,7 @@ class ResultsScreen extends StatelessWidget {
         if (scan == null || research == null) {
           return PeelScaffold(
             topBar: const PeelTopBar(title: 'Results'),
-            content: [
-              Text('No research result yet.', style: PeelText.body),
-            ],
+            content: [Text('No research result yet.', style: PeelText.body)],
             actions: [
               PeelButton(
                 label: 'Start over',
@@ -64,20 +74,11 @@ class ResultsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: PeelSpace.x12),
-            PeelFieldCard(
-              label: 'Bottle',
-              value: _bottleLine(scan.bottle),
-            ),
+            PeelFieldCard(label: 'Bottle', value: _bottleLine(scan.bottle)),
             const SizedBox(height: PeelSpace.x8),
-            PeelFieldCard(
-              label: 'Imprint',
-              value: _imprintLine(scan.imprint),
-            ),
+            PeelFieldCard(label: 'Imprint', value: _imprintLine(scan.imprint)),
             const SizedBox(height: PeelSpace.x8),
-            PeelFieldCard(
-              label: 'Pill',
-              value: _hardwareLine(scan.hardware),
-            ),
+            PeelFieldCard(label: 'Pill', value: _hardwareLine(scan.hardware)),
             // Photo thumbnails stay in the file, commented out until we show them.
             // if (scanSession.bottlePhoto != null) ...[
             //   const SizedBox(height: PeelSpace.x8),
@@ -186,10 +187,10 @@ class ResultsScreen extends StatelessWidget {
               label: 'Talk to Peel',
               onPressed: scan.status == 'complete'
                   ? () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const VoiceScreen(),
-                        ),
-                      )
+                      MaterialPageRoute<void>(
+                        builder: (_) => const VoiceScreen(),
+                      ),
+                    )
                   : null,
             ),
             if (research.canReport)
@@ -227,8 +228,8 @@ class ResultsScreen extends StatelessWidget {
 
 String _bottleLine(Map<String, dynamic>? bottle) {
   if (bottle == null) return 'No bottle observation';
-  final name = (bottle['generic_name'] as String?) ??
-      (bottle['brand_name'] as String?);
+  final name =
+      (bottle['generic_name'] as String?) ?? (bottle['brand_name'] as String?);
   final strength = bottle['strength'] as String?;
   if (name == null) return 'Bottle not read';
   if (strength == null || strength.isEmpty) return name;
@@ -248,6 +249,22 @@ String _imprintLine(Map<String, dynamic>? imprint) {
 
 String _hardwareLine(Map<String, dynamic>? hardware) {
   if (hardware == null) return 'No hardware observation';
+  final match = hardware['reference_match'] as Map<String, dynamic>?;
+  if (match != null && match['closest_match'] != null) {
+    final distance = (match['distance'] as num).toStringAsFixed(3);
+    final qualifier = match['status'] == 'outside_library'
+        ? '\nOutside reference range'
+        : match['status'] == 'ambiguous'
+        ? '\nSimilar matches; low separation'
+        : '';
+    return 'Closest match: ${match['closest_match']}\nSynthetic reference library · distance $distance$qualifier';
+  }
+  final count = hardware['sensor_sample_count'] as int?;
+  if (count != null && count > 0) return '$count sensor readings recorded';
+  final trace = hardware['spectrum'] as List? ?? const [];
+  if (trace.isNotEmpty && hardware['model'] != 'mock-spectrometry') {
+    return '${trace.length} absorbance readings recorded';
+  }
   final status = hardware['status'] as String? ?? 'unknown';
   final pillType = hardware['pill_type'] as String?;
   if (pillType == null || pillType.isEmpty) return 'Hardware: $status';

@@ -1058,3 +1058,23 @@ async def test_agent_tool_results_are_published_before_coercion_finishes() -> No
     finally:
         release.set()
         await task
+
+
+async def test_real_sensor_measurements_reach_both_ai_stages() -> None:
+    doc = scan_doc(**{Scan.HARDWARE: {
+        "status": "unknown", "model": "peel-xiao", "confidence": 0,
+        "spectrum": [-0.25, 0.75], "sensor_sample_count": 2,
+        "sensor_readings": [
+            {"t": 0, "trans": 180, "scat": 20, "absT": -0.25},
+            {"t": 20, "trans": 120, "scat": 45, "absT": 0.75},
+        ],
+    }})
+    agent, openai_client = FakeAgent(), FakeOpenAI(llm_report())
+    pipeline, store = build(doc=doc, agent=agent, openai_client=openai_client)
+    await pipeline.run(SCAN_ID)
+    for text in (agent.prompts[0], openai_client.calls[0]["input"]):
+        assert '"sensor_readings"' in text
+        assert '"absorbance_trace"' in text
+        assert '180' in text and '120' in text
+    findings = store.last_patch()[Scan.RESEARCH]["findings"]
+    assert any("2 sensor samples" in f["statement"] for f in findings)

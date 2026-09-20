@@ -1,4 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+
+import 'device/session.dart';
+import 'device/debug_screen.dart';
+import 'screens/device_screen.dart';
+import 'device/device_run.dart';
+import 'device/workflow_sync.dart';
 
 import 'rive/peel_rive_stage.dart';
 import 'rive/peel_rive_widgets.dart';
@@ -9,6 +17,22 @@ import 'state/scan_session.dart';
 import 'theme/peel_theme.dart';
 import 'widgets/peel_scaffold.dart';
 
+const deviceHost = String.fromEnvironment('PEEL_DEVICE_HOST');
+const peelSimulator = String.fromEnvironment('PEEL_SIM');
+const peelRunSeconds = int.fromEnvironment(
+  'PEEL_RUN_SECONDS',
+  defaultValue: 20,
+);
+final deviceSession = Session(
+  watchUsb: Platform.isAndroid && deviceHost.isEmpty && peelSimulator.isEmpty,
+);
+final deviceRun = DeviceRun(
+  deviceSession,
+  scanSession,
+  runDuration: Duration(seconds: peelRunSeconds),
+);
+final hardwareSync = WorkflowSync(deviceSession, peelRiveStage.workflowStage);
+
 const _peelStart = String.fromEnvironment('PEEL_START');
 const _voiceScanId = String.fromEnvironment(
   'PEEL_VOICE_SCAN_ID',
@@ -18,11 +42,23 @@ const _voiceScanId = String.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await scanSession.loadDeviceId();
+  hardwareSync.session.init();
+  if (peelSimulator.isNotEmpty) {
+    final endpoint = Uri.parse('tcp://$peelSimulator');
+    deviceSession.connectSim(
+      endpoint.host,
+      endpoint.hasPort ? endpoint.port : 9000,
+    );
+  } else if (deviceHost.isNotEmpty) {
+    deviceSession.connectSim(deviceHost, 9001);
+  }
   runApp(const PeelApp());
 }
 
 class PeelApp extends StatelessWidget {
-  const PeelApp({super.key});
+  const PeelApp({super.key, this.animations = true});
+
+  final bool animations;
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +66,18 @@ class PeelApp extends StatelessWidget {
       title: 'Peel',
       debugShowCheckedModeBanner: false,
       theme: buildPeelTheme(),
-      home: _peelStart == 'voice'
-          ? const _VoiceTestHome()
-          : const OnboardingScreen(),
+      home: switch (_peelStart) {
+        'voice' => const _VoiceTestHome(),
+        'device' => const DeviceScreen(),
+        'debug' => Theme(
+          data: ThemeData(),
+          child: DebugScreen(session: deviceSession),
+        ),
+        _ => const OnboardingScreen(),
+      },
       navigatorObservers: [PeelRiveNavigatorObserver()],
-      builder: (context, child) => PeelRiveHost(child: child ?? const SizedBox()),
+      builder: (context, child) =>
+          PeelRiveHost(enabled: animations, child: child ?? const SizedBox()),
     );
   }
 }

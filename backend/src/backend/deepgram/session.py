@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.deepgram.prompt import build_playground_prompt
-from backend.research.contract import to_scan_context
+from backend.deepgram.prompt import build_playground_prompt, voice_context
 
 
 def _named(name: str | None, strength: str | None) -> str | None:
@@ -62,32 +61,39 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     observed = (context.get("imprint") or {}).get("observed_text") if context.get("imprint") else None
 
     if bottle:
-        bottle_line = f"Bottle: the label says {bottle}."
+        bottle_line = f"The label says {bottle}."
     else:
-        bottle_line = "Bottle: no label result yet."
+        bottle_line = "I don’t have a label reading yet."
 
     if imprint:
-        imprint_line = f"Imprint: the marking lookup returned {imprint}."
+        imprint_line = f"The marking on the pill matches a reference for {imprint}."
     elif observed:
-        imprint_line = f"Imprint: the marking is {observed}, with no drug name yet."
+        imprint_line = f"I can read {observed} on the pill, but haven’t found a name for it yet."
     else:
-        imprint_line = "Imprint: no marking lookup yet."
+        imprint_line = "I don’t have a result for the pill’s markings yet."
 
-    if pill:
-        pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
+    match = (hardware or {}).get("reference_match") or {}
+    if match.get("closest_match"):
+        pill_line = f"The closest match is {match['closest_match']} in our synthetic reference library."
+        if match.get("status") == "ambiguous":
+            pill_line += " Another match is close, so I can’t clearly separate them."
+        elif match.get("status") == "outside_library":
+            pill_line += " But the readings are too far from our references for a reliable match."
+    elif pill:
+        pill_line = f"The sensor analysis reports {pill}."
     elif hardware:
         if hardware.get("reported_status") == "unknown":
-            pill_line = "Pill: the hardware result is unknown."
+            pill_line = "The sensor hasn’t identified a match yet."
         else:
-            pill_line = "Pill: the hardware analysis did not identify the contents."
+            pill_line = "The sensor couldn’t identify the contents."
     else:
-        pill_line = "Pill: no hardware analysis yet."
+        pill_line = "I don’t have a sensor reading yet."
 
     return [bottle_line, imprint_line, pill_line]
 
 
 def intro_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     lines = ["Hi, I'm Peel."]
     if context.get("demo"):
         lines.append("These findings are a simulated demo.")
@@ -105,11 +111,11 @@ def greeting_from_scan(doc: dict[str, Any]) -> str:
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
-    return _source_lines(to_scan_context(doc))
+    return _source_lines(voice_context(doc))
 
 
 def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     terms: list[str] = []
 
     def add(value: str | None) -> None:

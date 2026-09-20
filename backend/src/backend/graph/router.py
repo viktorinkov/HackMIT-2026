@@ -21,7 +21,12 @@ from backend.graph.models import (
 from backend.graph.service import GraphService, get_graph_service
 from backend.knowledge.client import KnowledgeError
 
-router = APIRouter(prefix="/graph", tags=["graph"])
+def reject_mock_mode(demo: bool = False) -> None:
+    if demo:
+        raise HTTPException(status_code=410, detail="Mock graph responses have been removed. Use real scan data.")
+
+
+router = APIRouter(prefix="/graph", tags=["graph"], dependencies=[Depends(reject_mock_mode)])
 
 Service = Annotated[GraphService, Depends(get_graph_service)]
 

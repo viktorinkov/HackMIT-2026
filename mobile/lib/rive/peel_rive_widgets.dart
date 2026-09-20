@@ -10,7 +10,9 @@ import 'peel_rive_stage.dart';
 /// [PeelRiveSlot] is on screen. The artboard is never rebuilt on navigation,
 /// so the animation runs straight through the flow.
 class PeelRiveHost extends StatefulWidget {
-  const PeelRiveHost({required this.child, super.key});
+  const PeelRiveHost({required this.child, this.enabled = true, super.key});
+
+  final bool enabled;
 
   final Widget child;
 
@@ -22,7 +24,7 @@ class _PeelRiveHostState extends State<PeelRiveHost> {
   @override
   void initState() {
     super.initState();
-    peelRiveStage.load();
+    if (widget.enabled) peelRiveStage.load();
   }
 
   @override
