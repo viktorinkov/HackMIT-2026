@@ -149,6 +149,7 @@ class Session extends ChangeNotifier {
     history.connectedAt = DateTime.now();
     faults = const [];
     if (logging) {
+      log = null;
       SessionLog.open().then((opened) {
         log = opened;
         opened.event('connected', {'device': link.label}, DateTime.now());
@@ -180,9 +181,10 @@ class Session extends ChangeNotifier {
         await link.close();
       } catch (_) {}
     }
+    // The log outlives the connection: closed, but still readable, so the run can be
+    // exported after the board has gone away. _attach replaces it on the next connect.
     final open = log;
-    log = null;
-    if (open != null) {
+    if (open != null && !open.isClosed) {
       open.event('disconnected', {'lines': _lineCount}, DateTime.now());
       unawaited(open.close());
     }

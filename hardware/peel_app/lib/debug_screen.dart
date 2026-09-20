@@ -79,7 +79,10 @@ class _DebugScreenState extends State<DebugScreen> {
             ElevatedButton(onPressed: session.connectUsb, child: const Text('USB')),
             ElevatedButton(onPressed: _connectSim, child: const Text('Simulator')),
             ElevatedButton(onPressed: session.disconnect, child: const Text('Disconnect')),
-            ElevatedButton(onPressed: _copyLog, child: const Text('Copy log')),
+            ElevatedButton(
+              onPressed: session.log == null ? null : _copyLog,
+              child: const Text('Copy log'),
+            ),
           ]),
           SizedBox(
             width: 220,
@@ -88,7 +91,9 @@ class _DebugScreenState extends State<DebugScreen> {
               decoration: const InputDecoration(labelText: 'simulator host:port'),
             ),
           ),
-          if (session.log != null) Text('log: ${session.log!.path}'),
+          if (session.log != null)
+            Text('log: ${session.log!.path}'
+                '${session.log!.isClosed ? ' (closed)' : ''}'),
         ],
       );
 

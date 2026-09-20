@@ -178,6 +178,23 @@ void main() {
       expect(records.firstWhere((r) => r['kind'] == 'raw')['line'], _data);
     });
 
+    test('the log survives the disconnect that closed it, so the run can be read back',
+        () async {
+      final log = await SessionLog.open(directory: dir);
+      final logged = Session(watchUsb: false, logging: false);
+      addTearDown(logged.dispose);
+      await logged.connectTo(link);
+      logged.log = log;
+
+      link.say(_data);
+      await settle();
+      await logged.disconnect();
+
+      expect(logged.log, same(log));
+      expect(log.isClosed, isTrue);
+      expect(await log.read(), contains('"kind":"reading"'));
+    });
+
     test('faults are written when they are raised and again when they clear', () async {
       final log = await SessionLog.open(directory: dir);
       final logged = Session(
