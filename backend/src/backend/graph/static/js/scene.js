@@ -5,7 +5,7 @@
 // simulation runs), so we own one rAF of our own and pause it with the renderer.
 
 import * as THREE from 'three';
-import { BG, INTENSITY, LINK_STYLE, SIM } from './config.js';
+import { BG, INTENSITY, LINK_STYLE, SELECTION_RING, SIM } from './config.js';
 import {
   applyNodeIntensity, animateNode, bodyPoolSize, createNodeObject, focusHalo,
   radiusOf, refreshNodeObject, ringSprite, wantsHalo,
@@ -31,6 +31,10 @@ const GUTTER = 12;
 const AUTOROTATE_RAMP_MS = 1500;
 const AUTOROTATE_SPEED = 0.25;
 const TAP_SLOP_PX = 28;
+// A photon is smallest leaving the record and largest arriving at your lot, which is
+// what makes the direction of the evidence readable at a glance.
+const PHOTON_SCALE_AT_RECORD = 0.78;
+const PHOTON_SCALE_AT_LOT = 1.45;
 // A short, hot reheat: new nodes settle in under a second and the rest stays put.
 const INCREMENTAL_ALPHA_DECAY = 0.12;
 const INCREMENTAL_VELOCITY_DECAY = 0.6;
@@ -118,6 +122,7 @@ export function createScene({
   let hotReheat = false;
   let lastPickAt = 0;
   const embedLike = document.body.dataset.embed === '1';
+  const particlesOn = !!tier.particles && !reducedMotion;
   const offset = { from: 0, to: 0, current: 0, t: OFFSET_MS };
 
   const activeNodes = new Set();
@@ -126,6 +131,9 @@ export function createScene({
   const decorated = new Set();
   // Nodes at either end of an alert edge that applies to this device.
   const alertNodes = new Set();
+  // The alert edges themselves: the only links that carry photons, and the only ones
+  // the frame loop has to touch to taper them.
+  const alertLinks = new Set();
 
   // ---------------------------------------------------------------- accessors
 
@@ -167,8 +175,13 @@ export function createScene({
     return materialFor(hex, alpha * INTENSITY.rest, mesh, emissive);
   }
 
+  /**
+   * Only an alert edge that applies to this device carries photons. A crowd report
+   * never does: `alertApplies` refuses a report kind outright, so LINK_CLASS.REPORT
+   * cannot reach this path however the payload is flagged.
+   */
   function particlesFor(link) {
-    if (!tier.particles || reducedMotion) return 0;
+    if (!particlesOn) return 0;
     return link.__applies ? LINK_STYLE.alert.particles : 0;
   }
 
@@ -264,6 +277,31 @@ export function createScene({
       if (Math.abs(target - i) <= EPS) { i = target; activeLinks.delete(link); }
       link.__i = i;
       applyLinkIntensity(link, i, link.__role || 'base', store.state.nodes, !!link.__applies);
+    }
+  }
+
+  /**
+   * The photons already travel from the record toward the user's lot. This makes that
+   * direction readable when the path is short: a photon grows as it approaches the lot,
+   * so the end that matters is the bright one.
+   *
+   * Cheap on purpose. It touches only the handful of links that carry particles, it
+   * writes a scale the library never writes itself, and it reads `__progressRatio` --
+   * the library's own 0-at-source, 1-at-target counter -- rather than recomputing it.
+   * No new motion: it rescales photons that were already moving.
+   */
+  function stepPhotons() {
+    for (const link of alertLinks) {
+      const group = link.__photonsObj;
+      const children = group && group.children;
+      if (!children || !children.length) continue;
+      for (const photon of children) {
+        const p = photon.__progressRatio;
+        if (typeof p !== 'number') continue;
+        const t = p < 0 ? 0 : (p > 1 ? 1 : p);
+        photon.scale.setScalar(PHOTON_SCALE_AT_RECORD
+          + (PHOTON_SCALE_AT_LOT - PHOTON_SCALE_AT_RECORD) * t);
+      }
     }
   }
 
@@ -393,6 +431,7 @@ export function createScene({
     trackLights();
     if (activeNodes.size || activeLinks.size) stepIntensity(dt);
     if (decorated.size || pulses.length) stepDecorations(now, dt);
+    if (particlesOn && alertLinks.size) stepPhotons();
 
     const flying = now < flightUntil;
     const moved = cameraMoved();
@@ -479,9 +518,11 @@ export function createScene({
       for (const id of node.scan_ids || []) keys.add(id);
     }
     alertNodes.clear();
+    alertLinks.clear();
     for (const link of store.state.links.values()) {
       link.__applies = alertApplies(link, keys);
       if (!link.__applies) continue;
+      alertLinks.add(link);
       alertNodes.add(endpointId(link.source));
       alertNodes.add(endpointId(link.target));
     }
@@ -565,7 +606,10 @@ export function createScene({
 
   // -------------------------------------------------------------- selection
 
-  let accent = null;
+  // The ring around the selected node. Neutral white: purple belongs to your scans and
+  // to nothing else, so a selected lot can no longer read as a second kind of finding
+  // next to a red recall path.
+  let selectionRing = null;
   // One halo, reparented. The reference has no glow, so only you, the alert path and
   // whatever is under the pointer get one.
   const focusGlow = focusHalo();
@@ -584,20 +628,22 @@ export function createScene({
       if (focusGlow.parent) focusGlow.parent.remove(focusGlow);
       return;
     }
-    focusGlow.material.color.copy(data.base);
+    // Neutral, not the node's own hue: this halo only ever says "you are looking at
+    // this", and the body underneath keeps its colour to say what it is.
+    focusGlow.material.color.set(SELECTION_RING);
     focusGlow.scale.setScalar(data.radius * 5.2);
     focusGlow.material.opacity = 0.2;
     obj.add(focusGlow);
   }
 
-  function clearAccent() {
-    if (accent && accent.parent) accent.parent.remove(accent);
-    if (accent) accent.material.dispose();
-    accent = null;
+  function clearSelectionRing() {
+    if (selectionRing && selectionRing.parent) selectionRing.parent.remove(selectionRing);
+    if (selectionRing) selectionRing.material.dispose();
+    selectionRing = null;
   }
 
   function decorateSelection(id) {
-    clearAccent();
+    clearSelectionRing();
     // The selected core is tinted toward white, so any node whose flag flips has to
     // be re-applied at once: its intensity target may not have changed at all.
     for (const node of store.state.nodes.values()) {
@@ -614,10 +660,10 @@ export function createScene({
     const obj = node && node.__threeObj;
     if (!obj) return;
     const data = obj.userData.atlas;
-    accent = ringSprite('#a882ff', data.radius * 3.8, { additive: true, opacity: 0.8 });
-    obj.add(accent);
+    selectionRing = ringSprite(SELECTION_RING, data.radius * 3.8, { additive: true, opacity: 0.8 });
+    obj.add(selectionRing);
     if (!reducedMotion) {
-      const pulse = ringSprite('#a882ff', data.radius * 2, { additive: true, opacity: 0.75 });
+      const pulse = ringSprite(SELECTION_RING, data.radius * 2, { additive: true, opacity: 0.75 });
       obj.add(pulse);
       pulses.push({ sprite: pulse, t: 0, dur: 700, r0: data.radius * 1.2, r1: data.radius * 7 });
     }

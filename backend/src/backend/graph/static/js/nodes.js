@@ -1,5 +1,6 @@
-// Node objects: a glossy lit ball per node, ball-and-stick style, plus the four
-// special shapes the vocabulary needs.
+// Node objects: a glossy lit ball per node, ball-and-stick style, plus the special
+// shapes the vocabulary needs -- the scan's ring, the lot crystal, the regulator hub,
+// the cluster cloud and the reported seller's cube.
 //
 // Two rules survive from the unlit version. Dimming lerps the body colour toward the
 // background (opaque, no sorting) while a small emissive of the same hue keeps a
@@ -11,7 +12,9 @@
 // materials serve every node, and the intensity engine swaps the reference.
 
 import * as THREE from 'three';
-import { BG, NODE_TYPES, SEVERITY, VERDICT, nodeColor, nodeRadius, typeOf } from './config.js';
+import {
+  BG, NODE_TYPES, SELECTION_RING, SEVERITY, VERDICT, nodeColor, nodeRadius, typeOf,
+} from './config.js';
 
 const BG_COLOR = new THREE.Color(BG);
 const WHITE = new THREE.Color('#ffffff');
@@ -64,7 +67,7 @@ export function haloTexture() {
   return _halo;
 }
 
-/** A thin annulus: the scan's verdict ring, the selection accent and the click pulse. */
+/** A thin annulus: the scan's verdict ring, the selection ring and the click pulse. */
 export function ringTexture() {
   if (_ring) return _ring;
   const el = canvas(128);
@@ -113,7 +116,20 @@ function sphereGeometry(tier) {
   return geometry(`sphere:${w}x${h}`, () => new THREE.SphereGeometry(1, w, h));
 }
 
+/** Every shape this file knows how to build. Anything else is drawn as a sphere. */
+const SHAPES = new Set(['sphere', 'ring', 'octa', 'hub', 'cloud', 'box']);
+
+/** Core scale per shape: the octahedron and the cube need more to read at the same weight. */
+const SHAPE_SCALE = { octa: 1.35, box: 1.15 };
+
+// A crowd report is somebody's account, not a finding, so it is never sized by a
+// severity that reached it from elsewhere in the graph.
+const NO_SEVERITY_SIZING = new Set(['seller', 'place']);
+
 export function radiusOf(node, degree = 0) {
+  if (node && node.severity && NO_SEVERITY_SIZING.has(node.type)) {
+    return nodeRadius({ ...node, severity: undefined }, degree) * RADIUS_SCALE;
+  }
   return nodeRadius(node, degree) * RADIUS_SCALE;
 }
 
@@ -191,7 +207,7 @@ function haloSprite(color, radius, scale, opacity) {
   return sprite;
 }
 
-/** Camera-facing ring. `additive` for the selection accent and the click pulse. */
+/** Camera-facing ring. `additive` for the selection ring and the click pulse. */
 export function ringSprite(color, radius, { additive = false, opacity = RING_REST } = {}) {
   const material = new THREE.SpriteMaterial({
     map: ringTexture(),
@@ -209,9 +225,13 @@ export function ringSprite(color, radius, { additive = false, opacity = RING_RES
   return sprite;
 }
 
-/** One reusable halo the scene reparents onto whatever is hovered or selected. */
+/**
+ * One reusable halo the scene reparents onto whatever is hovered or selected. It wears
+ * the neutral focus colour, never the node's own hue: white says "what you are looking
+ * at" and nothing else, so a focused scan cannot be confused with a finding.
+ */
 export function focusHalo() {
-  return haloSprite('#ffffff', 1, 1, HALO_REST_SCAN);
+  return haloSprite(SELECTION_RING, 1, 1, HALO_REST_SCAN);
 }
 
 function nebula(color, count, radius) {
@@ -250,8 +270,13 @@ function nebula(color, count, radius) {
   return points;
 }
 
-/** The reference has no glow: only you, the alert path and the focused node bloom. */
+/**
+ * The reference has no glow: only you, the alert path and the focused node bloom.
+ * A reported seller or purchase place never glows whatever it sits next to -- a halo
+ * there would read as the report itself being a finding.
+ */
 export function wantsHalo(node, alertConnected) {
+  if (node.type === 'seller' || node.type === 'place') return false;
   return node.type === 'scan' || !!alertConnected;
 }
 
@@ -261,19 +286,30 @@ export function createNodeObject(node, { tier, degree = 0, seed = 0, alertConnec
   const type = typeOf(node);
   const radius = radiusOf(node, degree);
   const color = nodeColor(node);
-  const shape = type.shape || 'sphere';
+  // A type that names a shape this file does not build falls back to a sphere rather
+  // than to nothing.
+  const shape = SHAPES.has(type.shape) ? type.shape : 'sphere';
   const flat = shape === 'octa';
+  const shapeScale = SHAPE_SCALE[shape] || 1;
+  const wantsGlow = wantsHalo(node, alertConnected);
   const group = new THREE.Group();
 
+  // `flat` is the lot crystal's faceted shading; the cube takes the same smooth,
+  // pooled, clear-coated material the spheres use, so it reads as one family.
   const body = bodyMaterial(color, 1, { flat });
   let core;
   if (flat) {
     core = new THREE.Mesh(geometry('octa', () => new THREE.OctahedronGeometry(1, 0)), body);
-    core.scale.setScalar(radius * 1.35);
+  } else if (shape === 'box') {
+    core = new THREE.Mesh(geometry('box', () => new THREE.BoxGeometry(1, 1, 1)), body);
+    // A cube square-on to the camera is a square. A constant offset (never animated:
+    // the only motion in the scene is the alert path) keeps three faces in view, and
+    // the clear coat rounds its edges with a highlight.
+    core.rotation.set(0.42, 0.62, 0.08);
   } else {
     core = new THREE.Mesh(sphereGeometry(tier), body);
-    core.scale.setScalar(radius);
   }
+  core.scale.setScalar(radius * shapeScale);
   group.add(core);
 
   const data = {
@@ -282,6 +318,7 @@ export function createNodeObject(node, { tier, degree = 0, seed = 0, alertConnec
     base: new THREE.Color(color),
     baseHex: color,
     flat,
+    shapeScale,
     radius,
     halo: null,
     ring: null,
@@ -289,7 +326,9 @@ export function createNodeObject(node, { tier, degree = 0, seed = 0, alertConnec
     shellMaterial: null,
     cloud: null,
     haloRest: HALO_REST,
-    shimmer: node.type === 'scan' || node.severity === 'critical',
+    // The shimmer is carried by the halo, so a node without one never joins the
+    // per-frame decoration list.
+    shimmer: node.type === 'scan' || (node.severity === 'critical' && wantsGlow),
     spin: node.type === 'scan' && (node.status === 'pending' || node.status === 'partial'),
     intensity: 1,
     grow: 0,
@@ -297,7 +336,7 @@ export function createNodeObject(node, { tier, degree = 0, seed = 0, alertConnec
     matKey: null,
   };
 
-  if (wantsHalo(node, alertConnected)) {
+  if (wantsGlow) {
     const big = node.type === 'scan' || node.type === 'regulator' || node.type === 'record';
     data.haloRest = node.type === 'scan' ? HALO_REST_SCAN : HALO_REST;
     data.halo = haloSprite(color, radius, big ? HALO_SCALE_BIG : HALO_SCALE, data.haloRest);
@@ -352,7 +391,7 @@ export function refreshNodeObject(data, node, degree = 0) {
   const radius = radiusOf(node, degree);
   if (Math.abs(radius - data.radius) > 0.01) {
     data.radius = radius;
-    data.core.scale.setScalar(data.flat ? radius * 1.35 : radius);
+    data.core.scale.setScalar(radius * (data.shapeScale || 1));
     if (data.shell) data.shell.scale.setScalar(radius * 2.3);
   }
   if (data.ring) {
@@ -361,7 +400,7 @@ export function refreshNodeObject(data, node, degree = 0) {
     data.spin = node.status === 'pending' || node.status === 'partial';
     if (!data.spin) data.ring.material.rotation = 0;
   }
-  data.shimmer = node.type === 'scan' || node.severity === 'critical';
+  data.shimmer = node.type === 'scan' || (node.severity === 'critical' && !!data.halo);
   applyNodeIntensity(data, data.intensity);
 }
 

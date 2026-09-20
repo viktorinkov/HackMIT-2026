@@ -52,6 +52,30 @@
 /* ---------------------------------------------------------------------
  * Header
  * ------------------------------------------------------------------- */
+.atlas-note-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.atlas-note-header .atlas-note-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The same white ring the scene puts around whatever is selected (config.js
+   SELECTION_RING) — a decorative echo so the two visibly read as one thing. */
+.atlas-note-ring {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-bottom: 1px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: transparent;
+}
+
 .atlas-note-title {
   margin: 0 0 2px;
   font-size: var(--fs-h2);
@@ -135,6 +159,38 @@
   );
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+
+/* ---------------------------------------------------------------------
+ * also_reported cluster: counts from OTHER people's reports, never their
+ * scan ids, dates, free-text labels or coordinates (R2). A plain two-row
+ * stat, not a callout — nothing here is a finding.
+ * ------------------------------------------------------------------- */
+.atlas-also-reported {
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--bg-secondary);
+  border-radius: var(--r-m);
+}
+
+.atlas-also-reported-row {
+  font-size: var(--fs-m);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.atlas-also-reported-row--muted {
+  margin-top: 2px;
+  font-size: var(--fs-s);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.atlas-also-reported-note {
+  margin-top: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-style: italic;
 }
 
 /* ---------------------------------------------------------------------

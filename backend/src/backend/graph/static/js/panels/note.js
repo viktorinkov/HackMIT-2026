@@ -22,7 +22,9 @@
 // whole time. Content changes while the panel is already open crossfade or
 // fade in rather than flashing a skeleton; see `openFor()`.
 
-import { NODE_TYPES, SEVERITY, VERDICT, UNKNOWN_TYPE, LINK_KIND_COPY } from '../config.js';
+import {
+  NODE_TYPES, SEVERITY, VERDICT, UNKNOWN_TYPE, LINK_KIND_COPY, SELECTION_RING,
+} from '../config.js';
 import { postOpenScan, postOpenUrl } from '../bridge.js';
 import { endpointId } from '../store.js';
 import { DETENTS } from '../bridge-protocol.js';
@@ -54,8 +56,38 @@ const MAX_DETAIL_CACHE = 64;
 // below always waits at least as long as the CSS transition actually runs.
 const CLOSE_MS = 360;
 
+// R1 (backend/src/backend/graph/FRONTEND_CONTRACT.md): a report is one person's unverified
+// account, never evidence — a seller or place node never carries a severity,
+// verdict or risk badge, whatever a field on it happens to hold.
+const NEVER_RISK_STYLED_TYPES = new Set(['seller', 'place']);
+
 function backendText(dom, tag, text, attrs = {}) {
   return dom.el(tag, { ...attrs, 'data-backend-text': '' }, [text]);
+}
+
+/** A small hollow ring, the same white as the scene's own selection ring
+ *  (config.js SELECTION_RING), so the two read as one thing. Decorative. */
+function selectionRingGlyph(dom) {
+  return dom.el('span', {
+    class: 'atlas-note-ring',
+    'aria-hidden': 'true',
+    style: `border-color:${SELECTION_RING}`,
+  });
+}
+
+function noteTitle(dom, titleEl) {
+  return dom.el('div', { class: 'atlas-note-header' }, [selectionRingGlyph(dom), titleEl]);
+}
+
+/**
+ * True for the `also_reported` cluster (seller/place -> a cluster carrying
+ * counts from OTHER people's reports, R2) — `graph/expand.py`'s
+ * `_crowd_cluster` tags it `attrs.relation === 'reports'`, which is how this
+ * generic `cluster` node is told apart from one built for some other
+ * relation (e.g. "+42 records").
+ */
+function isReportCluster(node) {
+  return !!node && node.type === 'cluster' && node.attrs?.relation === 'reports';
 }
 
 function looksSimulated(node, properties) {
@@ -246,6 +278,12 @@ export function mountNote(ctx) {
 
   function verdictBadges(node) {
     const badges = [];
+    // A seller or place is never drawn as a risk (R1) — skip verdict/risk
+    // badges outright even if a stray field slipped through the backend.
+    if (node && NEVER_RISK_STYLED_TYPES.has(node.type)) {
+      if (node.demo) badges.push(dom.el('span', { class: 'atlas-badge atlas-badge--demo' }, [t('note.demo_badge')]));
+      return badges;
+    }
     if (node?.verdict && VERDICT[node.verdict]) {
       const v = VERDICT[node.verdict];
       const badge = dom.el('span', { class: `atlas-badge atlas-badge--verdict-${node.verdict}` }, [
@@ -271,6 +309,35 @@ export function mountNote(ctx) {
     return badges;
   }
 
+  /**
+   * The also_reported cluster's own note: a small two-row stat built only
+   * from counts (never another device's scan id, report id, purchase date,
+   * free-text label or coordinates — R2), plus the disclaimer that a report
+   * is unverified. The counts live on the graph NODE, not the fetched
+   * NodeDetail: `graph/expand.py`'s `_crowd_cluster` puts the report count on
+   * the node's own `count` field and the on-findings count on
+   * `attrs.flagged` (this note is `store.merge()`d in from `/graph/expand`
+   * before anyone ever selects it, so the node already carries both by the
+   * time this renders). Either one missing just renders fewer rows.
+   */
+  function alsoReportedStat(node) {
+    const wrap = dom.el('div', { class: 'atlas-also-reported' });
+    const other = node.count;
+    const flagged = node.attrs?.flagged;
+    if (typeof other === 'number') {
+      wrap.appendChild(dom.el('div', { class: 'atlas-also-reported-row' }, [t('note.also_reported_count', { n: other })]));
+    }
+    if (typeof flagged === 'number') {
+      wrap.appendChild(
+        dom.el('div', { class: 'atlas-also-reported-row atlas-also-reported-row--muted' }, [
+          t('note.also_reported_flagged', { n: flagged }),
+        ])
+      );
+    }
+    wrap.appendChild(dom.el('div', { class: 'atlas-also-reported-note' }, [t('note.reports_unverified')]));
+    return wrap;
+  }
+
   function propertyRows(node, detail) {
     const rows = [];
     for (const prop of detail.properties || []) {
@@ -292,9 +359,12 @@ export function mountNote(ctx) {
   function renderDetail(id, node, detail) {
     dom.clear(scroll);
 
-    scroll.appendChild(backendText(dom, 'h1', cleanText(detail.title || node?.label || id, 120), {
+    const titleEl = backendText(dom, 'h1', cleanText(detail.title || node?.label || id, 120), {
       class: 'atlas-note-title',
-    }));
+    });
+    // The ring glyph only means something once something is actually selected
+    // (it never shows on the skeleton or the select-prompt state).
+    scroll.appendChild(noteTitle(dom, titleEl));
     if (detail.subtitle) {
       scroll.appendChild(backendText(dom, 'div', cleanText(detail.subtitle, 140), { class: 'atlas-note-subtitle' }));
     }
@@ -305,6 +375,8 @@ export function mountNote(ctx) {
       badgeRow.appendChild(backendText(dom, 'span', cleanText(label, 40), { class: 'atlas-badge' }));
     }
     if (badgeRow.childNodes.length > 0) scroll.appendChild(badgeRow);
+
+    if (isReportCluster(node)) scroll.appendChild(alsoReportedStat(node));
 
     if (detail.properties?.length) {
       const table = dom.el('table', { class: 'atlas-properties' });
@@ -448,7 +520,8 @@ export function mountNote(ctx) {
       return;
     }
     scroll.appendChild(dom.el('div', { class: 'atlas-note-error' }, [t('note.load_error')]));
-    scroll.appendChild(backendText(dom, 'h1', cleanText(node.label, 120), { class: 'atlas-note-title' }));
+    const titleEl = backendText(dom, 'h1', cleanText(node.label, 120), { class: 'atlas-note-title' });
+    scroll.appendChild(noteTitle(dom, titleEl));
     if (node.sublabel) {
       scroll.appendChild(backendText(dom, 'div', cleanText(node.sublabel, 140), { class: 'atlas-note-subtitle' }));
     }

@@ -11,28 +11,40 @@
 
 import * as THREE from 'three';
 import {
-  BG, HIGHLIGHT_LINK, LINK_CLASS, LINK_STYLE, PARTICLE_COLOR, SEVERITY, linkClass,
+  BG, HIGHLIGHT_LINK, LINK_CLASS, LINK_STYLE, PARTICLE_COLOR, REPORT_KINDS, SEVERITY,
+  linkClass,
 } from './config.js';
 import { endpointId } from './store.js';
 
 const BG_COLOR = new THREE.Color(BG);
 const STEPS = 16;
 
-// Scene-side overrides of config.js (which the lead owns).
+// Scene-side overrides of config.js (which the lead owns). `report` is the sand of
+// LINK_STYLE.report: a crowd report is a person's own account, so it is warm and
+// quiet and shares no colour with a regulator's record.
 export const BOND_COLOR = {
   strong: '#c4c4cf',
   weak: '#8a8a99',
   uncorroborated: '#7a6f55',
   conflict: '#e9973f',
+  report: LINK_STYLE.report.color,
 };
 export const BOND_WIDTH = {
   strong: 0.5,
   weak: 0.28,
   uncorroborated: 0.28,
   conflict: 0.4,
+  report: 0.3,
   alert: 1.0,
 };
 export const ALERT_EMISSIVE = 0.35;
+// A lit alert reaches full severity colour; a lit anything-else only brightens.
+export const LIT_BOOST = 1.15;
+export const ALERT_LIT_BOOST = 1.4;
+// Dimming lerps a colour toward the background, and at the dim step every hue ends up
+// the same near-black. An alert keeps this floor so a recall elsewhere in the graph
+// recedes like its neighbours without turning into a different category of edge.
+export const ALERT_DIM_FLOOR = 0.26;
 export const DISTANCE_SCALE = 0.6;
 export const LINK_RESOLUTION = 8;
 
@@ -81,6 +93,20 @@ export function classOf(link) {
   return linkClass(link);
 }
 
+/**
+ * The class the scene actually DRAWS. It is `classOf` for everything except an alert
+ * that belongs to somebody else's scan, which is demoted to an ordinary edge so a
+ * colliding product is never one hover from a red path that is not about this device.
+ *
+ * Only an alert is ever demoted: a conflict, an uncorroborated match and a crowd
+ * report keep their own colour and width whatever the alert set says about them.
+ */
+export function effectiveClass(link, applicable) {
+  const cls = classOf(link);
+  if (cls !== LINK_CLASS.ALERT || applicable) return cls;
+  return link.strong ? LINK_CLASS.STRONG : LINK_CLASS.WEAK;
+}
+
 /** The severity colour of a record endpoint, which is what an alert edge wears. */
 export function alertColor(link, nodes) {
   const a = nodes.get(endpointId(link.source));
@@ -96,7 +122,9 @@ export function alertColor(link, nodes) {
  * scan ids on either side, treat it as applicable.
  */
 export function alertApplies(link, scanKeys) {
-  if (!link.alert) return false;
+  // A report is one person's account and is never evidence, so it can never take the
+  // alert path -- no red, no width, no particles -- whatever a payload claims.
+  if (!link.alert || REPORT_KINDS.has(link.kind)) return false;
   const ids = link.scan_ids || [];
   if (!ids.length) return true;
   if (!scanKeys || !scanKeys.size) return true;
@@ -128,9 +156,16 @@ export function orientAlertLink(link) {
   return link;
 }
 
-/** Descriptive style for a link in a given lit/dim role. */
+/**
+ * Descriptive style for a link in a given lit/dim role.
+ *
+ * Highlighting is NEUTRAL, and severity outranks it: a lit ordinary edge goes
+ * white-grey, a lit alert stays the severity colour of its record and only gets
+ * brighter. Nothing on the canvas turns white or purple to say "hovered" except the
+ * focus ring itself.
+ */
 export function styleFor(link, role, nodes, applicable) {
-  const cls = applicable ? classOf(link) : (link.strong ? LINK_CLASS.STRONG : LINK_CLASS.WEAK);
+  const cls = effectiveClass(link, applicable);
   const style = LINK_STYLE[cls] || LINK_STYLE.weak;
   const alert = cls === LINK_CLASS.ALERT;
   let hex = alert ? alertColor(link, nodes) : (BOND_COLOR[cls] || BOND_COLOR.weak);
@@ -148,9 +183,12 @@ export function styleFor(link, role, nodes, applicable) {
 export function applyLinkIntensity(link, intensity, role, nodes, applicable) {
   const obj = link.__lineObj;
   if (!obj) return;
-  const { hex, alpha, mesh, emissive } = styleFor(link, role, nodes, applicable);
-  const boost = role === 'lit' ? 1.15 : 1;
-  const t = Math.max(0, Math.min(1, alpha * intensity * boost));
+  const { cls, hex, alpha, mesh, emissive } = styleFor(link, role, nodes, applicable);
+  const alert = cls === LINK_CLASS.ALERT;
+  const boost = role === 'lit' ? (alert ? ALERT_LIT_BOOST : LIT_BOOST) : 1;
+  let t = alpha * intensity * boost;
+  if (alert) t = Math.max(t, ALERT_DIM_FLOOR);
+  t = Math.max(0, Math.min(1, t));
   const step = Math.max(0, Math.min(STEPS, Math.round(t * STEPS)));
   const key = poolKey(hex, step, mesh, emissive > 0);
   if (link.__matKey === key) return;
@@ -212,7 +250,9 @@ export function linkDistance(link) {
  * would rebuild every link object on every mouse move.
  */
 export function linkWidthOf(link) {
-  if (link.__applies) return BOND_WIDTH.alert;
+  const cls = effectiveClass(link, !!link.__applies);
+  // The alert path is the one thing that keeps a bond on mobile.
+  if (cls === LINK_CLASS.ALERT) return BOND_WIDTH.alert;
   if (!sticks) return 0;
-  return BOND_WIDTH[classOf(link)] || BOND_WIDTH.weak;
+  return BOND_WIDTH[cls] || BOND_WIDTH.weak;
 }

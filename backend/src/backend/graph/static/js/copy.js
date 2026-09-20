@@ -23,6 +23,8 @@ export const STRINGS = {
   'rail.filters': 'Filters',
   'rail.legend': 'Legend',
   'rail.legend_evidence': 'Evidence',
+  'rail.reported_sources': 'Reported sources',
+  'rail.reported_source_scans': '{n} of your scans',
 
   // Severity legend (order: critical, high, moderate, unknown)
   'severity.critical': 'Critical',
@@ -52,6 +54,13 @@ export const STRINGS = {
   'link.stated_manufacturer': 'Name printed on the label',
   'link.conflicts_with': 'Label and pill reference disagree',
 
+  // Crowd reports: one person's own account of a purchase, which Peel has not checked. Never
+  // evidence, never strong, never an alert — see graph/models.py REPORT_KINDS.
+  'link.bought_from': 'Where you said you bought it',
+  'link.bought_in': 'Where you said you bought it',
+  'link.located_in': 'Located in',
+  'link.also_reported': "Other people's reports — counts only",
+
   // Note panel
   'note.properties': 'Properties',
   'note.findings': 'Findings',
@@ -66,6 +75,13 @@ export const STRINGS = {
   'note.demo_badge': 'Demo',
   'note.select_prompt': 'Select a node to open its note.',
   'note.close': 'Close',
+
+  // Crowd reports: a cluster carrying counts from OTHER people's reports
+  // (never their scan ids, dates, free-text labels or coordinates — see R2 in
+  // backend/src/backend/graph/FRONTEND_CONTRACT.md).
+  'note.also_reported_count': 'Named by {n} other people',
+  'note.also_reported_flagged': '{n} of them on scans with findings',
+  'note.reports_unverified': 'Peel has not checked these reports.',
 
   // Properties that must never collapse into one status
   'property.expiry_label': 'Expiry (label)',
@@ -90,6 +106,20 @@ export const STRINGS = {
   'toast.demo_scan_posted': 'Posted the demo scan ({scan_id}) — watch it bloom in',
   'toast.demo_scan_failed': 'Could not post the demo scan',
   'toast.link_copied': 'Link copied',
+
+  // Key panel ("How to read this") — panels/key.js builds both the always-on
+  // panel and the rail's Legend section from these same six rows, so the two
+  // can never drift apart.
+  'key.title': 'How to read this',
+  'key.pill': 'Key',
+  'key.open': 'How to read this',
+  'key.row_scan': 'Your scans',
+  'key.row_alert': 'A recall names this exact lot — dots flow from the recall to your lot.',
+  'key.row_alert_sub': 'Red critical · orange high · yellow moderate',
+  'key.row_uncorroborated': 'Same product line or lot string only — not a match',
+  'key.row_relation': 'How things are related',
+  'key.row_report': 'Where you said you bought it — your own report, not checked',
+  'key.row_selected': 'Selected — what you are looking at',
 
   // Help overlay
   'help.title': 'Keyboard shortcuts',

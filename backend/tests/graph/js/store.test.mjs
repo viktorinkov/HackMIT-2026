@@ -341,3 +341,52 @@ test('sorting scans leaves the caller array untouched', () => {
   sortScansByAttention(scans);
   assert.equal(scans[0].id, 'scan:1');
 });
+
+// ------------------------------------------------------------------ crowd reports
+//
+// A report is one person's account of where they bought something. It travels the
+// ordinary merge path -- no alert, no special casing -- and the scene draws it in sand.
+
+test('a report of where a lot was bought merges like any other edge', () => {
+  const current = empty();
+  const result = mergeGraph(current, {
+    nodes: [node('lot:A', { type: 'lot' }), node('seller:pharmacy-9', { type: 'seller' })],
+    links: [link('lot:A', 'bought_from', 'seller:pharmacy-9')],
+  });
+  assert.equal(result.addedNodes.length, 2);
+  assert.equal(result.addedLinks.length, 1);
+  const stored = current.links.get('lot:A>bought_from>seller:pharmacy-9');
+  assert.equal(stored.kind, 'bought_from');
+  assert.ok(!stored.alert);
+
+  // A second poll of the same report changes nothing: no reheat, no duplicate seller.
+  const again = mergeGraph(current, {
+    nodes: [node('seller:pharmacy-9', { type: 'seller' })],
+    links: [link('lot:A', 'bought_from', 'seller:pharmacy-9')],
+  });
+  assert.equal(again.changed, false);
+  assert.equal(current.nodes.size, 2);
+});
+
+test('a report edge is undirected, so hovering the lot lights the seller', () => {
+  const links = new Map();
+  for (const l of [
+    link('lot:A', 'bought_from', 'seller:pharmacy-9'),
+    link('seller:pharmacy-9', 'located_in', 'place:market-row'),
+  ]) links.set(l.id, l);
+  const { adjacency, degree } = buildAdjacency(links);
+  assert.deepEqual([...adjacency.get('lot:A')], ['seller:pharmacy-9']);
+  assert.deepEqual(
+    [...adjacency.get('seller:pharmacy-9')].sort(),
+    ['lot:A', 'place:market-row'],
+  );
+  assert.equal(degree.get('seller:pharmacy-9'), 2);
+});
+
+test('a reported seller is kept like the rest of the device\'s own graph', () => {
+  // Reports arrive marked personal, so the budget keeps them over backdrop evidence --
+  // and a scan still outranks them, because a report is an account, not a finding.
+  const reported = node('seller:pharmacy-9', { type: 'seller', personal: true });
+  assert.ok(nodePriority(reported) > nodePriority(node('rec:elsewhere', { backdrop: true })));
+  assert.ok(nodePriority(reported) < nodePriority(node('scan:1', { type: 'scan' })));
+});

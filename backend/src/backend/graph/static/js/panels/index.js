@@ -19,6 +19,7 @@ import { mountChips } from './chips.js';
 import { mountToasts } from './toasts.js';
 import { mountFallback } from './fallback.js';
 import { mountHelp } from './help.js';
+import { mountKey } from './key.js';
 
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -165,6 +166,7 @@ export function mountChrome({ store, scene, api }) {
   const search = mountSearch(ctx);
   const help = mountHelp(ctx);
   const fallback = mountFallback(ctx);
+  const key = mountKey(ctx);
 
   if (isEmbed()) mountBridge({ store, scene, api, search, note });
 
@@ -213,9 +215,11 @@ export function mountChrome({ store, scene, api }) {
         help.close();
       } else if (search.isOpen()) {
         search.close();
+      } else if (key.isSheetOpen()) {
+        key.closeSheet();
       }
     }
   });
 
-  return { topbar, rail, note, search, chips, help, fallback };
+  return { topbar, rail, note, search, chips, help, fallback, key };
 }

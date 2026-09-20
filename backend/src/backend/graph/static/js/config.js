@@ -19,6 +19,10 @@ export const NODE_TYPES = {
   pill_ref:     { prefix: 'pillref', label: 'Pill references', color: '#9fe8e6', r0: 1.6, shape: 'sphere' },
   topic:        { prefix: 'topic',   label: 'Reasons',        color: '#b9a48c', r0: 1.8, shape: 'sphere' },
   cluster:      { prefix: 'cluster', label: 'More',           color: '#6b6b76', r0: 1.2, shape: 'cloud' },
+  // Crowd reports: where someone says they bought the medicine. Sand, and a box rather
+  // than a sphere: a different kind of thing from the regulatory data, and never a risk colour.
+  seller:       { prefix: 'seller',  label: 'Reported sellers', color: '#e0b98a', r0: 2.8, shape: 'box' },
+  place:        { prefix: 'place',   label: 'Purchase places',  color: '#8fa3b8', r0: 2.0, shape: 'sphere' },
 };
 export const UNKNOWN_TYPE = { prefix: '?', label: 'Other', color: '#8f8f9a', r0: 1.6, shape: 'sphere' };
 
@@ -40,7 +44,11 @@ export const VERDICT = {
 
 // Link classes decide how an edge is drawn. Weak edges are faint, never dashed:
 // the library rewrites line positions every tick without recomputing dash distances.
-export const LINK_CLASS = { ALERT: 'alert', STRONG: 'strong', WEAK: 'weak', UNCORROBORATED: 'uncorroborated', CONFLICT: 'conflict' };
+export const LINK_CLASS = { ALERT: 'alert', STRONG: 'strong', WEAK: 'weak', UNCORROBORATED: 'uncorroborated', CONFLICT: 'conflict', REPORT: 'report' };
+
+// A person's own account of a purchase. Drawn as a thin dotted-looking sand line class,
+// never red, never with particles.
+export const REPORT_KINDS = new Set(['bought_from', 'bought_in', 'located_in', 'also_reported']);
 
 export const UNCORROBORATED_KINDS = new Set([
   'lot_only_match', 'lot_listed', 'all_lots_sibling', 'product_line_match',
@@ -49,6 +57,7 @@ export const UNCORROBORATED_KINDS = new Set([
 export function linkClass(link) {
   if (link.alert) return LINK_CLASS.ALERT;
   if (link.kind === 'conflicts_with') return LINK_CLASS.CONFLICT;
+  if (REPORT_KINDS.has(link.kind)) return LINK_CLASS.REPORT;
   if (UNCORROBORATED_KINDS.has(link.kind)) return LINK_CLASS.UNCORROBORATED;
   return link.strong ? LINK_CLASS.STRONG : LINK_CLASS.WEAK;
 }
@@ -59,9 +68,14 @@ export const LINK_STYLE = {
   weak:           { color: '#5a5a66', alpha: 0.30, width: 0, particles: 0, distance: 70 },
   uncorroborated: { color: '#7a6f55', alpha: 0.45, width: 0, particles: 0, distance: 55 },
   conflict:       { color: '#e9973f', alpha: 0.70, width: 0, particles: 0, distance: 45 },
+  report:         { color: '#e0b98a', alpha: 0.60, width: 0, particles: 0, distance: 40 },
 };
 export const PARTICLE_COLOR = '#ffd7d9';
-export const HIGHLIGHT_LINK = '#a882ff';
+// Hover and selection are NEUTRAL. They used to be the same purple as "your scans", so a
+// selected lot (purple ring, purple links) read as a second kind of finding next to a red
+// recall path. Purple now means only "yours"; white means only "what you are looking at".
+export const HIGHLIGHT_LINK = '#e9e9f2';
+export const SELECTION_RING = '#ffffff';
 
 // copy.js key for the caption shown when an edge of this kind is hovered.
 export const LINK_KIND_COPY = {
@@ -74,6 +88,10 @@ export const LINK_KIND_COPY = {
   lot_listed: 'link.lot_listed',
   stated_manufacturer: 'link.stated_manufacturer',
   conflicts_with: 'link.conflicts_with',
+  bought_from: 'link.bought_from',
+  bought_in: 'link.bought_in',
+  located_in: 'link.located_in',
+  also_reported: 'link.also_reported',
 };
 
 // Intensity targets for the hover / selection dimming.
