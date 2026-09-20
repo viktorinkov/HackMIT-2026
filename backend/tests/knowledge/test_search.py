@@ -18,6 +18,7 @@ from backend.knowledge.fields import (
     WEB_DECAY,
     Pill,
     Reg,
+    Scan,
     Web,
 )
 from backend.knowledge.router import router as knowledge_router
@@ -786,3 +787,43 @@ def test_debug_body_reflects_the_rerank_that_actually_ran() -> None:
     # the one that was sent, not one rebuilt from the missing parameter.
     assert "text_similarity_reranker" in response.json()["body"]["retriever"]
     assert "text_similarity_reranker" in es.bodies[0]["retriever"]
+
+
+# ------------------------------------------------ prior_scans demo exclusion
+
+
+async def test_prior_scans_excludes_demo_scans_from_the_crowd_signal() -> None:
+    class _PriorScansEs:
+        def __init__(self) -> None:
+            self.bodies: list[dict[str, Any]] = []
+
+        async def search(self, *, index: str, **body: Any) -> dict[str, Any]:
+            self.bodies.append(body)
+            return {
+                "hits": {"total": {"value": 0}},
+                "aggregations": {"by_verdict": {"buckets": []}},
+            }
+
+    es = _PriorScansEs()
+    await _search(es).prior_scans(lot="D2402430", ndc9="167290457")
+    must_not = es.bodies[0]["query"]["bool"]["must_not"]
+    assert {"term": {Scan.DEMO: True}} in must_not
+
+
+async def test_prior_scans_still_excludes_the_scan_itself_alongside_demo() -> None:
+    class _PriorScansEs:
+        def __init__(self) -> None:
+            self.bodies: list[dict[str, Any]] = []
+
+        async def search(self, *, index: str, **body: Any) -> dict[str, Any]:
+            self.bodies.append(body)
+            return {
+                "hits": {"total": {"value": 0}},
+                "aggregations": {"by_verdict": {"buckets": []}},
+            }
+
+    es = _PriorScansEs()
+    await _search(es).prior_scans(lot="D2402430", ndc9=None, exclude_scan_id="scan-7")
+    must_not = es.bodies[0]["query"]["bool"]["must_not"]
+    assert {"term": {Scan.DEMO: True}} in must_not
+    assert {"term": {Scan.SCAN_ID: "scan-7"}} in must_not

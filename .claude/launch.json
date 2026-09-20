@@ -6,6 +6,12 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "--project", "backend", "uvicorn", "backend.app:app", "--host", "127.0.0.1", "--port", "8000"],
       "port": 8000
+    },
+    {
+      "name": "peel-atlas",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--project", "backend", "uvicorn", "backend.app:app", "--host", "127.0.0.1", "--port", "8010"],
+      "port": 8010
     }
   ]
 }

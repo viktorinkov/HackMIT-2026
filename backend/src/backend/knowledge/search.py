@@ -1026,9 +1026,18 @@ class KnowledgeSearch:
             should.append({"term": {Scan.NORM_NDC9: ndc9}})
         if not should:
             return {"total": 0, "by_verdict": {}}
-        bool_query: dict[str, Any] = {"should": should, "minimum_should_match": 1}
+        # Seeded/rehearsal scans are never a crowd signal: without this, the
+        # demo device's own scans (or a re-seed) push a shared lot/NDC past
+        # PRIOR_SCAN_MIN and the report invents a "earlier Peel users scanned
+        # this" finding in front of a judge.
+        must_not: list[dict[str, Any]] = [{"term": {Scan.DEMO: True}}]
         if exclude_scan_id:
-            bool_query["must_not"] = [{"term": {Scan.SCAN_ID: exclude_scan_id}}]
+            must_not.append({"term": {Scan.SCAN_ID: exclude_scan_id}})
+        bool_query: dict[str, Any] = {
+            "should": should,
+            "minimum_should_match": 1,
+            "must_not": must_not,
+        }
         body = {
             "size": 0,
             "query": {"bool": bool_query},

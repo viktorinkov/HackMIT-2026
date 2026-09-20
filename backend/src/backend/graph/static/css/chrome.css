@@ -1,0 +1,1005 @@
+/*
+ * Atlas chrome: the panels that float over the full-bleed WebGL canvas.
+ * Obsidian's idiom — dark, matte, calm. Depends on css/tokens.css.
+ * Note-panel-specific rules (properties table, callout, backlinks, sources,
+ * bottom sheet) live in css/note.css.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-canvas);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-ui);
+  line-height: var(--lh);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#canvas {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-canvas);
+  background: var(--bg-canvas);
+}
+
+#labels {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-labels);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------
+ * Vignette + grain: a calm frame over the scene, never intercepting input.
+ * ------------------------------------------------------------------- */
+.atlas-vignette {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-vignette);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+.atlas-grain {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-vignette);
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Panel base
+ * ------------------------------------------------------------------- */
+.atlas-panel {
+  position: fixed;
+  z-index: var(--z-chrome);
+  background: var(--panel-bg);
+  -webkit-backdrop-filter: var(--panel-blur);
+  backdrop-filter: var(--panel-blur);
+  border: var(--panel-border);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-panel);
+  color: var(--text);
+}
+
+/* Blur over a live WebGL canvas is expensive inside a WebView: solid fill
+   on the mobile tier and in embed mode instead. */
+body[data-tier="mobile"] .atlas-panel,
+body[data-embed="1"] .atlas-panel {
+  background: var(--panel-bg-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.atlas-panel-title {
+  font-size: var(--fs-s);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---------------------------------------------------------------------
+ * Topbar
+ * ------------------------------------------------------------------- */
+#topbar {
+  top: var(--sp-3);
+  left: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.atlas-wordmark {
+  font-size: var(--fs-m);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.atlas-breadcrumb {
+  font-size: var(--fs-s);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.atlas-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  overflow: hidden;
+}
+
+.atlas-segmented button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-s);
+  padding: 4px var(--sp-3);
+  cursor: pointer;
+  transition: background-color var(--t-fast) linear, color var(--t-fast) linear;
+}
+
+.atlas-segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.atlas-segmented button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+}
+
+.atlas-counts {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+ * Left rail
+ * ------------------------------------------------------------------- */
+#rail {
+  top: var(--sp-3);
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  width: var(--rail-w);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateX(0);
+  transition: transform var(--t-panel) var(--ease-out), opacity var(--t-panel) var(--ease-out);
+  will-change: transform, opacity;
+}
+
+/* G toggles this: fade + slide, mounted throughout (see panels/rail.js). */
+#rail.atlas-collapsed {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+#rail.atlas-inert {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Room for the topbar above the rail on desktop. */
+body:not([data-tier="mobile"]):not([data-embed="1"]) #rail {
+  top: calc(var(--sp-3) * 2 + 40px);
+}
+
+.atlas-rail-scroll {
+  flex: 1 1 auto;
+  min-height: 0; /* let a flex child actually shrink and scroll instead of overflowing its parent */
+  overflow-y: auto;
+  padding: var(--sp-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.atlas-rail-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.atlas-rail-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.atlas-rail-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.atlas-rail-section {
+  border-bottom: 1px solid var(--border);
+  padding: var(--sp-2) 0;
+}
+
+.atlas-rail-section:last-child {
+  border-bottom: none;
+}
+
+.atlas-rail-section > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--fs-s);
+  font-weight: 500;
+  color: var(--text);
+  border-radius: var(--r-s);
+}
+
+.atlas-rail-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.atlas-rail-section > summary:hover {
+  background: var(--bg-hover);
+}
+
+.atlas-rail-section > summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid var(--text-muted);
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  transition: transform var(--t-fast) var(--ease-out);
+  flex: none;
+}
+
+.atlas-rail-section[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.atlas-rail-section .atlas-rail-body {
+  padding: var(--sp-2) var(--sp-2) 0;
+}
+
+/* Needs-attention rows are two lines: dot + label on top (the label needs
+   its own room to ellipsize), verdict chip + short date beneath, muted.
+   Filter and backlink rows stay single-line — nothing in them is as wide as
+   a full label plus an ISO timestamp. */
+.atlas-attention-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-s);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  transition: background-color var(--t-fast) linear;
+}
+
+.atlas-filter-row,
+.atlas-backlink-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--r-s);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-s);
+  transition: background-color var(--t-fast) linear;
+}
+
+.atlas-attention-row:hover,
+.atlas-filter-row:hover,
+.atlas-backlink-row:hover {
+  background: var(--bg-hover);
+}
+
+.atlas-attention-row-line1 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.atlas-attention-row-line2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding-left: calc(8px + var(--sp-2)); /* align under the label, past the dot */
+}
+
+.atlas-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.atlas-attention-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.atlas-attention-chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.atlas-attention-date {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.atlas-empty-row {
+  padding: 6px var(--sp-2);
+  color: var(--text-faint);
+  font-size: var(--fs-s);
+}
+
+.atlas-filter-count {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: none;
+}
+
+/* Pill toggle: on/off state for filter rows. */
+.atlas-pill-toggle {
+  appearance: none;
+  width: 30px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  position: relative;
+  flex: none;
+  cursor: pointer;
+  transition: background-color var(--t-fast) linear, border-color var(--t-fast) linear;
+}
+
+.atlas-pill-toggle::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform var(--t-fast) var(--ease-out), background var(--t-fast) var(--ease-out);
+}
+
+.atlas-pill-toggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.atlas-pill-toggle[aria-pressed="true"]::after {
+  transform: translateX(14px);
+  background: var(--accent-bright);
+}
+
+.atlas-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 3px var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------
+ * Range slider primitive (2px track, 12px thumb) — Obsidian's control look,
+ * available to any future rail control.
+ * ------------------------------------------------------------------- */
+input[type="range"] {
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: var(--border-strong);
+  border-radius: 1px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  cursor: pointer;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  cursor: pointer;
+  border: none;
+}
+
+/* ---------------------------------------------------------------------
+ * DOM labels (rendered by the scene into #labels)
+ *
+ * The scene's label pool (js/labels.js) sets class names `lbl`, `lbl mono`,
+ * `lbl lit` directly (mirroring the base look already inlined in
+ * index.html's critical CSS) and positions/fades each label via inline
+ * `style.transform`/`style.opacity` every frame — a `transition` declared
+ * here still animates those inline-driven changes. `.atlas-label*` /
+ * `.atlas-sublabel` are kept as the documented, semantic class names for
+ * any label markup built outside that pool; both naming schemes share one
+ * rule set so neither can silently drift from the other.
+ * ------------------------------------------------------------------- */
+.atlas-label,
+#labels .lbl {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform, opacity;
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: #dadada;
+  text-shadow: 0 0 4px var(--bg-canvas), 0 1px 2px rgba(0, 0, 0, 0.8);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity var(--t-fast) linear, color var(--t-fast) linear;
+}
+
+.atlas-label--lit,
+#labels .lbl.lit {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.atlas-label--mono,
+#labels .lbl.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-sublabel,
+#labels .lbl .sub {
+  display: block;
+  font-size: 10.5px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: #9a9aa3;
+  text-shadow: 0 0 4px var(--bg-canvas), 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  transition: opacity var(--t-fast) linear;
+}
+
+/* Only for hand-built `.atlas-sublabel` markup, which starts hidden and
+   opts into visibility explicitly; `.sub` inside the pooled `.lbl` is
+   already empty (no textContent) whenever the scene has nothing to show. */
+.atlas-sublabel {
+  opacity: 0;
+}
+
+.atlas-sublabel--visible {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------
+ * Chips (#chips) — persistent, bottom centre. The top edge belongs to the
+ * topbar and the note's title; at ~1024px wide the chips covered both.
+ * ------------------------------------------------------------------- */
+#chips {
+  bottom: var(--sp-3);
+  /* Anchored beside the rail, inside the free canvas: centring on the viewport
+     slid the row under the open note. */
+  left: calc(var(--rail-w) + 2 * var(--sp-3));
+  max-width: calc(100vw - var(--rail-w) - var(--note-w) - 5 * var(--sp-3));
+  flex-wrap: wrap;
+  position: fixed;
+  z-index: var(--z-chrome);
+  display: flex;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+
+.atlas-chip {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  -webkit-backdrop-filter: var(--panel-blur);
+  backdrop-filter: var(--panel-blur);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-panel);
+  white-space: nowrap;
+}
+
+body[data-tier="mobile"] .atlas-chip,
+body[data-embed="1"] .atlas-chip {
+  background: var(--panel-bg-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.atlas-chip--demo {
+  color: var(--n-pill);
+}
+
+.atlas-chip--offline {
+  color: var(--sev-high);
+}
+
+/* ---------------------------------------------------------------------
+ * Toasts (#toasts)
+ * ------------------------------------------------------------------- */
+#toasts {
+  position: fixed;
+  right: var(--sp-3);
+  bottom: var(--sp-3);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+
+body[data-embed="1"] #toasts,
+body[data-tier="mobile"] #toasts {
+  right: var(--sp-3);
+  bottom: calc(96px + var(--sp-3) + env(safe-area-inset-bottom, 0px));
+}
+
+.atlas-toast {
+  pointer-events: auto;
+  max-width: 320px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-m);
+  background: var(--toast-bg);
+  border: var(--panel-border);
+  box-shadow: var(--shadow-panel);
+  font-size: var(--fs-s);
+  color: var(--text);
+  animation: atlas-toast-in var(--t-med) var(--ease-out);
+}
+
+.atlas-toast--leaving {
+  animation: atlas-toast-out var(--t-med) var(--ease-inout) forwards;
+}
+
+@keyframes atlas-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes atlas-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Quick switcher (#search): open = fade + scale(0.98 -> 1) over 140ms;
+ * close = a 120ms fade (the backdrop tint below is part of #search itself,
+ * so it fades with everything else). Mounted at all times — `.atlas-inert`
+ * (added only once the close fade finishes, see panels/search.js) keeps it
+ * out of the way instead of a display:none toggle, which cannot animate.
+ * Per-direction duration relies on the transition living on each target
+ * state's own rule: opening picks up .atlas-open's 140ms, closing picks up
+ * the base rule's 120ms.
+ * ------------------------------------------------------------------- */
+#search {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transition: opacity 120ms linear;
+  will-change: opacity;
+}
+
+#search.atlas-open {
+  opacity: 1;
+  transition: opacity 140ms linear;
+}
+
+#search.atlas-inert {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.atlas-switcher {
+  width: var(--switcher-w);
+  max-width: calc(100vw - 2 * var(--sp-3));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.98);
+  transition: transform 120ms var(--ease-out);
+  will-change: transform;
+}
+
+#search.atlas-open .atlas-switcher {
+  transform: scale(1);
+  transition: transform 140ms var(--ease-out);
+}
+
+.atlas-switcher-input {
+  appearance: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-m);
+  padding: var(--sp-3) var(--sp-4);
+  outline: none;
+}
+
+.atlas-switcher-input::placeholder {
+  color: var(--text-faint);
+}
+
+.atlas-switcher-results {
+  overflow-y: auto;
+  padding: var(--sp-2);
+}
+
+.atlas-switcher-heading {
+  padding: var(--sp-2) var(--sp-2) var(--sp-1);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.atlas-switcher-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--r-s);
+  cursor: pointer;
+  transition: background-color var(--t-fast) linear;
+}
+
+.atlas-switcher-row[aria-selected="true"],
+.atlas-switcher-row:hover {
+  background: var(--bg-hover);
+}
+
+.atlas-switcher-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.atlas-switcher-sublabel {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.atlas-switcher-footer {
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.atlas-search-fab {
+  display: none;
+  position: fixed;
+  top: calc(var(--sp-3) + env(safe-area-inset-top, 0px));
+  right: calc(var(--sp-3) + env(safe-area-inset-right, 0px));
+  z-index: var(--z-chrome);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  border: var(--panel-border);
+  background: var(--panel-bg-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-panel);
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------
+ * Help overlay (#help)
+ * ------------------------------------------------------------------- */
+#help {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#help.atlas-open {
+  display: flex;
+}
+
+.atlas-help-card {
+  width: 420px;
+  max-width: calc(100vw - 2 * var(--sp-3));
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--sp-4);
+}
+
+.atlas-help-card h2 {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+.atlas-help-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-s);
+}
+
+.atlas-help-row:last-child {
+  border-bottom: none;
+}
+
+.atlas-kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--r-s);
+  padding: 1px 6px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+ * Fallback (#fallback) — no-WebGL list view
+ *
+ * index.html ships `<section id="fallback" hidden>` with its own base
+ * `display:grid;place-items:center` for the pre-chrome-CSS instant; main.js
+ * reveals it by clearing the `hidden` attribute (its `[hidden]{display:none
+ * !important}` rule needs no help here). This overrides that base display
+ * with a plain scrollable block once visible, since the content is a list,
+ * not a single centred card.
+ * ------------------------------------------------------------------- */
+#fallback {
+  z-index: var(--z-chrome);
+  display: block;
+  overflow-y: auto;
+  background: var(--bg-canvas);
+  padding: var(--sp-6) var(--sp-4);
+}
+
+.atlas-fallback-notice {
+  max-width: 640px;
+  margin: 0 auto var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-s);
+}
+
+.atlas-fallback-list {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ---------------------------------------------------------------------
+ * Load-state cards, shared shape for empty/error/loading
+ * ------------------------------------------------------------------- */
+.atlas-state-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-chrome);
+  width: 360px;
+  max-width: calc(100vw - 2 * var(--sp-3));
+  padding: var(--sp-4);
+  text-align: center;
+}
+
+.atlas-state-card h2 {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-h2);
+  font-weight: 600;
+}
+
+.atlas-state-card p {
+  margin: 0 0 var(--sp-3);
+  color: var(--text-muted);
+  font-size: var(--fs-s);
+}
+
+.atlas-state-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-bright);
+  margin-right: 8px;
+  animation: atlas-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes atlas-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+button.atlas-btn {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-secondary);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-s);
+  padding: 6px 14px;
+  border-radius: var(--r-m);
+  cursor: pointer;
+}
+
+button.atlas-btn:hover {
+  background: var(--bg-hover);
+}
+
+button.atlas-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* =======================================================================
+ * Compact desktop: a narrow viewport (small laptop, the preview pane) needs
+ * the rail and note panel to give the canvas more room. The rail also gets
+ * its own bottom clearance recomputed so it never bleeds under a wrapped
+ * topbar.
+ * ===================================================================== */
+@media (max-width: 1200px) {
+  :root {
+    --rail-w: 248px;
+    --note-w: 360px;
+  }
+}
+
+/* =======================================================================
+ * Hide-chrome (H, scene-owned key — js/scene.js's setChromeHidden() sets
+ * body[data-chrome="hidden"|"shown"]).
+ *
+ * NOT CURRENTLY EFFECTIVE: index.html's own inline <style> block (loaded
+ * before this stylesheet) has
+ *   body[data-chrome="hidden"] #topbar, #rail, #note, #chips
+ *     { display:none !important }
+ * `!important` beats anything below regardless of source order, and even
+ * without it, `display:none` cannot be transitioned (a display change is
+ * always instant, with nothing to interpolate) — so today H is still a hard
+ * cut no matter what runs here. These rules match the same treatment given
+ * to the note/rail/search above (opacity+transform, mounted throughout) so
+ * that removing the `display:none !important` half of that inline rule (a
+ * one-line index.html edit, outside these owned files) is all it takes to
+ * make H smooth too.
+ * ===================================================================== */
+body[data-chrome="hidden"] #topbar,
+body[data-chrome="hidden"] #chips {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-panel) var(--ease-out);
+}
+
+/* ===================================================================== */
+
+/* =======================================================================
+ * Embed / touch layout
+ * ===================================================================== */
+body[data-embed="1"] #topbar,
+body[data-embed="1"] #rail,
+body[data-tier="mobile"] #topbar,
+body[data-tier="mobile"] #rail {
+  display: none;
+}
+
+body[data-embed="1"] .atlas-search-fab,
+body[data-tier="mobile"] .atlas-search-fab {
+  display: flex;
+}
+
+@media (max-width: 600px) {
+  #topbar,
+  #rail {
+    display: none;
+  }
+
+  .atlas-search-fab {
+    display: flex;
+  }
+
+  #chips {
+    /* The bottom sheet owns the bottom edge on a phone, and there is no rail. */
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    top: calc(var(--sp-3) + env(safe-area-inset-top, 0px));
+    max-width: calc(100vw - 72px - 2 * var(--sp-3));
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .atlas-switcher {
+    width: calc(100vw - 2 * var(--sp-3));
+    max-height: 70vh;
+  }
+}

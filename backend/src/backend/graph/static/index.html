@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"./vendor/three-0.183.0/three.module.min.js","three/addons/":"./vendor/three-0.183.0/addons/"}}</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<title>Peel · Atlas</title>
+<link rel="icon" href="data:,">
+<!-- Base layout only. css/tokens.css and css/chrome.css load after this and win every tie. -->
+<style>
+  html,body{height:100%}
+  body{margin:0;background:#131316;color:#dadada;overflow:hidden;
+       font-family:var(--font-ui,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif);
+       -webkit-font-smoothing:antialiased}
+  [hidden]{display:none !important}
+  #canvas{position:fixed;inset:0;z-index:0}
+  #canvas canvas{display:block;touch-action:none}
+  #labels{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden;contain:layout paint}
+  #labels .lbl{position:absolute;top:0;left:0;will-change:transform,opacity;opacity:0;
+       white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis;
+       font-size:12px;line-height:1.2;font-weight:500;color:#dadada;
+       text-shadow:0 0 4px #131316,0 1px 2px rgba(0,0,0,.8);
+       transition:opacity 140ms linear}
+  #labels .lbl.mono{font-family:var(--font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px}
+  #labels .lbl.lit{color:#fff;font-weight:600}
+  #labels .lbl .sub{display:block;font-size:10.5px;font-weight:400;color:#9a9aa3}
+  #topbar,#rail,#note,#search,#chips,#toasts,#hud,#fallback{position:fixed;z-index:2}
+  #hud{right:12px;bottom:12px;margin:0;padding:8px 10px;border-radius:8px;
+       background:rgba(19,19,22,.86);border:1px solid #363636;color:#b3b3b3;
+       font-family:var(--font-mono,ui-monospace,Menlo,monospace);font-size:11px;line-height:1.45;white-space:pre}
+  #fallback{inset:0;display:grid;place-items:center;padding:24px;overflow:auto}
+  /* H fades the chrome out and back: display:none cannot be transitioned. */
+  #topbar,#chips{transition:opacity .36s cubic-bezier(.16,1,.3,1)}
+  body[data-chrome="hidden"] #topbar,
+  body[data-chrome="hidden"] #rail,
+  body[data-chrome="hidden"] #note,
+  body[data-chrome="hidden"] #chips{opacity:0 !important;pointer-events:none !important}
+</style>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/chrome.css">
+<link rel="stylesheet" href="css/note.css">
+<script src="vendor/3d-force-graph-1.80.0.min.js"></script>
+</head>
+<body data-tier="desktop" data-embed="0">
+  <div id="canvas"></div>
+  <div id="labels" aria-hidden="true"></div>
+  <header id="topbar"></header>
+  <aside id="rail"></aside>
+  <aside id="note"></aside>
+  <div id="chips"></div>
+  <div id="search" hidden></div>
+  <div id="toasts" role="status" aria-live="polite"></div>
+  <pre id="hud" hidden></pre>
+  <section id="fallback" hidden></section>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
