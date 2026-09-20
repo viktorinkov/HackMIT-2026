@@ -15,6 +15,7 @@ dependencies:
   image_picker: ^1.1.2
   permission_handler: ^11.3.1
   waveform_flutter: ^1.2.0
+  rive: ^0.14.11
 
 dev_dependencies:
   flutter_test:
@@ -26,6 +27,7 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/rive/
 
   fonts:
     - family: Inter

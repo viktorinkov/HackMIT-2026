@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../rive/peel_rive_stage.dart';
+import '../rive/peel_rive_widgets.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
-import '../widgets/animation_placeholder.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 import 'capture_screen.dart';
@@ -21,11 +22,7 @@ class OnboardingScreen extends StatelessWidget {
           style: PeelText.body,
         ),
         SizedBox(height: PeelSpace.x24),
-        AnimationPlaceholder(
-          description: 'Half cut orange with pill',
-          tone: PlaceholderTone.mint,
-          aspectRatio: 13 / 12,
-        ),
+        PeelRiveSlot(stage: PeelStage.bottleScan, aspectRatio: 13 / 12),
       ],
       actions: [
         PeelButton(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../rive/peel_rive_stage.dart';
+import '../rive/peel_rive_widgets.dart';
 import '../services/photo_service.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
@@ -56,6 +58,12 @@ class CaptureScreen extends StatefulWidget {
 class _CaptureScreenState extends State<CaptureScreen> {
   CaptureCopy get copy => _copy[widget.step]!;
 
+  PeelStage get stage => switch (widget.step) {
+        ScanStep.bottle => PeelStage.bottleScan,
+        ScanStep.imprint => PeelStage.pillScan,
+        ScanStep.pill => PeelStage.pillScan,
+      };
+
   Future<void> _pick() async {
     final file = await choosePhoto(context, title: copy.title);
     if (file == null) return;
@@ -86,6 +94,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
         PhotoSlot(
           photo: photo,
           description: copy.placeholder,
+          empty: PeelRiveSlot(stage: stage),
           onAdd: _pick,
           onReplace: _pick,
           onRemove: () {

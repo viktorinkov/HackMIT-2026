@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'rive/peel_rive_widgets.dart';
 import 'screens/onboarding_screen.dart';
 import 'theme/peel_theme.dart';
 
@@ -15,6 +16,7 @@ class PeelApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: buildPeelTheme(),
       home: const OnboardingScreen(),
+      builder: (context, child) => PeelRiveHost(child: child ?? const SizedBox()),
     );
   }
 }

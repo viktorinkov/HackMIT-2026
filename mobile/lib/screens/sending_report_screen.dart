@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../rive/peel_rive_stage.dart';
+import '../rive/peel_rive_widgets.dart';
 import '../theme/peel_theme.dart';
-import '../widgets/animation_placeholder.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 
@@ -46,11 +47,8 @@ class _SendingReportScreenState extends State<SendingReportScreen> {
           style: PeelText.body,
         ),
         const SizedBox(height: PeelSpace.x24),
-        AnimationPlaceholder(
-          description: _sent
-              ? 'Orange seals shut with a check mark'
-              : 'Paper folds into an envelope and lifts off',
-          tone: _sent ? PlaceholderTone.mint : PlaceholderTone.warm,
+        PeelRiveSlot(
+          stage: _sent ? PeelStage.complete : PeelStage.research,
           aspectRatio: 13 / 12,
         ),
       ],

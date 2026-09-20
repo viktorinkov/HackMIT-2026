@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../rive/peel_rive_stage.dart';
+import '../rive/peel_rive_widgets.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
-import '../widgets/animation_placeholder.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 import '../widgets/scan_steps.dart';
@@ -60,6 +61,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
     _schedule(const Duration(milliseconds: 2400), DevicePhase.complete);
   }
 
+  PeelStage get _stage => switch (_phase) {
+        DevicePhase.connecting => PeelStage.deviceConnect,
+        DevicePhase.connected => PeelStage.pillSubmerged,
+        DevicePhase.checking => PeelStage.checking,
+        DevicePhase.complete => PeelStage.complete,
+      };
+
   ({String title, String body, String placeholder}) get _copy =>
       switch (_phase) {
         DevicePhase.connecting => (
@@ -96,12 +104,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
         const SizedBox(height: PeelSpace.x8),
         Text(copy.body, style: PeelText.body),
         const SizedBox(height: PeelSpace.x24),
-        AnimationPlaceholder(
-          description: copy.placeholder,
-          tone: _phase == DevicePhase.complete
-              ? PlaceholderTone.mint
-              : PlaceholderTone.warm,
-        ),
+        PeelRiveSlot(stage: _stage),
         const SizedBox(height: PeelSpace.x16),
         const ScanSteps(current: ScanStep.pill),
       ],

@@ -12,6 +12,7 @@ class PhotoSlot extends StatelessWidget {
     super.key,
     required this.photo,
     required this.description,
+    this.empty,
     required this.onAdd,
     required this.onReplace,
     required this.onRemove,
@@ -19,6 +20,9 @@ class PhotoSlot extends StatelessWidget {
 
   final File? photo;
   final String description;
+
+  /// Drawn in place of the placeholder before a photo is taken.
+  final Widget? empty;
   final VoidCallback onAdd;
   final VoidCallback onReplace;
   final VoidCallback onRemove;
@@ -28,7 +32,7 @@ class PhotoSlot extends StatelessWidget {
     if (photo == null) {
       return GestureDetector(
         onTap: onAdd,
-        child: AnimationPlaceholder(description: description),
+        child: empty ?? AnimationPlaceholder(description: description),
       );
     }
 
