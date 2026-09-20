@@ -5,10 +5,14 @@ on:
   push:
     paths:
       - 'mobile/**'
+      - 'hardware/sim/**'
+      - 'hardware/data/**'
       - '.github/workflows/mobile.yml'
   pull_request:
     paths:
       - 'mobile/**'
+      - 'hardware/sim/**'
+      - 'hardware/data/**'
       - '.github/workflows/mobile.yml'
 
 jobs:

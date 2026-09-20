@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../state/scan_session.dart';
@@ -15,13 +17,15 @@ enum DevicePhase {
 
 /// Telemetry drives consumer state, including runs started by the BOX-3.
 class DeviceRun extends ChangeNotifier {
-  DeviceRun(this.session, this.scan) {
+  DeviceRun(this.session, this.scan, {this.runDuration = Duration.zero}) {
     _generation = scan.generation;
     scan.addListener(_scanChanged);
     _resetCount = session.resetCount;
     session.addListener(_update);
     _update();
   }
+  final Duration runDuration;
+  Timer? _stopTimer;
   final Session session;
   final ScanSession scan;
   DevicePhase phase = DevicePhase.connecting;
@@ -40,6 +44,7 @@ class DeviceRun extends ChangeNotifier {
   void _scanChanged() {
     if (_generation == scan.generation) return;
     _generation = scan.generation;
+    _stopTimer?.cancel();
     _run.clear();
     _running = false;
     _previous = null;
@@ -51,6 +56,7 @@ class DeviceRun extends ChangeNotifier {
     if (!session.connected || session.resetCount != _resetCount) {
       _resetWaiting = session.connected;
       _resetCount = session.resetCount;
+      _stopTimer?.cancel();
       _run.clear();
       _running = false;
       _previous = null;
@@ -63,15 +69,25 @@ class DeviceRun extends ChangeNotifier {
       _resetWaiting = false;
       _previous = reading;
       if (reading.running) {
-        if (!_running) _run.clear();
+        if (!_running) {
+          _run.clear();
+          _stopTimer?.cancel();
+          if (runDuration > Duration.zero) {
+            _stopTimer = Timer(runDuration, () {
+              if (_running && session.connected) unawaited(session.send('s'));
+            });
+          }
+        }
         _running = true;
         _run.add(reading);
         phase = DevicePhase.checking;
       } else if (reading.absT == null) {
+        _stopTimer?.cancel();
         _run.clear();
         _running = false;
         phase = DevicePhase.connected;
       } else if (_running) {
+        _stopTimer?.cancel();
         _running = false;
         scan.finishRun(_run, session.log?.path);
         phase = DevicePhase.complete;
@@ -101,6 +117,7 @@ class DeviceRun extends ChangeNotifier {
   };
   @override
   void dispose() {
+    _stopTimer?.cancel();
     session.removeListener(_update);
     scan.removeListener(_scanChanged);
     super.dispose();

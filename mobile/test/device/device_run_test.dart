@@ -50,6 +50,52 @@ void main() {
   });
 
   test(
+    'timed run requests stop but waits for board confirmation',
+    () => fakeAsync((time) {
+      run.dispose();
+      run = DeviceRun(session, scan, runDuration: const Duration(seconds: 20));
+      session.connectTo(link);
+      time.flushMicrotasks();
+      link.say(idle);
+      time.flushMicrotasks();
+      time.elapse(const Duration(seconds: 25));
+      expect(link.sent, isNot(contains('s')));
+      link.say(line(t: 0));
+      time.flushMicrotasks();
+      time.elapse(const Duration(seconds: 20));
+      expect(link.sent.where((c) => c == 's'), hasLength(1));
+      expect(run.phase, DevicePhase.checking);
+      expect(scan.runReadings, isEmpty);
+      link.say(idle);
+      time.flushMicrotasks();
+      expect(run.phase, DevicePhase.complete);
+      expect(scan.runReadings, hasLength(1));
+    }),
+  );
+
+  test(
+    'disconnect cancels a timed stop before reconnect',
+    () => fakeAsync((time) {
+      run.dispose();
+      run = DeviceRun(session, scan, runDuration: const Duration(seconds: 20));
+      session.connectTo(link);
+      time.flushMicrotasks();
+      link.say(line(t: 0));
+      time.flushMicrotasks();
+      session.disconnect();
+      time.flushMicrotasks();
+      final next = FakeLink();
+      session.connectTo(next);
+      time.flushMicrotasks();
+      next.say(idle);
+      time.flushMicrotasks();
+      time.elapse(const Duration(seconds: 25));
+      expect(next.sent, isNot(contains('s')));
+      expect(scan.runReadings, isEmpty);
+    }),
+  );
+
+  test(
     'device dialect: blank, start, stop; diagnostics never disturb a run',
     () => fakeAsync((time) {
       session.connectTo(link);

@@ -35,7 +35,9 @@ attach. Keep the bench firmware: the app supports both its four-colour output
 and the repository's 1.1.0 protocol.
 
 Fill with clear water, close the lid, and tap **Water ready** to take the blank.
-Drop in the pill and tap **Check pill** to start; **Stop** ends the run. The
+Drop in the pill and tap **Check pill** to start; the app requests stop after
+20 seconds of received run data, or use **Stop** sooner. Completion still requires
+idle telemetry. Set `PEEL_RUN_SECONDS=0` to stop manually. The
 legacy BOX-3 control firmware can also start/stop it; the new display-only
 firmware mirrors the phone workflow. Temperature advice targets 37 ± 1.5 °C; a missing
 probe or the -127/85 sentinels do not block a run. Sensor faults remain in debug,
@@ -78,3 +80,10 @@ The normal Peel app mirrors workflow stages through the Seeed USB connection to
 the BOX-3 over radio when compatible firmware is connected. Use **Skip hardware**
 on the device screen to continue without a hardware run. Skipping creates no
 synthetic readings. See [firmware setup](../hardware/firmware/23_phone_display/README.md).
+
+### Development entry points
+
+`PEEL_START=device` opens the device step, `PEEL_START=debug` opens diagnostics,
+and `PEEL_START=voice` retains the upstream voice test entry point.
+`PEEL_SIM=10.0.2.2:9000` uses the full instrument simulator;
+`PEEL_DEVICE_HOST=10.0.2.2` uses the display bridge on port 9001.

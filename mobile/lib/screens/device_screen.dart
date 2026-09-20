@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../rive/peel_rive_stage.dart';
 import '../data/api_models.dart';
 import '../services/peel_api.dart';
-import '../main.dart' show deviceRun;
+import '../main.dart' show deviceRun, deviceHost, peelSimulator;
 import '../device/device_run.dart';
 import '../device/debug_screen.dart';
 import '../theme/peel_theme.dart';
@@ -80,8 +80,16 @@ class _DeviceScreenState extends State<DeviceScreen> {
       }
       if (!run.scan.hardwareSkipped && run.scan.runReadings.isNotEmpty) {
         run.scan.hardware = PillHardwareAnalysis(
-          model: 'peel-xiao',
+          model: run.session.diag?.firmware == null
+              ? 'peel-xiao'
+              : [
+                  run.session.diag!.firmware,
+                  run.session.diag!.version,
+                ].whereType<String>().join(' '),
           result: PillHardwareResult(
+            pillType:
+                run.scan.bottleResult?.genericName ??
+                run.scan.bottleResult?.brandName,
             status: 'unknown',
             confidence: 0,
             degraded: false,
@@ -249,7 +257,23 @@ class _DeviceScreenState extends State<DeviceScreen> {
                 DevicePhase.complete => 'Opening results…',
                 _ => 'Stop',
               },
-              onPressed: _phase == DevicePhase.complete ? null : run.act,
+              onPressed: _phase == DevicePhase.complete
+                  ? null
+                  : () {
+                      if (_phase == DevicePhase.connecting &&
+                          !run.session.watchUsb &&
+                          (peelSimulator.isNotEmpty || deviceHost.isNotEmpty)) {
+                        final endpoint = Uri.parse(
+                          'tcp://${peelSimulator.isNotEmpty ? peelSimulator : '$deviceHost:9001'}',
+                        );
+                        run.session.connectSim(
+                          endpoint.host,
+                          endpoint.hasPort ? endpoint.port : 9000,
+                        );
+                      } else {
+                        run.act();
+                      }
+                    },
             ),
       secondaryAction: canLeave
           ? PeelButton(

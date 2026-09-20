@@ -47,7 +47,7 @@ class SessionLog {
     }
     final sink = file.openWrite();
     final log = SessionLog._(file, sink, at);
-    log._write({'kind': 'session', 'app': 'peel_app', 'logVersion': 1}, at);
+    log._write({'kind': 'session', 'app': 'peel_mobile', 'logVersion': 1}, at);
     return log;
   }
 
