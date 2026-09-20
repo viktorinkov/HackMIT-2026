@@ -141,6 +141,14 @@ void main() {
     expect(session.faults.map((f) => f.id), contains('STREAM_STALE'));
   }, timeout: const Timeout(Duration(seconds: 15)));
 
+  test('hanging up on purpose is not a stale stream', () async {
+    await session.connectTo(link);
+    link.say(_data);
+    await session.disconnect();
+    await Future<void>.delayed(const Duration(milliseconds: 3200));
+    expect(session.faults, isEmpty);
+  }, timeout: const Timeout(Duration(seconds: 15)));
+
   group('the session log', () {
     late Directory dir;
 
@@ -149,7 +157,7 @@ void main() {
 
     test('one file per session, holding everything the board said', () async {
       final log = await SessionLog.open(directory: dir, now: DateTime(2026, 5, 1, 9, 30, 15));
-      expect(log.file.path, endsWith('peel-2026-05-01T09-30-15.jsonl'));
+      expect(log.file.path, endsWith('peel-2026-05-01T09-30-15.000.jsonl'));
 
       final at = DateTime(2026, 5, 1, 9, 30, 16);
       log.event('connected', {'device': 'XIAO'}, at);
@@ -176,6 +184,19 @@ void main() {
       expect(reading['absT'], closeTo(0.0068, 1e-9));
       // The raw line is kept verbatim next to the parse, so a capture can be replayed.
       expect(records.firstWhere((r) => r['kind'] == 'raw')['line'], _data);
+    });
+
+    test('two connections in the same second get a file each', () async {
+      final at = DateTime(2026, 5, 1, 9, 30, 15);
+      final first = await SessionLog.open(directory: dir, now: at);
+      final second = await SessionLog.open(directory: dir, now: at);
+      await first.close();
+      await second.close();
+
+      expect(second.file.path, isNot(first.file.path));
+      for (final log in [first, second]) {
+        expect(LineSplitter.split(await log.read()).length, 1);
+      }
     });
 
     test('the log survives the disconnect that closed it, so the run can be read back',

@@ -170,7 +170,11 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> disconnect() async {
+  /// Hanging up on purpose. The fault engine stops with the connection: a board nobody
+  /// asked to keep talking is not a stale stream.
+  Future<void> disconnect() => _close(deliberate: true);
+
+  Future<void> _close({required bool deliberate}) async {
     _stopDiag();
     await _lineSub?.cancel();
     _lineSub = null;
@@ -188,14 +192,21 @@ class Session extends ChangeNotifier {
       open.event('disconnected', {'lines': _lineCount}, DateTime.now());
       unawaited(open.close());
     }
+    if (deliberate) {
+      _clock?.cancel();
+      _clock = null;
+      faults = const [];
+    }
     if (state != LinkState.connecting) state = LinkState.idle;
     if (!_disposed) notifyListeners();
   }
 
+  /// The connection going away on its own. The clock keeps running, so the board that
+  /// stopped mid-run still raises STREAM_STALE.
   void _drop(String why) {
     if (!connected) return;
     error = why;
-    unawaited(disconnect());
+    unawaited(_close(deliberate: false));
   }
 
   /// b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer, d diagnostics.

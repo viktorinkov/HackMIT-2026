@@ -37,9 +37,14 @@ class SessionLog {
     final at = now ?? DateTime.now();
     final dir = directory ?? Directory('${Directory.systemTemp.path}/peel');
     await dir.create(recursive: true);
-    final stamp = at.toIso8601String().replaceAll(':', '-').split('.').first;
-    final file = File('${dir.path}/peel-$stamp.jsonl');
-    final sink = file.openWrite(mode: FileMode.writeOnlyAppend);
+    // Milliseconds, and a counter after them, because two connections a second apart
+    // sharing a file would put two sessions in one log.
+    final stamp = at.toIso8601String().replaceAll(':', '-');
+    var file = File('${dir.path}/peel-$stamp.jsonl');
+    for (var n = 2; file.existsSync(); n++) {
+      file = File('${dir.path}/peel-$stamp-$n.jsonl');
+    }
+    final sink = file.openWrite();
     final log = SessionLog._(file, sink, at);
     log._write({'kind': 'session', 'app': 'peel_app', 'logVersion': 1}, at);
     return log;
