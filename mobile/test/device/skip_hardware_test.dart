@@ -25,7 +25,7 @@ void main() {
     testWidgets(
       skip
           ? 'skip omits hardware and continues research'
-          : 'completed run submits raw evidence without a verdict',
+          : 'completed run classifies captures before submitting the scan',
       (tester) async {
         tester.view.physicalSize = const Size(1320, 2700);
         tester.view.devicePixelRatio = 3;
@@ -36,8 +36,34 @@ void main() {
         scan.reset();
         scan.deviceId = 'test-device';
         final requests = <Map<String, dynamic>>[];
+        final paths = <String>[];
         final api = PeelApi(
           client: MockClient((request) async {
+            paths.add(request.url.path);
+            if (request.url.path == '/pill') {
+              final body = jsonDecode(request.body) as Map;
+              expect(body['blank'], hasLength(5));
+              expect(body['sample'], hasLength(5));
+              expect(body.containsKey('status'), isFalse);
+              expect(body['sample'][0]['sweep'], {
+                'red': 20.0,
+                'yellow': 15.0,
+                'green': 90.0,
+              });
+              return http.Response(
+                jsonEncode({
+                  'model': 'truepill-snapshot',
+                  'result': {
+                    'status': 'substandard',
+                    'spectrum': [0.5, 0.6, 0.4],
+                    'pill_type': 'advil',
+                    'degraded': true,
+                    'confidence': 0.8,
+                  },
+                }),
+                200,
+              );
+            }
             expect(request.url.path, '/scans');
             requests.add(jsonDecode(request.body) as Map<String, dynamic>);
             return http.Response(
@@ -53,11 +79,34 @@ void main() {
         );
         final run = DeviceRun(session, scan);
         if (!skip) {
-          scan.finishRun(const [
-            Reading(t: 0, transMv: 10, scatMv: 5, absT: -0.2),
-            Reading(t: 1, transMv: 10, scatMv: 5, absT: 0.7, swept: true),
-            Reading(t: 2, transMv: 10, scatMv: 5, absT: 0.3),
-          ], '/test/log');
+          scan.finishRun(
+            const [
+              Reading(t: 0, transMv: 10, scatMv: 5, absT: -0.2),
+              Reading(t: 1, transMv: 10, scatMv: 5, absT: 0.7, swept: true),
+              Reading(t: 2, transMv: 10, scatMv: 5, absT: 0.3),
+            ],
+            '/test/log',
+            blank: List.generate(
+              5,
+              (_) => const Reading(
+                t: null,
+                transMv: 400,
+                scatMv: 5,
+                swept: true,
+                sweep: {'red': 116, 'yellow': 137, 'green': 400, 'blue': null},
+              ),
+            ),
+            sample: List.generate(
+              5,
+              (_) => const Reading(
+                t: 50,
+                transMv: 90,
+                scatMv: 5,
+                swept: true,
+                sweep: {'red': 20, 'yellow': 15, 'green': 90, 'blue': null},
+              ),
+            ),
+          );
           run.phase = DevicePhase.complete;
         }
         await tester.pumpWidget(
@@ -84,17 +133,82 @@ void main() {
         run.dispose();
         expect(requests, hasLength(1));
         if (skip) {
+          expect(paths, ['/scans']);
           expect(requests.single.containsKey('hardware'), isFalse);
           expect(requests.single.containsKey('hardware_model'), isFalse);
         } else {
+          expect(paths, ['/pill', '/scans']);
+          expect(requests.single['hardware_model'], 'truepill-snapshot');
           final hardware = requests.single['hardware'] as Map;
-          expect(hardware['spectrum'], [-0.2, 0.3]);
-          expect(hardware['status'], 'unknown');
-          expect(hardware['confidence'], 0);
+          expect(hardware['spectrum'], [0.5, 0.6, 0.4]);
+          expect(hardware['status'], 'substandard');
+          expect(hardware['confidence'], 0.8);
+          expect(hardware['degraded'], isTrue);
         }
         scan.reset();
         session.dispose();
         await tester.pump();
+      },
+    );
+  }
+
+  for (final legacy in [false, true]) {
+    testWidgets(
+      legacy
+          ? 'legacy mock response is refused'
+          : 'classification error stays on retry and never submits a scan',
+      (tester) async {
+        tester.view.physicalSize = const Size(1320, 2700);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final session = Session(watchUsb: false, logging: false);
+        final scan = scanSession;
+        scan.reset();
+        scan.deviceId = 'test-device';
+        final run = DeviceRun(session, scan)..phase = DevicePhase.complete;
+        final paths = <String>[];
+        final api = PeelApi(
+          client: MockClient((request) async {
+            paths.add(request.url.path);
+            if (legacy) {
+              return http.Response(
+                '{"model":"mock-spectrometry","result":{"status":"real","spectrum":[0.5],"confidence":0.9,"degraded":false}}',
+                200,
+              );
+            }
+            return http.Response('{"detail":"Capture rejected"}', 422);
+          }),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildPeelTheme(),
+            home: DeviceScreen(controller: run, api: api),
+            builder: (context, child) =>
+                PeelRiveHost(enabled: false, child: child!),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 1600));
+        await tester.pumpAndSettle();
+        expect(paths, ['/pill']);
+        expect(
+          find.text(
+            legacy
+                ? 'Update the backend to enable real pill classification.'
+                : 'Capture rejected',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Retry'), findsOneWidget);
+        expect(scan.hardware, isNull);
+        expect(scan.scanId, isNull);
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+        expect(paths, ['/pill', '/pill']);
+        await tester.pumpWidget(const SizedBox());
+        run.dispose();
+        session.dispose();
+        scan.reset();
       },
     );
   }

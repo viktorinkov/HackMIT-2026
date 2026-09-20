@@ -9,6 +9,7 @@ import 'dart:convert';
 
 /// The LED colours, in the order of the sweep, which is also the order of their forward drops.
 const colours = ['ir', 'red', 'yellow', 'green', 'blue', 'violet'];
+const classificationColours = ['red', 'yellow', 'green'];
 
 /// One 1 Hz data line.
 class Reading {
@@ -58,6 +59,19 @@ class Reading {
 
   /// True on the line a sweep ran in: that line's [transMv] and [scatMv] are disturbed.
   final bool swept;
+
+  bool get isClassificationSweep =>
+      swept &&
+      classificationColours.every(
+        (colour) => sweep[colour] != null && sweep[colour]!.isFinite,
+      );
+
+  Map<String, dynamic> toPillSweep() => {
+    'swept': swept,
+    'sweep': {
+      for (final colour in classificationColours) colour: sweep[colour],
+    },
+  };
 
   bool get running => t != null;
   bool get blanked => absT != null || absS != null;

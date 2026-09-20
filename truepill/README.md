@@ -4,10 +4,9 @@ Turns what the Peel bench rig measures into a verdict on the tablet: which
 substance, how much of it, whether it matches the label. Tuned to the real
 rig from real recordings ([HARDWARE_TUNING.md](HARDWARE_TUNING.md)).
 
-**Nothing in this repository imports it yet.** It adds files and touches none,
-so merging it changes no existing behaviour. The backend still fills
-`PillHardwareResult` from `mock_hardware_result()`; this is the real thing,
-ready for when someone wires it in.
+The backend installs this package and calls `classify_capture()` from `POST /pill`.
+The phone sends separate water and dissolved pill captures.
+See [the API and capture workflow](../backend/pill-hardware.md).
 
 ## Use it
 
@@ -60,9 +59,10 @@ cp -r truepill backend/src/backend/truepill      # then: from backend.truepill i
 into a nested package and under a different name, and drives each copy from a
 clean interpreter.
 
-To put it in the backend you need `numpy` and `scipy` in
-`backend/pyproject.toml`; they are deliberately not added here. `import
-truepill` does not import FastAPI — only `truepill.server` does.
+The backend declares a local dependency on this package.
+Its locked installation includes NumPy, SciPy, and the measured library JSON.
+`import truepill` does not import FastAPI.
+The optional `truepill.server` module requires the additional dependencies in `requirements.txt`.
 
 ## Run the tests
 

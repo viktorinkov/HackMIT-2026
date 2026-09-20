@@ -196,7 +196,7 @@ class PillHardwareAnalysis {
 
   factory PillHardwareAnalysis.fromJson(Map<String, dynamic> json) {
     return PillHardwareAnalysis(
-      model: json['model'] as String? ?? 'mock-spectrometry',
+      model: json['model'] as String? ?? 'unknown',
       result: PillHardwareResult.fromJson(
         json['result'] as Map<String, dynamic>? ?? const {},
       ),

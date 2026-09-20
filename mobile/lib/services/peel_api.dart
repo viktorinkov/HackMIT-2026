@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
 import '../data/api_models.dart';
+import '../device/signals.dart';
 
 class PeelApiException implements Exception {
   PeelApiException(this.message, {this.statusCode});
@@ -46,16 +47,25 @@ class PeelApi {
     );
   }
 
-  Future<PillHardwareAnalysis> analyzePill({String? pillType}) async {
-    return PillHardwareAnalysis.fromJson(
-      await _json(
-        'POST',
-        '/pill',
-        body: {
-          if (pillType != null && pillType.isNotEmpty) 'pill_type': pillType,
-        },
-      ),
+  Future<PillHardwareAnalysis> analyzePill({
+    required List<Reading> blank,
+    required List<Reading> sample,
+    String? pillType,
+  }) async {
+    final body = await _json(
+      'POST',
+      '/pill',
+      body: {
+        'rig': 'peel-bench-17_stream',
+        'blank': [for (final reading in blank) reading.toPillSweep()],
+        'sample': [for (final reading in sample) reading.toPillSweep()],
+        if (pillType != null && pillType.isNotEmpty) 'pill_type': pillType,
+      },
     );
+    if (body['model'] != 'truepill-snapshot') {
+      throw PeelApiException('Update the backend to enable real pill classification.');
+    }
+    return PillHardwareAnalysis.fromJson(body);
   }
 
   Future<ScanEnvelope> createScan({

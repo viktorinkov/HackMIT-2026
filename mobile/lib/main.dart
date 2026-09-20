@@ -21,7 +21,7 @@ const deviceHost = String.fromEnvironment('PEEL_DEVICE_HOST');
 const peelSimulator = String.fromEnvironment('PEEL_SIM');
 const peelRunSeconds = int.fromEnvironment(
   'PEEL_RUN_SECONDS',
-  defaultValue: 20,
+  defaultValue: 60,
 );
 final deviceSession = Session(
   watchUsb: Platform.isAndroid && deviceHost.isEmpty && peelSimulator.isEmpty,

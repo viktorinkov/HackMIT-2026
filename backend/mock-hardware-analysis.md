@@ -1,5 +1,9 @@
 # Mock hardware analysis
 
+This is a historical design note.
+`POST /pill` now requires real captures and does not use this mock design.
+See [the current hardware contract](pill-hardware.md).
+
 The phone-attached hardware runs a spectrometry model (also deployable on Runpod) that compares the pill’s actual contents to a known pill type. We do not have that device or model in this hackathon environment, so this backend path **mocks those model results**.
 
 Photo identification (imprint, shape, color, bottle label) is a separate step. This mock stands in for the hardware verdict only.

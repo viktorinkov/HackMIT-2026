@@ -34,10 +34,13 @@ Android phone to the XIAO. The app requests USB permission and reconnects on
 attach. Keep the bench firmware: the app supports both its four-colour output
 and the repository's 1.1.0 protocol.
 
-Fill with clear water, close the lid, and tap **Water ready** to take the blank.
-Drop in the pill and tap **Check pill** to start; the app requests stop after
-20 seconds of received run data, or use **Stop** sooner. Completion still requires
-idle telemetry. Set `PEEL_RUN_SECONDS=0` to stop manually. The
+Fill with clear water and close the lid.
+Tap Water ready and wait for five fresh color sweeps, about 50 seconds.
+Add the pill and tap Start stirrer.
+After the pill dissolves, tap Pill dissolved.
+The app collects five new color sweeps and requests a stop after 60 seconds.
+It waits for idle telemetry before classification.
+Set `PEEL_RUN_SECONDS=0` to stop manually after five sample sweeps. The
 legacy BOX-3 control firmware can also start/stop it; the new display-only
 firmware mirrors the phone workflow. Temperature advice targets 37 ± 1.5 °C; a missing
 probe or the -127/85 sentinels do not block a run. Sensor faults remain in debug,
@@ -57,12 +60,12 @@ physical phone: its USB port is occupied by the board.
 
 ## Backend
 
-Completed runs retain all raw readings and their nullable session log path in
-`ScanSession.runReadings` and `runLogPath`. The backend scan payload includes up
-to 4096 finite, non-swept absorbance samples with status `unknown` and confidence
-zero; the app does not derive a pill classification. Skip hardware omits the
-hardware payload entirely and continues the normal research flow. The backend's
-mock `/pill` endpoint is not called by this device workflow.
+Completed runs retain all raw readings and their session log path.
+The app calls `/pill` with five water sweeps and five dissolved pill sweeps.
+It forwards the returned classifier result and model to `/scans`.
+The app stops on a classification request error and provides a retry.
+Skip hardware omits hardware and continues research.
+See [the capture contract and limits](../backend/pill-hardware.md).
 
 ## Animation
 

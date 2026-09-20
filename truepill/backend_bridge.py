@@ -8,9 +8,7 @@ dependency list; on the backend side it is one line:
 
     PillHardwareResult(**to_pill_hardware_result(result))
 
-Today the backend fills that model from mock_hardware_result(). Nothing here
-replaces it - wiring it in is the backend's call, and needs numpy and scipy
-added there first.
+The backend installs this package and calls this bridge from POST /pill.
 """
 
 from __future__ import annotations

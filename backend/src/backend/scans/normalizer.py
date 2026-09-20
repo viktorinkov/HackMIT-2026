@@ -14,7 +14,7 @@ from typing import Any
 from backend.knowledge import normalize, vocab
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
-from backend.pill import HARDWARE_MODEL, PillHardwareResult
+from backend.pill import HARDWARE_MODEL, HARDWARE_LIMITATION, REAL_HARDWARE_MODEL, PillHardwareResult
 
 TEXT_CAP = 500
 MOCK_LIMITATION = "Simulated result; no physical measurement was performed."
@@ -134,6 +134,8 @@ def hardware_doc(hardware: PillHardwareResult, model: str | None) -> dict[str, A
     if name == HARDWARE_MODEL:
         # The voice agent must never narrate a mock spectrum as a measurement.
         doc["limitations"] = MOCK_LIMITATION
+    elif name == REAL_HARDWARE_MODEL:
+        doc["limitations"] = HARDWARE_LIMITATION
     return doc
 
 

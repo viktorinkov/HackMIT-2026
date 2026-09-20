@@ -78,27 +78,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
       if (deviceId == null || deviceId.isEmpty) {
         await run.scan.loadDeviceId();
       }
-      if (!run.scan.hardwareSkipped && run.scan.runReadings.isNotEmpty) {
-        run.scan.hardware = PillHardwareAnalysis(
-          model: run.session.diag?.firmware == null
-              ? 'peel-xiao'
-              : [
-                  run.session.diag!.firmware,
-                  run.session.diag!.version,
-                ].whereType<String>().join(' '),
-          result: PillHardwareResult(
-            pillType:
-                run.scan.bottleResult?.genericName ??
-                run.scan.bottleResult?.brandName,
-            status: 'unknown',
-            confidence: 0,
-            degraded: false,
-            spectrum: run.scan.runReadings
-                .where((r) => !r.swept && r.absT != null && r.absT!.isFinite)
-                .map((r) => r.absT!)
-                .take(4096)
-                .toList(),
-          ),
+      if (!run.scan.hardwareSkipped) {
+        run.scan.hardware = await (widget.api ?? peelApi).analyzePill(
+          blank: run.scan.blankReadings,
+          sample: run.scan.sampleReadings,
+          pillType:
+              run.scan.bottleResult?.genericName ??
+              run.scan.bottleResult?.brandName,
         );
       }
       final photos = <PhotoRef>[
@@ -155,8 +141,10 @@ class _DeviceScreenState extends State<DeviceScreen> {
   PeelStage get _stage => switch (_phase) {
     DevicePhase.connecting => PeelStage.deviceConnect,
     DevicePhase.connected ||
+    DevicePhase.blanking ||
     DevicePhase.temperature ||
-    DevicePhase.ready => PeelStage.pillSubmerged,
+    DevicePhase.ready ||
+    DevicePhase.dissolving => PeelStage.pillSubmerged,
     DevicePhase.checking => PeelStage.checking,
     DevicePhase.complete => PeelStage.complete,
   };
@@ -172,7 +160,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     ),
     DevicePhase.connected => (
       title: 'Check pill',
-      body: 'Fill with clear water and close the lid.',
+      body: run.captureError ?? 'Fill with clear water and close the lid.',
       placeholder: 'Pill drops into the open device tray',
     ),
     DevicePhase.temperature => (
@@ -183,15 +171,26 @@ class _DeviceScreenState extends State<DeviceScreen> {
     ),
     DevicePhase.ready => (
       title: 'Check pill',
-      body: run.temperature == null
-          ? 'Probe not connected. Drop the pill in; you can still run.'
-          : 'Ready. Drop the pill in and close it.',
+      body: 'Water reading complete. Add the pill and start the stirrer.',
       placeholder: 'Pill drops into the open device tray',
+    ),
+    DevicePhase.blanking => (
+      title: 'Reading clear water',
+      body:
+          'Keep only water in the cup. Readings: ${run.blankSweeps}/5. Allow about 50 seconds.',
+      placeholder: 'Reading the water baseline',
+    ),
+    DevicePhase.dissolving => (
+      title: 'Dissolving pill',
+      body:
+          run.captureError ??
+          'Wait until the pill dissolves, then tap Pill dissolved.',
+      placeholder: 'Pill dissolves in the water',
     ),
     DevicePhase.checking => (
       title: 'Checking pill',
       body:
-          'Reading the pill: ${run.session.latest?.t} s. Stirrer ${run.session.latest?.stirPct}%.',
+          'Fresh color readings: ${run.sampleSweeps}/5. Keep the lid closed. Allow about 60 seconds.',
       placeholder: 'Light sweeps over the pill inside the device',
     ),
     DevicePhase.complete => (
@@ -206,6 +205,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
     final copy = _copy;
     final canLeave =
         !_research &&
+        _phase != DevicePhase.blanking &&
+        _phase != DevicePhase.dissolving &&
         _phase != DevicePhase.checking &&
         _phase != DevicePhase.complete;
     return PeelStageScaffold(
@@ -252,12 +253,18 @@ class _DeviceScreenState extends State<DeviceScreen> {
               label: switch (_phase) {
                 DevicePhase.connecting => 'Retry connection',
                 DevicePhase.connected => 'Water ready',
+                DevicePhase.blanking => 'Reading water…',
                 DevicePhase.temperature => 'Start anyway',
-                DevicePhase.ready => 'Check pill',
+                DevicePhase.ready => 'Start stirrer',
+                DevicePhase.dissolving =>
+                  run.blankSweeps < 5 ? 'Stop and refill' : 'Pill dissolved',
                 DevicePhase.complete => 'Opening results…',
                 _ => 'Stop',
               },
-              onPressed: _phase == DevicePhase.complete
+              onPressed:
+                  _phase == DevicePhase.complete ||
+                      _phase == DevicePhase.blanking ||
+                      (_phase == DevicePhase.checking && !run.canStop)
                   ? null
                   : () {
                       if (_phase == DevicePhase.connecting &&

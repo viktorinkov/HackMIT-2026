@@ -1,20 +1,42 @@
 from __future__ import annotations
 
-import hashlib
 from typing import Literal
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat
+from truepill import PEEL_BENCH_RIG, classify_capture, load_library, to_pill_hardware_result
+from truepill.backend_bridge import HARDWARE_MODEL as REAL_HARDWARE_MODEL
 
 PillStatus = Literal["real", "substandard", "fake", "unknown"]
 
-# Pill is the physical tablet: hardware spectrometry of contents, not the imprint photo.
+# Retained only to recognize historical simulated scans.
 HARDWARE_MODEL = "mock-spectrometry"
+HARDWARE_LIMITATION = (
+    "Experimental three-color comparison against measured Advil and Pepto references. "
+    "Confidence is a match score, not a probability. This does not prove authenticity "
+    "or measure the labeled dose in milligrams."
+)
+
+
+class SweepChannels(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    red: FiniteFloat
+    yellow: FiniteFloat
+    green: FiniteFloat
+
+
+class PillSweep(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    swept: Literal[True]
+    sweep: SweepChannels
 
 
 class PillHardwareRequest(BaseModel):
-    status: PillStatus = "unknown"
-    pill_type: str | None = None
+    model_config = ConfigDict(extra="forbid")
+    rig: Literal["peel-bench-17_stream"] = "peel-bench-17_stream"
+    blank: list[PillSweep] = Field(min_length=5, max_length=5)
+    sample: list[PillSweep] = Field(min_length=5, max_length=5)
+    pill_type: str | None = Field(default=None, max_length=200)
 
 
 class PillHardwareResult(BaseModel):
@@ -30,34 +52,57 @@ class PillHardwareAnalysis(BaseModel):
     target: Literal["pill"] = "pill"
     model: str
     result: PillHardwareResult
+    verdict: str = "UNKNOWN"
+    flags: list[str] = Field(default_factory=list)
+    limitations: str = HARDWARE_LIMITATION
 
 
 router = APIRouter(tags=["pill"])
 
 
 @router.post("/pill", response_model=PillHardwareAnalysis)
-async def analyze_pill(request: PillHardwareRequest) -> PillHardwareAnalysis:
-    return PillHardwareAnalysis(model=HARDWARE_MODEL, result=mock_hardware_result(request))
-
-
-def mock_hardware_result(request: PillHardwareRequest) -> PillHardwareResult:
-    degraded = request.status == "substandard"
-    confidence = {
-        "real": 0.92,
-        "substandard": 0.78,
-        "fake": 0.88,
-        "unknown": 0.2,
-    }[request.status]
-    return PillHardwareResult(
-        status=request.status,
-        spectrum=_mock_spectrum(request.status, request.pill_type),
-        pill_type=request.pill_type,
-        degraded=degraded,
-        confidence=confidence,
+def analyze_pill(request: PillHardwareRequest) -> PillHardwareAnalysis:
+    # FastAPI runs this synchronous scientific computation in its thread pool.
+    for name, captures, floor in (
+        ("water", request.blank, PEEL_BENCH_RIG.classifier.min_dynamic_range),
+        ("sample", request.sample, 0.0),
+    ):
+        if any(
+            value <= floor or value > PEEL_BENCH_RIG.classifier.full_scale
+            for capture in captures for value in capture.sweep.model_dump().values()
+        ):
+            return PillHardwareAnalysis(
+                model=REAL_HARDWARE_MODEL,
+                result=PillHardwareResult(
+                    status="unknown", spectrum=[], pill_type=None, degraded=False, confidence=0.0,
+                ),
+                verdict="INVALID_READING",
+                flags=[f"Invalid {name} sweep. Inspect the instrument and take a fresh water capture."],
+            )
+    aliases = {
+        "advil": "advil", "ibuprofen": "advil",
+        "pepto": "pepto", "pepto-bismol": "pepto", "pepto bismol": "pepto",
+        "bismuth subsalicylate": "pepto",
+    }
+    label = " ".join((request.pill_type or "").casefold().split())
+    expected = aliases.get(label)
+    result = classify_capture(
+        [s.model_dump() for s in request.blank],
+        [s.model_dump() for s in request.sample],
+        load_library(),
+        expected_drug=expected,
     )
-
-
-def _mock_spectrum(status: PillStatus, pill_type: str | None) -> list[float]:
-    seed = f"{status}|{pill_type or ''}".encode()
-    digest = hashlib.sha256(seed).digest()
-    return [round(b / 255.0, 4) for b in digest[:16]]
+    payload = to_pill_hardware_result(result, PEEL_BENCH_RIG.classifier)
+    flags = list(result.flags)
+    verdict = result.verdict
+    if expected is None:
+        # A two-entry library cannot validate an absent or unsupported label.
+        payload.update(status="unknown", pill_type=None, degraded=False, confidence=0.0)
+        verdict = "UNKNOWN"
+        flags.append("No measured reference for this label. Supported labels: Advil and Pepto.")
+    return PillHardwareAnalysis(
+        model=REAL_HARDWARE_MODEL,
+        result=PillHardwareResult(**payload),
+        verdict=verdict,
+        flags=flags,
+    )

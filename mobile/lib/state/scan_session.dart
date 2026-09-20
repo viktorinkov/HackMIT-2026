@@ -22,16 +22,27 @@ class ScanSession extends ChangeNotifier {
     hardwareSkipped = true;
     hardware = null;
     runReadings = const [];
+    blankReadings = const [];
+    sampleReadings = const [];
     runLogPath = null;
     notifyListeners();
   }
 
   List<Reading> runReadings = const [];
+  List<Reading> blankReadings = const [];
+  List<Reading> sampleReadings = const [];
   String? runLogPath;
 
-  void finishRun(List<Reading> readings, String? logPath) {
+  void finishRun(
+    List<Reading> readings,
+    String? logPath, {
+    List<Reading> blank = const [],
+    List<Reading> sample = const [],
+  }) {
     hardwareSkipped = false;
     runReadings = List.unmodifiable(readings);
+    blankReadings = List.unmodifiable(blank);
+    sampleReadings = List.unmodifiable(sample);
     runLogPath = logPath;
     notifyListeners();
   }
@@ -132,6 +143,8 @@ class ScanSession extends ChangeNotifier {
     generation++;
     hardwareSkipped = false;
     runReadings = const [];
+    blankReadings = const [];
+    sampleReadings = const [];
     runLogPath = null;
     bottlePhoto = null;
     imprintPhoto = null;

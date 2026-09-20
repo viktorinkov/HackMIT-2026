@@ -61,6 +61,8 @@ class Session extends ChangeNotifier {
   bool _initialDiagSent = false;
   bool _startPending = false;
   int resetCount = 0;
+  int blankCount = 0;
+  bool capturingBlank = false;
   bool supportsWorkflowDisplay = false;
 
   // ------------------------------------------------------------------ streams
@@ -240,7 +242,10 @@ class Session extends ChangeNotifier {
     // Automatic tablet detection is unreliable on the demo instrument.
     if (command.contains('a')) return;
     if (command.contains('d') &&
-        (latest == null || latest!.running || _startPending)) {
+        (latest == null ||
+            latest!.running ||
+            _startPending ||
+            capturingBlank)) {
       return;
     }
     final link = _link;
@@ -283,6 +288,7 @@ class Session extends ChangeNotifier {
         }
         if (!_readings.isClosed) _readings.add(reading);
       case NoteLine(:final text):
+        if (text.startsWith('blank stored')) blankCount++;
         if (text.startsWith('auto t=0')) autoZero = text.endsWith('on');
         if (text.startsWith('17_stream ready')) {
           resetCount++;

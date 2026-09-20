@@ -198,7 +198,7 @@ def _hardware(scan_doc: dict[str, Any]) -> dict[str, Any] | None:
     if not hardware:
         return None
     model = hardware.get("model")
-    simulated = model == HARDWARE_MODEL or bool(hardware.get("limitations"))
+    simulated = model == HARDWARE_MODEL
     return {
         "status": hardware.get("status"),
         "pill_type": hardware.get("pill_type"),
@@ -885,6 +885,8 @@ def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
     if hardware.get("simulated"):
         # Never let this read as a measurement of what is in the tablet.
         statement += f" {hardware.get('limitations') or MOCK_LIMITATION}"
+    elif hardware.get("limitations"):
+        statement += f" {hardware['limitations']}"
     statement += " It reports no potency figure and does not identify a contaminant."
     return Finding(
         statement=statement,
