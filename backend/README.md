@@ -28,6 +28,7 @@ Three capabilities make up the layer:
 [Retrieval](#retrieval) · [Agent Builder](#agent-builder) · [HTTP API](#http-api) ·
 [Firecrawl budget and caching](#firecrawl-budget-and-caching) ·
 [Safety and privacy](#safety-and-privacy) ·
+[Evidence graph (Atlas)](#evidence-graph-atlas) ·
 [Testing and verification](#testing-and-verification) · [Demo script](#demo-script) ·
 [Known limitations and future work](#known-limitations-and-future-work)
 
@@ -689,10 +690,146 @@ become citable evidence.
   every place a Pillbox match is used (`deterministic_report`, the agent instructions, `_gaps`)
   says so explicitly, and a newer product simply may not be in it.
 
+## Evidence graph (Atlas)
+
+Peel Atlas is a personal evidence knowledge graph over one device's own scan history, laid over a
+static regulatory-corpus backdrop; a WebGL page renders it live at `/atlas/`. The personal half is
+pure and read-only: `graph.builder.graph_from_scans` builds nodes and links from each stored scan
+document's `evidence.evidence_pack` (plus `norm`/`hardware`/`research`) with no new Elasticsearch
+queries, and those documents reach it only through a `_source` includes allow-list
+(`graph/service.py: SCAN_SOURCE_INCLUDES`) that omits `bottle`, `imprint`, `photos`, `raw` and
+`hardware.spectrum` — so `rx_number`, `pharmacy` and `directions` can never reach a node, whatever
+`SCANS_STORE_SENSITIVE` is set to.
+
+**Node types** (`graph/models.py: ID_PREFIX`, id = `"<prefix>:<key>"`): `scan`, `medicine`/`med`,
+`product`, `lot`, `manufacturer`/`mfr`, `record`/`rec`, `regulator`/`reg`, `country`,
+`web_page`/`web`, `imprint`, `pill_ref`/`pillref`, `topic`, `cluster`. Link kinds that decide the
+graph's colour:
+
+| Kind | Ever `alert=True`? | Meaning |
+|---|---|---|
+| `exact_lot` | yes | The label's own lot is named in the record. |
+| `all_lots_product` | yes | Covers every lot of this product, corroborated to it. |
+| `ndc_in_description` | only if the record also covers all lots | An NDC in the record's own text, not a sibling strength. |
+| `lot_only_match` | never | The lot string collides with an unrelated product. |
+| `all_lots_sibling` | never | Reached only via openFDA's sibling-strength NDC list. |
+| `product_line_match` | never | An NDC hit alone is never a match for this bottle. |
+| `lot_listed` | never | Lists that lot string with no scan context to corroborate it. |
+| `stated_manufacturer` | never | A falsified alert's maker field, kept neutral. |
+
+**The safety invariant** (`graph/builder.py`, checked by `tests/graph/test_builder.py`): an
+`alert=True` edge exists **exactly** when the pack supports `recall_match` — `_alert_keys` unions
+`research.evidence.qualifying_lot_hits(pack)` with `_qualifying_all_lots(pack)` (all-lots-product
+entries, plus any `ndc_hits` entry that both `covers_all_lots` and carries a qualifying
+`match_kind`), the same predicate `verdict_from_evidence` uses for the report's own verdict. Only
+`exact_lot`/`all_lots_product`/`ndc_in_description` can ever be `alert=True`
+(`ALERT_CAPABLE_KINDS`); the rest structurally cannot. Nodes merge **best-tier-wins**
+(`match`>`product`>`context`) and keep the highest severity seen. A `falsified_alert` record's
+maker becomes a `stated_manufacturer` edge, never an alert, sublabelled "name printed on the
+label" — the firm named is usually the victim, not the maker. `/graph/expand`/`/graph/search`
+never mint an alert either: with no device-checked scan context the lot lookup has no product to
+corroborate against and stamps every hit `exact_lot`, so it is rewritten to neutral `lot_listed`.
+
+**Endpoints** (`graph/router.py`, prefix `/graph`):
+
+| Endpoint | Query parameters | Notes |
+|---|---|---|
+| `GET /graph` | `device_id` (1-128 chars), `universe`, `max_nodes` (50-1500, default 600), `fresh`, `demo` | 422 unless `device_id` or `demo=1`. |
+| `GET /graph/universe` | `demo` | Serves the committed snapshot below. |
+| `GET /graph/expand` | `id` (required, `type:key`), `device_id`, `scan_id`, `limit` (1-25, default 12), `demo` | Lazy neighbours of one node. |
+| `GET /graph/node` | `id` (required), `device_id`, `demo` | The note-panel detail payload. |
+| `GET /graph/search` | `q` (2-200 chars), `device_id`, `size` (1-25, default 10), `demo` | Hybrid search plus the exact lot/NDC union. |
+| `GET /graph/health` | — | `online`, `demo_device_id`, `fixtures`, module status, `max_nodes`. |
+
+`demo=1` serves the committed fixtures under `graph/fixtures/` and works with no `.env` and
+Elasticsearch down (`get_graph_service()` takes no `Depends`). A live session never falls back to
+demo data: without `?demo=1`, a broken Elasticsearch is a 502/503, never a fabricated graph
+(`graph/service.py`, `backend/src/backend/graph/FRONTEND_CONTRACT.md`).
+
+**The universe backdrop** is a committed snapshot (`graph/fixtures/universe.json`), built offline
+from the local seed cache with no Elasticsearch involved, aggregating the five seeded regulators
+plus top drugs/manufacturers/countries into `backdrop=True` nodes — not a live aggregation:
+
+```bash
+uv run python scripts/build_universe_snapshot.py --from jsonl --data-dir data/normalized
+```
+
+`graph/universe.py` caches it in memory for the process lifetime and degrades to an empty,
+schema-valid graph if the file is missing or unreadable.
+
+**The page** (`/atlas/`, no build step, plain ES modules, `app.mount("/atlas", atlas_static)`)
+vendors 3d-force-graph 1.80.0 and three r183/0.183.0, pinned by sha256 in
+`static/vendor/VENDOR.json` and loaded only from `static/vendor/`, never a CDN — behind a strict
+CSP (`static_app.py`): `default-src 'none'`, `script-src 'self'` plus the sha256 of the page's own
+import-map script, `style-src 'self' 'unsafe-inline'`, `connect-src`/`frame-ancestors 'self'`.
+
+URL parameters (`js/config.js: URL_PARAMS`): `device_id`; `demo`/`fixture` (canned data instead of
+a live graph); `embed` (mobile tier, no rail/topbar, bottom-sheet note, wires
+`window.PeelBridge`); `tier` (`desktop`\|`mobile`); `debug` (`#hud`); `stress`; `universe`; `api`
+(override the API base — `https:`/`localhost`/`127.0.0.1` only). `focus` is declared but unused.
+Shortcuts (`backend/src/backend/graph/FRONTEND_CONTRACT.md`): `Cmd/Ctrl+K`/`/` search · `Esc` close · `F` fit ·
+`L` Local/Universe · `H` hide chrome · `1`-`4` fly to `PRESENTER_STOPS` · `Shift+N` demo scan ·
+`?` help.
+
+Two static tiers (`config.js: TIERS`): `desktop` (600 nodes/1200 links/40 labels) and `mobile`
+(150/260/14) — bloom is off on both, deliberately: the library's `UnrealBloomPass` composer lifts
+the whole frame to grey and crushes node colours (seen in Chrome, independent of
+threshold/strength/MSAA; see the comment in `config.js`), so additive halo shaders carry the glow.
+
+**Demo data** (`scripts/seed_demo_scans.py`) seeds twelve scenarios onto device id
+`peel-graph-demo` (`demo: true`) directly into `peel-scans`, at zero paid cost — `web`, `agent`,
+`openai_client` and `rxnav` are stand-ins that return empty results and raise `AssertionError` on
+any other call, never reaching Firecrawl, Kibana, OpenAI or RxNav. `KnowledgeSearch.prior_scans`
+excludes every `demo: true` scan, so a seeded scan is never counted as another user's crowd signal.
+
+```bash
+uv run python scripts/seed_demo_scans.py                    # dry run (default), writes nothing
+uv run python scripts/seed_demo_scans.py --yes               # write all twelve scenarios
+uv run python scripts/seed_demo_scans.py --only 1,4,7 --yes  # write a subset
+uv run python scripts/seed_demo_scans.py --purge --yes       # delete every peel-graph-demo scan
+```
+
+**Running and testing.** `.claude/launch.json` defines a `peel-atlas` config on port 8010
+(`uv run --project backend uvicorn backend.app:app --host 127.0.0.1 --port 8010`).
+
+```bash
+cd backend && uv run pytest tests/graph              # 204 passed
+node --test "backend/tests/graph/js/**/*.test.mjs"   # from the repo root; 82 passed
+
+curl -s "localhost:8010/graph?demo=1"
+# -> {"nodes":[{"id":"scan:demo-levo-d2402430","verdict":"recall_match","demo":true,...}],
+#     "links":[{"kind":"exact_lot","alert":true,...}],
+#     "meta":{"device_id":"peel-graph-demo","scans":6,"source":"demo","demo":true}}
+
+curl -s "localhost:8010/graph/expand?id=lot:D24005"
+# -> {"anchor":"lot:D24005",
+#     "nodes":[{"id":"rec:fda-enf-D-0051-2025",...},{"id":"rec:fda-enf-D-0719-2022",...}],
+#     "links":[{"kind":"lot_listed","alert":false,...},{"kind":"lot_listed","alert":false,...}]}
+```
+
+No `device_id`/`scan_id` was given, so the lot lookup had no product context: a bevacizumab recall
+and an unrelated NAD+ recall sharing the lot string `D24005` both come back `lot_listed`, never `exact_lot`.
+
+**Known limitations:**
+
+- Live aggregations and cluster paging were cut: overflow past a node's cap collapses into one
+  non-expandable `cluster:` node carrying the true `hits.total` (`graph/expand.py`, `queries.py`).
+- The universe backdrop is a static snapshot, rebuilt and redeployed by hand; it will not reflect a
+  re-seed until `build_universe_snapshot.py` reruns.
+- Expansion is wired only for `lot`/`product`/`record`/`medicine`/`manufacturer`/`regulator`/
+  `country`/`scan`; `imprint`/`pill_ref`/`topic`/`web_page`/`cluster` return just the anchor node.
+- No 2D fallback: a failed WebGL2 probe shows a static "3D unavailable" card and list view
+  (`#fallback`) instead.
+- In the Flutter WebView, Android can reclaim the renderer process with no hook the app can catch
+  (`onRenderProcessGone` is unhandled), exiting the whole app — open the graph screen on demand
+  only, never during a spectrometer reading (`backend/src/backend/graph/handoff/FLUTTER_HANDOFF.md`).
+- Demo scans land in the live `peel-scans` index and must be purged after judging
+  (`scripts/seed_demo_scans.py --purge --yes`).
+
 ## Testing and verification
 
 ```bash
-uv run pytest                    # 930 passed, 14 skipped; live-cluster tests auto-skipped
+uv run pytest                    # live-cluster tests auto-skipped
 PEEL_LIVE=1 uv run pytest -m live   # also run the live-cluster suite
 uv run python scripts/smoke.py      # read-only smoke test against the real cluster (17/17 checks)
 uv run python scripts/smoke.py --e2e   # + one full scan (<=10 Firecrawl credits, OpenAI tokens)
