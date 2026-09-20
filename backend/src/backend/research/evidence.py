@@ -53,7 +53,8 @@ _WEB_ADVERSE_FLAGS = {"recall", "falsified", "counterfeit", "substandard"}
 
 _RISK_BY_SEVERITY = {"critical": "high", "high": "high", "moderate": "medium"}
 # An all-lots recall is only about this bottle when the recall text itself names
-# the NDC, or the product was reached by its own drug name (audit_redteam F2).
+# the NDC, or both the drug name and the manufacturer match (audit_redteam F2).
+# A shared molecule name alone is another firm's product.
 _PRECISE_NDC_KINDS = ("ndc_in_description", "all_lots_product")
 # Only a corroborated record may carry the recall_match verdict. knowledge.search
 # marks a lot hit whose product context disagrees as "lot_only_match" (a lot
