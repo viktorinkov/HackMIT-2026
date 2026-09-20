@@ -168,34 +168,6 @@ async function attempt(url, externalSignal, retried) {
   }
 }
 
-async function postJson(path, body) {
-  await acquireSlot();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(buildUrl(path), {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      setStatus('error', `Request failed (${res.status})`);
-      const err = new Error(`HTTP ${res.status}`);
-      err.status = res.status;
-      throw err;
-    }
-    const data = await res.json();
-    return dropSensitive(data);
-  } catch (err) {
-    if (isNetworkFailure(err)) setStatus('offline', 'The network could not be reached.');
-    throw err;
-  } finally {
-    clearTimeout(timer);
-    releaseSlot();
-  }
-}
 
 export const api = {
   /** GET /graph — the personal graph, plus an optional universe backdrop. */
@@ -252,41 +224,6 @@ export const api = {
   },
   _lastSearchController: null,
 
-  /**
-   * Presenter hotkey (Shift+N): POST a prepared ScanCreate so a node blooms
-   * in on the live graph even if the phone flow is not ready. Body matches
-   * backend/README.md "Demo script" scenario A exactly.
-   */
-  async postDemoScan() {
-    const deviceId = store.state?.deviceId || 'peel-graph-demo';
-    const body = {
-      device_id: deviceId,
-      demo: true,
-      country: 'United States',
-      bottle: {
-        is_medication_container: true,
-        generic_name: 'Levothyroxine Sodium',
-        strength: '200 mcg',
-        form: 'tablet',
-        ndc: '16729-457-15',
-        manufacturer: 'Accord Healthcare',
-        lot_number: 'D2402430',
-        expiration: '10/2026',
-        confidence: 0.93,
-      },
-      imprint: { is_pill: true, color: 'pink', shape: 'round', confidence: 0.7 },
-      hardware: {
-        status: 'substandard',
-        spectrum: [0.1, 0.1, 0.1, 0.1],
-        degraded: false,
-        pill_type: 'levothyroxine',
-        confidence: 0.78,
-      },
-      hardware_model: 'mock-spectrometry',
-    };
-    const data = await postJson('/scans', body);
-    return { scan_id: data.scan_id ?? data.id ?? null };
-  },
 };
 
 function combineSignals(a, b) {

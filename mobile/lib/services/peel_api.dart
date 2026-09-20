@@ -20,13 +20,15 @@ class PeelApiException implements Exception {
 
 class PeelApi {
   PeelApi({String? baseUrl, http.Client? client})
-      : baseUrl = (baseUrl ??
-                const String.fromEnvironment(
-                  'PEEL_API_BASE',
-                  defaultValue: 'https://m2cw0a06ep8e5g-8000.proxy.runpod.net',
-                ))
-            .replaceAll(RegExp(r'/$'), ''),
-        _client = client ?? http.Client();
+    : baseUrl =
+          (baseUrl ??
+                  const String.fromEnvironment(
+                    'PEEL_API_BASE',
+                    defaultValue:
+                        'https://m2cw0a06ep8e5g-8000.proxy.runpod.net',
+                  ))
+              .replaceAll(RegExp(r'/$'), ''),
+      _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
@@ -63,7 +65,9 @@ class PeelApi {
       },
     );
     if (body['model'] != 'truepill-snapshot') {
-      throw PeelApiException('Update the backend to enable real pill classification.');
+      throw PeelApiException(
+        'Update the backend to enable real pill classification.',
+      );
     }
     return PillHardwareAnalysis.fromJson(body);
   }
@@ -138,9 +142,9 @@ class PeelApi {
           contentType: _mediaType(photo.path),
         ),
       );
-    final streamed = await _client.send(request).timeout(
-          const Duration(seconds: 90),
-        );
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 90));
     final response = await http.Response.fromStream(streamed);
     return _decode(response);
   }
@@ -154,19 +158,19 @@ class PeelApi {
     final headers = {'Accept': 'application/json'};
     late http.Response response;
     if (method == 'GET') {
-      response = await _client.get(uri, headers: headers).timeout(
-            const Duration(seconds: 30),
-          );
+      response = await _client
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 30));
     } else {
       headers['Content-Type'] = 'application/json';
       final encoded = jsonEncode(body ?? {});
       response = method == 'POST'
           ? await _client
-              .post(uri, headers: headers, body: encoded)
-              .timeout(const Duration(seconds: 30))
+                .post(uri, headers: headers, body: encoded)
+                .timeout(const Duration(seconds: 30))
           : await _client
-              .put(uri, headers: headers, body: encoded)
-              .timeout(const Duration(seconds: 30));
+                .put(uri, headers: headers, body: encoded)
+                .timeout(const Duration(seconds: 30));
     }
     return _decode(response);
   }

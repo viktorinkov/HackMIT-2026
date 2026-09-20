@@ -22,11 +22,13 @@ class Sim {
   Socket? _control;
 
   static Future<Sim> start(List<String> args, {bool control = false}) async {
-    final process = await Process.start(
-      'python3',
-      ['../hardware/sim/fake_board.py', '--tcp', '0', if (control) ...['--control', '0'], ...args],
-      workingDirectory: Directory.current.path,
-    );
+    final process = await Process.start('python3', [
+      '../hardware/sim/fake_board.py',
+      '--tcp',
+      '0',
+      if (control) ...['--control', '0'],
+      ...args,
+    ], workingDirectory: Directory.current.path);
     final banner = process.stdout
         .transform(utf8.decoder)
         .transform(const LineSplitter())
@@ -55,8 +57,11 @@ class Sim {
 }
 
 /// Polls the session the way the screen does, rather than reaching into the engine.
-Future<Fault> waitForFault(Session session, String id,
-    {Duration timeout = const Duration(seconds: 20)}) async {
+Future<Fault> waitForFault(
+  Session session,
+  String id, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     for (final fault in session.faults) {
@@ -64,10 +69,15 @@ Future<Fault> waitForFault(Session session, String id,
     }
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
-  throw TestFailure('$id never appeared; saw ${session.faults.map((f) => f.id).toList()}');
+  throw TestFailure(
+    '$id never appeared; saw ${session.faults.map((f) => f.id).toList()}',
+  );
 }
 
-Future<T> waitFor<T>(T? Function() get, {Duration timeout = const Duration(seconds: 20)}) async {
+Future<T> waitFor<T>(
+  T? Function() get, {
+  Duration timeout = const Duration(seconds: 20),
+}) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     final value = get();
@@ -88,7 +98,7 @@ void main() {
       logging: false,
       tick: const Duration(milliseconds: 100),
     );
-    await session.connectSim('127.0.0.1', sim.port);
+    await session.connectTcp('127.0.0.1', sim.port);
     expect(session.connected, isTrue);
   }
 
@@ -110,18 +120,20 @@ void main() {
     await waitFor(() => session.latest);
 
     await session.send('b');
-    await waitFor(() => session.history.notes
-        .any((n) => n.text.startsWith('blank stored'))
-        ? true
-        : null);
+    await waitFor(
+      () => session.history.notes.any((n) => n.text.startsWith('blank stored'))
+          ? true
+          : null,
+    );
     await session.send('z');
-    final running = await waitFor(() => session.latest?.running == true ? true : null);
+    final running = await waitFor(
+      () => session.latest?.running == true ? true : null,
+    );
     expect(running, isTrue);
     expect(session.latest!.absT, isNotNull);
 
     await session.send('s');
     await waitFor(() => session.latest?.running == false ? true : null);
-
 
     await session.send('d');
     final diag = await waitFor(() => session.diag);
@@ -129,13 +141,16 @@ void main() {
     expect(diag.diodeMv.keys, containsAll(colours));
   });
 
-  test('joining mid-line, one byte at a time, with boot noise in front', () async {
-    await connect(['--speed', '10', '--chunk', '1', '--junk']);
-    await waitFor(() => session.history.samples.length >= 5 ? true : null);
-    // The fragment and the ROM noise are kept as not-protocol, and cost no readings.
-    expect(session.history.unknown, isNotEmpty);
-    expect(session.faults.where((f) => f.severity != Severity.info), isEmpty);
-  });
+  test(
+    'joining mid-line, one byte at a time, with boot noise in front',
+    () async {
+      await connect(['--speed', '10', '--chunk', '1', '--junk']);
+      await waitFor(() => session.history.samples.length >= 5 ? true : null);
+      // The fragment and the ROM noise are kept as not-protocol, and cost no readings.
+      expect(session.history.unknown, isNotEmpty);
+      expect(session.faults.where((f) => f.severity != Severity.info), isEmpty);
+    },
+  );
 
   test('64 byte chunks', () async {
     await connect(['--speed', '10', '--chunk', '64']);
@@ -187,48 +202,75 @@ void main() {
 
   test('STREAM_STALE when the board stops talking', () async {
     await connect(['--fault', 'STREAM_STALE']);
-    await waitForFault(session, 'STREAM_STALE', timeout: const Duration(seconds: 10));
+    await waitForFault(
+      session,
+      'STREAM_STALE',
+      timeout: const Duration(seconds: 10),
+    );
   });
 
   test('WRONG_FIRMWARE when the board is running another sketch', () async {
     await connect(['--fault', 'WRONG_FIRMWARE']);
-    await waitForFault(session, 'WRONG_FIRMWARE', timeout: const Duration(seconds: 15));
+    await waitForFault(
+      session,
+      'WRONG_FIRMWARE',
+      timeout: const Duration(seconds: 15),
+    );
     expect(session.history.samples, isEmpty);
   });
 
-  test('a board that resets mid-session is reported, and the stream carries on', () async {
-    await connect(['--brownout-at', '5']);
-    await waitFor(() => session.history.samples.length >= 3 ? true : null);
-    await waitForFault(session, 'BROWNOUT_RESET');
-    final before = session.history.samples.length;
-    await waitFor(() => session.history.samples.length > before ? true : null);
-  });
+  test(
+    'a board that resets mid-session is reported, and the stream carries on',
+    () async {
+      await connect(['--brownout-at', '5']);
+      await waitFor(() => session.history.samples.length >= 3 ? true : null);
+      await waitForFault(session, 'BROWNOUT_RESET');
+      final before = session.history.samples.length;
+      await waitFor(
+        () => session.history.samples.length > before ? true : null,
+      );
+    },
+  );
 
-  test('a fault that appears mid-session, through the control channel', () async {
-    await connect(['--speed', '10'], control: true);
-    await waitFor(() => session.history.samples.length >= 3 ? true : null);
-    expect(session.faults.where((f) => f.severity != Severity.info), isEmpty);
-    await sim.inject('fault LID_OPEN');
-    await waitForFault(session, 'LID_OPEN');
-    await sim.inject('clear LID_OPEN');
-    await waitFor(() =>
-        session.faults.every((f) => f.id != 'LID_OPEN') ? true : null);
-  });
+  test(
+    'a fault that appears mid-session, through the control channel',
+    () async {
+      await connect(['--speed', '10'], control: true);
+      await waitFor(() => session.history.samples.length >= 3 ? true : null);
+      expect(session.faults.where((f) => f.severity != Severity.info), isEmpty);
+      await sim.inject('fault LID_OPEN');
+      await waitForFault(session, 'LID_OPEN');
+      await sim.inject('clear LID_OPEN');
+      await waitFor(
+        () => session.faults.every((f) => f.id != 'LID_OPEN') ? true : null,
+      );
+    },
+  );
 
   test('the board going away closes the session instead of hanging', () async {
     await connect(['--speed', '10', '--disconnect-after', '3']);
     await waitFor(() => session.history.samples.isNotEmpty ? true : null);
-    await waitFor(() => session.connected ? null : true,
-        timeout: const Duration(seconds: 15));
+    await waitFor(
+      () => session.connected ? null : true,
+      timeout: const Duration(seconds: 15),
+    );
     expect(session.error, isNotNull);
   });
 
-  test('replaying the real capture produces the same readings the rig did', () async {
-    await connect(['--replay', '../hardware/data/session_full_cycle.jsonl', '--speed', '20']);
-    await waitFor(() => session.history.samples.length >= 20 ? true : null);
-    final first = session.history.samples.first.reading;
-    expect(first.transMv, greaterThan(0));
-    // The capture is four-colour firmware: the app must not require the other two.
-    expect(first.sweep.containsKey('violet'), isFalse);
-  });
+  test(
+    'replaying the real capture produces the same readings the rig did',
+    () async {
+      await connect([
+        '--replay',
+        '../hardware/data/session_full_cycle.jsonl',
+        '--speed',
+        '20',
+      ]);
+      await waitFor(() => session.history.samples.length >= 20 ? true : null);
+      final first = session.history.samples.first.reading;
+      expect(first.transMv, greaterThan(0));
+      // The capture is four-colour firmware: the app must not require the other two.
+      expect(first.sweep.containsKey('violet'), isFalse);
+    },
+  );
 }

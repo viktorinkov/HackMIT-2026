@@ -1034,6 +1034,8 @@ network volume.
 
 The API has no client authentication.
 This branch requires real captures at `/pill`.
+The old mock request is rejected. Graph demo requests return HTTP 410.
+New simulated scans are rejected. Historical simulated records remain labeled.
 Deploy the full repository because the backend installs the sibling `truepill/` package.
 Build the matching phone app before you use the new endpoint.
 External service calls require valid OpenAI, Firecrawl, and Elasticsearch credentials.
@@ -1067,3 +1069,19 @@ The pod is left running so the API stays available. Terminating it deletes its
 container disk; the network volume remains and continues billing. For complete
 cleanup, terminate the pod first, then delete `peel-fastapi-data` from the Runpod
 Storage page. Deleting that volume permanently deletes the deployed files.
+
+## Real hardware evidence
+
+`POST /scans` accepts `hardware.sensor_readings` (up to 256 aligned samples),
+`sensor_sample_count`, and the existing absorbance trace. Each sample carries
+time, transmission/scattering mV, absorbance, temperature, stir percentage and
+nullable colour sweep channels. Startup adds these fields to the existing scan
+index without deleting data. Research and voice share bounded raw samples and
+computed ranges/changes; unknown identity does not suppress the measurements.
+The voice context uses `status: measured` when real readings exist without an
+identified candidate. Missing/skipped hardware is never replaced by a mock.
+
+Deploy the backend with the updated APK: older servers ignore the new sensor
+fields and do not expose them to the AI. Existing stored mock scans remain
+explicitly labelled as simulated. No model is asked to invent drug identity or
+potency from an uncalibrated optical trace.

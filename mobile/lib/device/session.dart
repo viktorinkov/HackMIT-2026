@@ -131,8 +131,8 @@ class Session extends ChangeNotifier {
     }
   }
 
-  /// Developer-only: the simulator, `python3 hardware/sim/fake_board.py --tcp 9000`.
-  Future<void> connectSim(String host, int port) async {
+  /// Connect to the physical instrument through its TCP bridge.
+  Future<void> connectTcp(String host, int port) async {
     await disconnect();
     state = LinkState.connecting;
     error = null;
@@ -141,7 +141,7 @@ class Session extends ChangeNotifier {
       _attach(await TcpLink.connect(host, port));
     } catch (e) {
       state = LinkState.idle;
-      error = 'No simulator at $host:$port ($e).';
+      error = 'Cannot connect to the instrument at $host:$port ($e).';
       notifyListeners();
     }
   }

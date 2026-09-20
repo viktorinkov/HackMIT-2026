@@ -5,11 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/api_models.dart';
-import '../data/mock_data.dart';
+import '../data/scan_step.dart';
 import '../services/peel_api.dart';
 import '../device/signals.dart';
 
-export '../data/mock_data.dart' show ScanStep;
+export '../data/scan_step.dart' show ScanStep;
 
 const _deviceIdKey = 'peel_user_uuid';
 

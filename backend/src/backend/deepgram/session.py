@@ -37,7 +37,7 @@ def _pill_name(hardware: dict[str, Any] | None) -> str | None:
 
 
 OFFER_DISAGREE = (
-    "These results do not agree, so I can help you report this medicine. "
+    "The scan found a concern. I can help you report this medicine. "
     "Do you want to?"
 )
 OFFER_LIGHT = "If anything about this medicine seems wrong, I can help you report it."
@@ -75,6 +75,8 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
 
     if pill:
         pill_line = f"The hardware analysis reports the contents as {pill}."
+    elif hardware and hardware.get("measurements"):
+        pill_line = "The hardware recorded measurements, but the medicine's identity is unknown."
     elif hardware:
         if hardware.get("reported_status") == "unknown":
             pill_line = "The hardware result is unknown."
@@ -95,13 +97,33 @@ def intro_from_scan(doc: dict[str, Any]) -> str:
 
 
 def greeting_from_scan(doc: dict[str, Any]) -> str:
-    """The intro, three source lines, and the report offer, as one utterance.
-
-    One greeting instead of three injected messages: the user can interrupt it
-    at any point, and there is no InjectionRefused race while it plays.
-    """
+    """Speak the verdict and report headline, without raw sensor numbers."""
     offer = OFFER_DISAGREE if scan_has_concern(doc) else OFFER_LIGHT
-    return " ".join([intro_from_scan(doc), *opening_messages_from_scan(doc), offer])
+    verdict = verdict_from_scan(doc)
+    headline = (doc.get("research") or {}).get("headline")
+    lines = [intro_from_scan(doc), verdict]
+    if headline and headline != verdict:
+        lines.append(headline)
+    return " ".join([*lines, offer])
+
+
+def verdict_from_scan(doc: dict[str, Any]) -> str:
+    context = to_scan_context(doc)
+    report = context.get("research") or {}
+    hardware = context.get("hardware") or {}
+    if report.get("verdict") == "recall_match":
+        return report.get("headline") or "Research found a recall matching this bottle."
+    status = hardware.get("reported_status")
+    if status == "fake":
+        return "The hardware analysis reports that this pill does not match the bottle."
+    if status == "substandard":
+        return "The hardware analysis flags a possible quality problem with this pill."
+    if report.get("verdict") == "mismatch_found":
+        return report.get("headline") or "The scan found a disagreement between the results."
+    pill = _pill_name(hardware)
+    if status == "real" and pill:
+        return f"The hardware analysis reports a match to {pill}."
+    return "The pill's contents have not been identified."
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:

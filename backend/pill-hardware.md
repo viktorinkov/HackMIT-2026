@@ -52,6 +52,10 @@ The endpoint does not average a faulted sweep into a successful reading.
 The response retains the existing `model` and `result` fields.
 It adds `verdict`, `flags`, and `limitations` to explain the classification.
 The app submits the returned result and model to `/scans`.
+It also sends up to 256 aligned sensor samples across the full run, plus the original sample count.
+Research and voice receive bounded measurements alongside the classification.
+The three-color spectrum is not treated as a time trace.
+Peel states the verdict first and explains the report without sensor numbers unless asked.
 
 ## Local setup
 

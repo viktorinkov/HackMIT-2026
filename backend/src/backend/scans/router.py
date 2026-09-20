@@ -29,6 +29,8 @@ StoreDep = Annotated[ScanStore, Depends(get_scan_store)]
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED, response_model=ScanEnvelope)
 async def create_scan(payload: ScanCreate, request: Request, store: StoreDep) -> ScanEnvelope:
+    if payload.demo or payload.hardware_model == "mock-spectrometry":
+        raise HTTPException(status_code=422, detail="Simulated scans are not accepted. Use real scan data.")
     with _http_errors():
         doc = await store.create(payload)
     _launch_research(request.app, doc[Scan.SCAN_ID])

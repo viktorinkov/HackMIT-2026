@@ -18,13 +18,12 @@ import 'theme/peel_theme.dart';
 import 'widgets/peel_scaffold.dart';
 
 const deviceHost = String.fromEnvironment('PEEL_DEVICE_HOST');
-const peelSimulator = String.fromEnvironment('PEEL_SIM');
 const peelRunSeconds = int.fromEnvironment(
   'PEEL_RUN_SECONDS',
   defaultValue: 60,
 );
 final deviceSession = Session(
-  watchUsb: Platform.isAndroid && deviceHost.isEmpty && peelSimulator.isEmpty,
+  watchUsb: Platform.isAndroid && deviceHost.isEmpty,
 );
 final deviceRun = DeviceRun(
   deviceSession,
@@ -43,14 +42,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await scanSession.loadDeviceId();
   hardwareSync.session.init();
-  if (peelSimulator.isNotEmpty) {
-    final endpoint = Uri.parse('tcp://$peelSimulator');
-    deviceSession.connectSim(
-      endpoint.host,
-      endpoint.hasPort ? endpoint.port : 9000,
-    );
-  } else if (deviceHost.isNotEmpty) {
-    deviceSession.connectSim(deviceHost, 9001);
+  if (deviceHost.isNotEmpty) {
+    deviceSession.connectTcp(deviceHost, 9001);
   }
   runApp(const PeelApp());
 }

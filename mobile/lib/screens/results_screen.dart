@@ -251,8 +251,18 @@ String _hardwareLine(Map<String, dynamic>? hardware) {
   if (hardware == null) return 'No hardware observation';
   final status = hardware['status'] as String? ?? 'unknown';
   final pillType = hardware['pill_type'] as String?;
-  if (pillType == null || pillType.isEmpty) return 'Hardware: $status';
-  return 'Hardware: $status · $pillType';
+  if (status != 'unknown' && pillType != null && pillType.isNotEmpty) {
+    return 'Hardware: $status · $pillType';
+  }
+  final count = hardware['sensor_sample_count'] as int?;
+  if (count != null && count > 0) return '$count sensor readings recorded';
+  final trace = hardware['spectrum'] as List? ?? const [];
+  if (trace.isNotEmpty &&
+      hardware['model'] != 'mock-spectrometry' &&
+      hardware['model'] != 'truepill-snapshot') {
+    return '${trace.length} absorbance readings recorded';
+  }
+  return 'Hardware: $status';
 }
 
 /// Full-width scan photo, framed the way the prototype frames its captures.

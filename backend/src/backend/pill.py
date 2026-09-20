@@ -39,9 +39,26 @@ class PillHardwareRequest(BaseModel):
     pill_type: str | None = Field(default=None, max_length=200)
 
 
+class SensorReading(BaseModel):
+    t: FiniteFloat | None = None
+    trans: FiniteFloat | None = None
+    scat: FiniteFloat | None = None
+    absT: FiniteFloat | None = None
+    absS: FiniteFloat | None = None
+    tC: FiniteFloat | None = None
+    darkTrans: FiniteFloat | None = None
+    darkScat: FiniteFloat | None = None
+    stir: FiniteFloat | None = None
+    swept: bool = False
+    sweep: dict[Literal["ir", "red", "yellow", "green", "blue", "violet"], FiniteFloat | None] = Field(default_factory=dict)
+    sweepS: dict[Literal["ir", "red", "yellow", "green", "blue", "violet"], FiniteFloat | None] = Field(default_factory=dict)
+
+
 class PillHardwareResult(BaseModel):
     status: PillStatus
-    spectrum: list[float]
+    spectrum: list[FiniteFloat]
+    sensor_readings: list[SensorReading] = Field(default_factory=list, max_length=256)
+    sensor_sample_count: int | None = Field(default=None, ge=0, le=1000000)
     pill_type: str | None = None
     degraded: bool
     confidence: float = Field(ge=0, le=1)

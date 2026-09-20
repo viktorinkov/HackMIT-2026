@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import '../rive/peel_rive_stage.dart';
 import '../data/api_models.dart';
 import '../services/peel_api.dart';
-import '../main.dart' show deviceRun, deviceHost, peelSimulator;
+import '../main.dart' show deviceRun, deviceHost;
 import '../device/device_run.dart';
+import '../device/signals.dart';
 import '../device/debug_screen.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
@@ -79,12 +80,25 @@ class _DeviceScreenState extends State<DeviceScreen> {
         await run.scan.loadDeviceId();
       }
       if (!run.scan.hardwareSkipped) {
-        run.scan.hardware = await (widget.api ?? peelApi).analyzePill(
+        final analysis = await (widget.api ?? peelApi).analyzePill(
           blank: run.scan.blankReadings,
           sample: run.scan.sampleReadings,
           pillType:
               run.scan.bottleResult?.genericName ??
               run.scan.bottleResult?.brandName,
+        );
+        final result = analysis.result;
+        run.scan.hardware = PillHardwareAnalysis(
+          model: analysis.model,
+          result: PillHardwareResult(
+            status: result.status,
+            spectrum: result.spectrum,
+            pillType: result.pillType,
+            degraded: result.degraded,
+            confidence: result.confidence,
+            sensorReadings: sensorPayload(run.scan.runReadings),
+            sensorSampleCount: run.scan.runReadings.length,
+          ),
         );
       }
       final photos = <PhotoRef>[
@@ -269,14 +283,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   : () {
                       if (_phase == DevicePhase.connecting &&
                           !run.session.watchUsb &&
-                          (peelSimulator.isNotEmpty || deviceHost.isNotEmpty)) {
-                        final endpoint = Uri.parse(
-                          'tcp://${peelSimulator.isNotEmpty ? peelSimulator : '$deviceHost:9001'}',
-                        );
-                        run.session.connectSim(
-                          endpoint.host,
-                          endpoint.hasPort ? endpoint.port : 9000,
-                        );
+                          deviceHost.isNotEmpty) {
+                        run.session.connectTcp(deviceHost, 9001);
                       } else {
                         run.act();
                       }
@@ -291,4 +299,36 @@ class _DeviceScreenState extends State<DeviceScreen> {
           : null,
     );
   }
+}
+
+/// Keep timestamps and all channels aligned; long runs retain their full span.
+List<Map<String, dynamic>> sensorPayload(List<Reading> readings) {
+  final count = readings.length > 256 ? 256 : readings.length;
+  double? finite(double? value) =>
+      value != null && value.isFinite ? value : null;
+  return [
+    for (var i = 0; i < count; i++)
+      (() {
+        final r =
+            readings[count == readings.length
+                ? i
+                : (i * (readings.length - 1) / (count - 1)).round()];
+        return <String, dynamic>{
+          't': finite(r.t),
+          'trans': finite(r.transMv),
+          'scat': finite(r.scatMv),
+          'absT': finite(r.absT),
+          'absS': finite(r.absS),
+          'tC': finite(r.tempC),
+          'darkTrans': finite(r.darkTransMv),
+          'darkScat': finite(r.darkScatMv),
+          'stir': r.stirPct,
+          'swept': r.swept,
+          'sweep': {for (final e in r.sweep.entries) e.key: finite(e.value)},
+          'sweepS': {
+            for (final e in r.sweepScatter.entries) e.key: finite(e.value),
+          },
+        };
+      })(),
+  ];
 }

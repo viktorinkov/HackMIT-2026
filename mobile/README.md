@@ -46,23 +46,16 @@ firmware mirrors the phone workflow. Temperature advice targets 37 ± 1.5 °C; a
 probe or the -127/85 sentinels do not block a run. Sensor faults remain in debug,
 and raw values are not smoothed or used to invent a pill verdict.
 
-Long-press the device screen title for the Material debug screen, logs, and TCP
-simulator connection. From the repository root run:
-
-```bash
-python3 hardware/sim/fake_board.py --tcp 9000
-```
-
-Use `10.0.2.2:9000` from an Android emulator or the computer's LAN address from a
-phone. Device-dialect tests replay the actual nullable four-colour data as well
-as start/stop, external starts, resets, and disconnects. Use wireless adb for a
-physical phone: its USB port is occupied by the board.
+Long-press the device screen title for diagnostics and logs.
+The app has no simulator controls or synthetic measurement fallback.
+Use wireless adb for a physical phone because the board occupies its USB port.
 
 ## Backend
 
 Completed runs retain all raw readings and their session log path.
 The app calls `/pill` with five water sweeps and five dissolved pill sweeps.
 It forwards the returned classifier result and model to `/scans`.
+It also sends aligned sensor readings across the full run.
 The app stops on a classification request error and provides a retry.
 Skip hardware omits hardware and continues research.
 See [the capture contract and limits](../backend/pill-hardware.md).
@@ -88,5 +81,5 @@ synthetic readings. See [firmware setup](../hardware/firmware/23_phone_display/R
 
 `PEEL_START=device` opens the device step, `PEEL_START=debug` opens diagnostics,
 and `PEEL_START=voice` retains the upstream voice test entry point.
-`PEEL_SIM=10.0.2.2:9000` uses the full instrument simulator;
-`PEEL_DEVICE_HOST=10.0.2.2` uses the display bridge on port 9001.
+`PEEL_DEVICE_HOST` selects a physical instrument bridge on port 9001.
+`PEEL_SIM` is no longer supported.

@@ -9,20 +9,19 @@ def test_prompt_embeds_the_scan_context() -> None:
     assert prompt.scan_id == "scan-1"
     assert '"scan_id":"scan-1"' in prompt.prompt
     assert "acetaminophen" in prompt.prompt
-    # The greeting carries the three sources now; the prompt must say so and
-    # must tell Peel how to behave when the user interrupts.
-    assert "The greeting already introduced you" in prompt.prompt
+    # The greeting states the verdict; interruptions must not restart it.
+    assert "The greeting already gave the verdict" in prompt.prompt
     assert "offered a report" in prompt.prompt
-    assert "Answer in one or two sentences" in prompt.prompt
+    assert "one to three per reply" in prompt.prompt
     assert "Report button is in the app" in prompt.prompt
     assert "Do not repeat it unless asked" in prompt.prompt
     assert "When interrupted, answer the user without restarting the summary" in prompt.prompt
     assert "One moment, I will open the report" in prompt.prompt
     assert "call draft_report once" in prompt.prompt
     assert "Never claim submission" in prompt.prompt
-    assert "March twelfth, twenty twenty-six" in prompt.prompt
+    assert "Say dates in words" in prompt.prompt
     assert "When did you buy this?" in prompt.prompt
-    assert "Never ask the user to type or specify a date format" in prompt.prompt
+    assert "Never ask for a date format" in prompt.prompt
     assert "Convert dates silently for the call, never aloud" in prompt.prompt
     assert "YYYY-MM-DD" not in prompt.prompt
     assert "yy/mm/dd" not in prompt.prompt

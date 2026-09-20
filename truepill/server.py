@@ -17,7 +17,7 @@ A run also closes automatically when a reading's t_seconds exceeds the run's
 max_duration_seconds; the final result is sent and the run is discarded.
 
 Run: uvicorn truepill.server:app --reload   (from the directory that holds truepill/)
-Library: TRUEPILL_LIBRARY=mock (default, synthetic). =published needs
+Library: TRUEPILL_LIBRARY=published requires
 spectral_db.py and the reference spectra it reads, which are not in this
 repository (their licence terms are unchecked for a public repo).
 """
@@ -32,7 +32,6 @@ from typing import Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from .mock_data import build_reference_library
 from .models import (
     DissolutionRun,
     EndRunMessage,
@@ -47,9 +46,7 @@ log = logging.getLogger("truepill.server")
 
 def _build_library() -> list:
     """Reference library selected by the TRUEPILL_LIBRARY environment variable."""
-    source = os.environ.get("TRUEPILL_LIBRARY", "mock").strip().lower()
-    if source == "mock":
-        return build_reference_library()
+    source = os.environ.get("TRUEPILL_LIBRARY", "published").strip().lower()
     if source == "published":
         try:
             from .spectral_db import build_published_reference_library
@@ -65,7 +62,7 @@ def _build_library() -> list:
         if not entries:
             raise RuntimeError("no published spectrum is usable on the configured LED channels")
         return entries
-    raise RuntimeError(f"TRUEPILL_LIBRARY must be 'mock' or 'published', got {source!r}")
+    raise RuntimeError("Synthetic libraries are disabled. Use the measured backend /pill endpoint.")
 
 
 @asynccontextmanager

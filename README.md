@@ -48,7 +48,7 @@ Peel keeps three observations separate, then looks them up:
 | --- | --- |
 | **Bottle** | GPT-4o vision reads a photo of the container (name, strength, NDC, lot, manufacturer). |
 | **Imprint** | GPT-4o vision reads a photo of the tablet (characters, color, shape). |
-| **Pill** | The phone sends water and pill color sweeps to `POST /pill`. The API uses the measured TruePill references. |
+| **Pill** | The phone sends water and pill color sweeps to `POST /pill`. It sends the classification and aligned sensor readings to research. |
 
 The rest of this README is the system that sits behind those three inputs.
 
@@ -152,7 +152,9 @@ Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets c
 
 `POST /pill` runs the measured TruePill classifier on separate water and dissolved pill captures.
 The instrument streams JSON over USB to `mobile/`.
+The scan retains timestamped sensor readings and channel statistics alongside the classification.
 The library contains Advil and Pepto references.
+Mock classification, simulated scan creation, and graph sample-data fallbacks are disabled.
 See [the capture workflow and limitations](backend/pill-hardware.md).
 
 ### Elasticsearch

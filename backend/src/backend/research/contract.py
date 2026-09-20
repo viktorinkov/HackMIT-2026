@@ -13,11 +13,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from backend.sensor_data import sensor_evidence
+
 from backend.knowledge import normalize
 
 BOTTLE_STATUSES = ("read", "unreadable", "not_a_container")
 IMPRINT_STATUSES = ("candidate_found", "no_candidate", "unreadable", "not_a_pill")
-HARDWARE_STATUSES = ("candidate_found", "inconclusive")
+HARDWARE_STATUSES = ("candidate_found", "measured", "inconclusive")
 DEGRADATION_STATUSES = ("not_assessed", "inconclusive", "suspected", "detected")
 
 # Below this, the label was photographed but not actually read.
@@ -127,6 +129,7 @@ def _hardware(
         return None
     pill_type = hardware.get("pill_type")
     identified = hardware.get("status") in _IDENTIFIED_STATUSES and bool(pill_type)
+    measured = sensor_evidence(hardware)
     candidate = None
     if identified:
         candidate = {
@@ -136,7 +139,8 @@ def _hardware(
             "form": norm.get("dosage_form"),
         }
     return {
-        "status": "candidate_found" if identified else "inconclusive",
+        "status": "candidate_found" if identified else ("measured" if measured else "inconclusive"),
+        **measured,
         # The device's own classification (real | substandard | fake | unknown). Without
         # it a "fake" reading with no identified pill type would read as merely inconclusive.
         "reported_status": hardware.get("status"),
@@ -156,7 +160,11 @@ def _degradation(hardware: dict[str, Any]) -> dict[str, Any]:
     elif hardware.get("degraded"):
         state = "detected"
     elif status == "unknown":
-        state = "inconclusive"
+        state = (
+            "not_assessed"
+            if hardware.get("model") != "truepill-snapshot" and sensor_evidence(hardware)
+            else "inconclusive"
+        )
     else:
         state = "not_assessed"
     degradation: dict[str, Any] = {"status": state}
