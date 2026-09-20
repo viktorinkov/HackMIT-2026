@@ -118,7 +118,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
         if (_phase != DevicePhase.complete)
           PeelButton(
             label: 'Back',
-            variant: PeelButtonVariant.text,
+            variant: PeelButtonVariant.secondary,
             onPressed: () => Navigator.of(context).pop(),
           ),
       ],

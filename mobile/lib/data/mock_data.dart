@@ -48,7 +48,7 @@ const _sideEffects = [
 class MockBackend {
   static const ScanResult matchResult = ScanResult(
     verdict: ScanVerdict.match,
-    finding: 'All three checks match',
+    finding: 'Results match',
     findingDetail: 'The bottle, the imprint and the pill agree.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
@@ -62,7 +62,7 @@ class MockBackend {
 
   static const ScanResult mismatchResult = ScanResult(
     verdict: ScanVerdict.mismatch,
-    finding: 'The pill does not match the bottle',
+    finding: 'Pill and label differ',
     findingDetail: 'The imprint on the pill belongs to a different medicine.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
@@ -77,7 +77,7 @@ class MockBackend {
 
   static const ScanResult unconfirmedResult = ScanResult(
     verdict: ScanVerdict.unconfirmed,
-    finding: 'Could not confirm the pill',
+    finding: 'Could not confirm',
     findingDetail: 'The imprint photo was not clear enough to read.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
@@ -91,7 +91,7 @@ class MockBackend {
 
   static const ScanResult degradationResult = ScanResult(
     verdict: ScanVerdict.degradation,
-    finding: 'The pill looks degraded',
+    finding: 'Degradation',
     findingDetail: 'The device readings are outside the expected range.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [

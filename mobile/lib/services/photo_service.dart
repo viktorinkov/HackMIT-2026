@@ -76,7 +76,7 @@ Future<File?> choosePhoto(BuildContext context, {required String title}) async {
             const SizedBox(height: PeelSpace.x8),
             PeelButton(
               label: 'Cancel',
-              variant: PeelButtonVariant.text,
+              variant: PeelButtonVariant.secondary,
               onPressed: () => Navigator.pop(context),
             ),
           ],
@@ -85,7 +85,11 @@ Future<File?> choosePhoto(BuildContext context, {required String title}) async {
     ),
   );
 
-  if (source == null) return null;
+  if (!context.mounted) return null;
+  if (source == null) {
+    _showNotice(context, 'No photo added. You can try again.');
+    return null;
+  }
 
   final result = await PhotoService.pick(source);
   if (!context.mounted) return null;

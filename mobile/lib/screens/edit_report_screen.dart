@@ -71,7 +71,7 @@ class _EditReportScreenState extends State<EditReportScreen> {
         PeelButton(label: 'Done', onPressed: _save),
         PeelButton(
           label: 'Cancel',
-          variant: PeelButtonVariant.text,
+          variant: PeelButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
         ),
       ],

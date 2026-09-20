@@ -74,14 +74,6 @@ class _VoiceScreenState extends State<VoiceScreen> {
         onBack: () => Navigator.of(context).pop(),
       ),
       content: [
-        Text(_stateLabel, style: PeelText.title),
-        const SizedBox(height: PeelSpace.x8),
-        Text(
-          _state == VoiceState.listening
-              ? 'Ask your question out loud.'
-              : _text,
-          style: PeelText.body,
-        ),
         const SizedBox(height: PeelSpace.x24),
         AnimationPlaceholder(
           description: '',
@@ -92,22 +84,42 @@ class _VoiceScreenState extends State<VoiceScreen> {
             options: const IOS9SiriWaveformOptions(height: 180, width: 320),
           ),
         ),
+        const SizedBox(height: PeelSpace.x16),
+        Center(
+          child: Text(
+            _stateLabel,
+            style: PeelText.heading.copyWith(color: PeelColors.teal),
+          ),
+        ),
+        const SizedBox(height: PeelSpace.x8),
+        Center(
+          child: Text(
+            _state == VoiceState.listening
+                ? 'Ask your question out loud.'
+                : _text,
+            style: PeelText.body,
+            textAlign: TextAlign.center,
+          ),
+        ),
         const SizedBox(height: PeelSpace.x8),
         if (_service.isMocked)
-          const Text(
-            'Demo voice. Deepgram streaming turns on with an API key.',
-            style: PeelText.caption,
+          const Center(
+            child: Text(
+              'Demo voice. Deepgram streaming turns on with an API key.',
+              style: PeelText.caption,
+              textAlign: TextAlign.center,
+            ),
           ),
       ],
       actions: [
         PeelButton(
+          label: 'End voice',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        PeelButton(
           label: 'Ask again',
           variant: PeelButtonVariant.secondary,
           onPressed: _start,
-        ),
-        PeelButton(
-          label: 'End voice',
-          onPressed: () => Navigator.of(context).pop(),
         ),
       ],
     );

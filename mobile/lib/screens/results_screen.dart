@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/mock_data.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
+import '../widgets/field_card.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 import 'chat_screen.dart';
@@ -44,33 +45,26 @@ class _ResultsScreenState extends State<ResultsScreen> {
               color: tone.background,
               borderRadius: PeelRadii.r16,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  result.finding,
-                  style: PeelText.heading.copyWith(color: tone.foreground),
-                ),
-                const SizedBox(height: PeelSpace.x4),
-                Text(result.findingDetail, style: PeelText.body),
-              ],
+            child: Text(
+              result.finding,
+              style: PeelText.label.copyWith(color: tone.foreground),
             ),
           ),
         ),
-        const SizedBox(height: PeelSpace.x16),
-        Text(result.medicine, style: PeelText.title),
-        const SizedBox(height: PeelSpace.x16),
-        const _EvidenceStrip(),
-        const SizedBox(height: PeelSpace.x16),
-        _Card(
-          title: 'What we saw',
-          child: Column(
-            children: [
-              for (final row in result.rows) _RecognitionTile(row: row),
-            ],
-          ),
-        ),
         const SizedBox(height: PeelSpace.x12),
+        for (var i = 0; i < result.rows.length; i++) ...[
+          if (scanSession.photoFor(ScanStep.values[i]) != null) ...[
+            _EvidencePhoto(photo: scanSession.photoFor(ScanStep.values[i])!),
+            const SizedBox(height: PeelSpace.x8),
+          ],
+          PeelFieldCard(
+            label: result.rows[i].label,
+            value: result.rows[i].value,
+            detail: result.rows[i].detail,
+          ),
+          const SizedBox(height: PeelSpace.x8),
+        ],
+        const SizedBox(height: PeelSpace.x4),
         _Card(
           title: 'Drug facts',
           child: Column(
@@ -93,14 +87,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
       ],
       actions: [
         PeelButton(
-          label: 'Chat about this',
+          label: 'Chat about results',
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
           ),
         ),
         if (result.canReport)
           PeelButton(
-            label: 'Report a problem',
+            label: 'Report a concern',
             variant: PeelButtonVariant.secondary,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -128,61 +122,29 @@ class _ResultsScreenState extends State<ResultsScreen> {
         foreground: PeelColors.deep
       ),
     ScanVerdict.degradation => (
-        background: PeelColors.tealSoft,
-        foreground: PeelColors.teal
+        background: PeelColors.soft,
+        foreground: PeelColors.deep
       ),
   };
 }
 
-class _EvidenceStrip extends StatelessWidget {
-  const _EvidenceStrip();
+/// Full-width scan photo, framed the way the prototype frames its captures.
+class _EvidencePhoto extends StatelessWidget {
+  const _EvidencePhoto({required this.photo});
+
+  final File photo;
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Bottle', 'Imprint', 'Pill'];
-    return Row(
-      children: [
-        for (var i = 0; i < ScanStep.values.length; i++) ...[
-          if (i > 0) const SizedBox(width: PeelSpace.x8),
-          Expanded(
-            child: _EvidenceThumb(
-              label: labels[i],
-              photo: scanSession.photoFor(ScanStep.values[i]),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _EvidenceThumb extends StatelessWidget {
-  const _EvidenceThumb({required this.label, required this.photo});
-
-  final String label;
-  final File? photo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        AspectRatio(
-          aspectRatio: 1,
-          child: ClipRRect(
-            borderRadius: PeelRadii.r12,
-            child: Container(
-              color: photo == null ? PeelColors.soft : PeelColors.camera,
-              alignment: Alignment.center,
-              child: photo == null
-                  ? const Icon(Icons.image_outlined, color: PeelColors.muted)
-                  : Image.file(photo!, fit: BoxFit.cover),
-            ),
-          ),
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: ClipRRect(
+        borderRadius: PeelRadii.r12,
+        child: Container(
+          color: PeelColors.camera,
+          child: Image.file(photo, fit: BoxFit.cover),
         ),
-        const SizedBox(height: PeelSpace.x4),
-        Text(label, style: PeelText.caption),
-      ],
+      ),
     );
   }
 }
@@ -209,38 +171,6 @@ class _Card extends StatelessWidget {
           Text(title, style: PeelText.label),
           const SizedBox(height: PeelSpace.x8),
           child,
-        ],
-      ),
-    );
-  }
-}
-
-class _RecognitionTile extends StatelessWidget {
-  const _RecognitionTile({required this.row});
-
-  final RecognitionRow row;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: PeelSpace.x8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 76,
-            child: Text(row.label, style: PeelText.caption),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(row.value, style: PeelText.body),
-                if (row.detail != null)
-                  Text(row.detail!, style: PeelText.caption),
-              ],
-            ),
-          ),
         ],
       ),
     );

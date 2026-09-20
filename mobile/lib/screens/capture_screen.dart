@@ -104,7 +104,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
         if (Navigator.of(context).canPop())
           PeelButton(
             label: 'Back',
-            variant: PeelButtonVariant.text,
+            variant: PeelButtonVariant.secondary,
             onPressed: () => Navigator.of(context).pop(),
           ),
       ],

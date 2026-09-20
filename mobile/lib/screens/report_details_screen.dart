@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
+import '../widgets/field_card.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 import 'edit_report_screen.dart';
@@ -29,7 +30,6 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
     return PeelScaffold(
       topBar: PeelTopBar(
         title: 'Report',
-        onBack: () => Navigator.of(context).pop(),
         trailing: TextButton(
           onPressed: _edit,
           child: Text(
@@ -42,14 +42,17 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
         const _Section(title: 'Concern'),
         Text(scanSession.concern, style: PeelText.body),
         const SizedBox(height: PeelSpace.x8),
-        _Row(label: 'Date noticed', value: scanSession.dateNoticed),
+        PeelFieldCard(label: 'Date noticed', value: scanSession.dateNoticed),
         const _Section(title: 'Medicine'),
-        _Row(label: 'Medicine name', value: scanSession.medicineName),
-        _Row(label: 'Strength', value: scanSession.strength),
-        _Row(label: 'Manufacturer', value: scanSession.manufacturer),
+        PeelFieldCard(label: 'Medicine name', value: scanSession.medicineName),
+        const SizedBox(height: PeelSpace.x8),
+        PeelFieldCard(label: 'Strength', value: scanSession.strength),
+        const SizedBox(height: PeelSpace.x8),
+        PeelFieldCard(label: 'Manufacturer', value: scanSession.manufacturer),
         const _Section(title: 'Bottle details'),
-        _Row(label: 'Lot number', value: scanSession.lotNumber),
-        _Row(label: 'Expiry date', value: scanSession.expiryDate),
+        PeelFieldCard(label: 'Lot number', value: scanSession.lotNumber),
+        const SizedBox(height: PeelSpace.x8),
+        PeelFieldCard(label: 'Expiry date', value: scanSession.expiryDate),
         const _Section(title: 'Scan evidence'),
         const Text('Attached scan photos', style: PeelText.caption),
         const SizedBox(height: PeelSpace.x8),
@@ -66,7 +69,7 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
         ),
         PeelButton(
           label: 'Back',
-          variant: PeelButtonVariant.text,
+          variant: PeelButtonVariant.secondary,
           onPressed: () => Navigator.of(context).pop(),
         ),
       ],
@@ -87,27 +90,6 @@ class _Section extends StatelessWidget {
         bottom: PeelSpace.x8,
       ),
       child: Text(title, style: PeelText.heading),
-    );
-  }
-}
-
-class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: PeelSpace.x8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 132, child: Text(label, style: PeelText.caption)),
-          Expanded(child: Text(value, style: PeelText.body)),
-        ],
-      ),
     );
   }
 }
