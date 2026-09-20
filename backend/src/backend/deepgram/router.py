@@ -19,7 +19,7 @@ from backend.deepgram.session import (
     opening_messages_from_scan,
     problem_from_scan,
 )
-from backend.deepgram.store import ReportStore, get_report_store
+from backend.deepgram.store import MemoryReportStore, get_report_store
 from backend.knowledge.client import KnowledgeError
 from backend.research.contract import to_scan_context
 from backend.scans.store import ScanStore, get_scan_store
@@ -29,7 +29,7 @@ READY_STATUSES = frozenset({"complete", "partial"})
 router = APIRouter(prefix="/deepgram", tags=["deepgram"])
 
 StoreDep = Annotated[ScanStore, Depends(get_scan_store)]
-ReportsDep = Annotated[ReportStore, Depends(get_report_store)]
+ReportsDep = Annotated[MemoryReportStore, Depends(get_report_store)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 

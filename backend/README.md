@@ -816,7 +816,7 @@ as environment variables when the container boots. The pod env maps each variabl
 to a secret of the same name, for example
 `OPENAI_API_KEY={{ RUNPOD_SECRET_OPENAI_API_KEY }}`. Secrets in use:
 `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `ELASTICSEARCH_URL`,
-`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`, `MONGODB_URI`. Rotating a secret takes effect on the
+`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`, `PUBLIC_API_BASE_URL`. Rotating a secret takes effect on the
 next pod start. Editing the pod env replaces the container, so keep the app on the
 network volume.
 
