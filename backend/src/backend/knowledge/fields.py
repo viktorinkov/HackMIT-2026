@@ -13,7 +13,7 @@ PILLS_INDEX = "peel-pills"
 NDC_INDEX = "peel-ndc"
 WEB_PAGES_INDEX = "peel-web-pages"
 SCANS_INDEX = "peel-scans"
-REPORTS_INDEX = "peel-concern-reports"
+REPORTS_INDEX = "peel-reports"
 ALL_INDICES = (
     REGULATORY_INDEX,
     PILLS_INDEX,
@@ -217,7 +217,7 @@ class Scan:
 
 
 class Report:
-    """peel-concern-reports: one provenance interview per filing, joined by scan_id."""
+    """peel-reports: one report per scan, keyed by scan_id."""
 
     REPORT_ID = "report_id"
     SCAN_ID = "scan_id"

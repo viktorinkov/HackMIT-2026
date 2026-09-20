@@ -23,10 +23,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Create the strict indices up front: an absent peel-scans or
-    # peel-concern-reports would otherwise be auto-created with a dynamic mapping
-    # on the first write. Never fatal — the store answers 503 while the cluster
-    # is unreachable.
+    # Create the strict indices up front: an absent peel-scans or peel-reports
+    # would otherwise be auto-created with a dynamic mapping on the first write.
+    # Never fatal — the store answers 503 while the cluster is unreachable.
     try:
         await ensure_indices(get_es(get_settings()))
     except Exception as exc:  # noqa: BLE001

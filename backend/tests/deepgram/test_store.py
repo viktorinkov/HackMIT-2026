@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from elastic_transport import ApiResponseMeta
-from elasticsearch import ApiError, TransportError
+from elasticsearch import ApiError, NotFoundError, TransportError
 
 from backend.deepgram.models import ConcernReport, PurchaseLocation
 from backend.deepgram.store import (
@@ -24,6 +24,10 @@ def _meta(status: int) -> ApiResponseMeta:
     )
 
 
+def _not_found() -> NotFoundError:
+    return NotFoundError("missing", meta=_meta(404), body={})
+
+
 class FakeEs:
     def __init__(self, **responses: Any) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
@@ -39,8 +43,8 @@ class FakeEs:
     async def index(self, **kwargs: Any) -> Any:
         return await self._run("index", kwargs)
 
-    async def search(self, **kwargs: Any) -> Any:
-        return await self._run("search", kwargs)
+    async def get(self, **kwargs: Any) -> Any:
+        return await self._run("get", kwargs)
 
     def call(self, name: str) -> dict[str, Any]:
         return next(kwargs for called, kwargs in self.calls if called == name)
@@ -82,6 +86,7 @@ def test_mapping_uses_date_geo_and_text() -> None:
         Report.SNAPSHOT,
         Report.CREATED_AT,
     }
+    assert REPORTS_INDEX == "peel-reports"
     assert properties[Report.SCAN_ID]["type"] == "keyword"
     assert properties[Report.PURCHASED_ON]["type"] == "date"
     assert properties[Report.SELLER]["type"] == "text"
@@ -107,41 +112,53 @@ def test_document_roundtrip_moves_coordinates() -> None:
 
 
 @pytest.mark.asyncio
-async def test_add_indexes_without_refresh() -> None:
-    es = FakeEs(index={"result": "created"})
+async def test_add_indexes_by_scan_id_without_refresh() -> None:
+    es = FakeEs(get=_not_found(), index={"result": "created"})
     stored = await ElasticReportStore(es).add(report())
     call = es.call("index")
     assert stored.report_id == "rep-1"
     assert call["index"] == REPORTS_INDEX
-    assert call["id"] == "rep-1"
+    assert call["id"] == "scan-1"
     assert call["refresh"] is False
     assert call["document"][Report.SCAN_ID] == "scan-1"
 
 
 @pytest.mark.asyncio
-async def test_list_searches_by_scan_id() -> None:
-    es = FakeEs(
-        search={"hits": {"hits": [{"_source": document_from_report(report())}]}}
-    )
-    listed = await ElasticReportStore(es).list("scan-1")
-    call = es.call("search")
-    assert call["index"] == REPORTS_INDEX
-    assert call["query"] == {"term": {Report.SCAN_ID: "scan-1"}}
-    assert listed[0].report_id == "rep-1"
-    assert listed[0].seller == "CVS Pharmacy"
+async def test_add_replaces_the_document_for_the_same_scan() -> None:
+    existing = document_from_report(report())
+    es = FakeEs(get={"_source": existing}, index={"result": "updated"})
+    incoming = report().model_copy(update={"seller": "a friend", "report_id": "rep-new"})
+    stored = await ElasticReportStore(es).add(incoming)
+    assert stored.report_id == "rep-1"
+    assert stored.created_at == report().created_at
+    assert stored.seller == "a friend"
+    assert es.call("index")["id"] == "scan-1"
+
+
+@pytest.mark.asyncio
+async def test_get_is_realtime() -> None:
+    es = FakeEs(get={"_source": document_from_report(report())})
+    found = await ElasticReportStore(es).get("scan-1")
+    assert found is not None
+    assert found.seller == "CVS Pharmacy"
+    assert es.call("get") == {"index": REPORTS_INDEX, "id": "scan-1", "realtime": True}
+
+
+@pytest.mark.asyncio
+async def test_get_returns_none_when_missing() -> None:
+    es = FakeEs(get=_not_found())
+    assert await ElasticReportStore(es).get("scan-1") is None
 
 
 @pytest.mark.asyncio
 async def test_add_surfaces_a_cluster_error() -> None:
-    es = FakeEs(
-        index=ApiError("boom", meta=_meta(500), body={}),
-    )
-    with pytest.raises(KnowledgeError, match="could not store the concern report"):
+    es = FakeEs(get=_not_found(), index=ApiError("boom", meta=_meta(500), body={}))
+    with pytest.raises(KnowledgeError, match="could not store the report"):
         await ElasticReportStore(es).add(report())
 
 
 @pytest.mark.asyncio
-async def test_list_surfaces_an_unreachable_cluster() -> None:
-    es = FakeEs(search=TransportError("timeout"))
+async def test_get_surfaces_an_unreachable_cluster() -> None:
+    es = FakeEs(get=TransportError("timeout"))
     with pytest.raises(KnowledgeError, match="unreachable"):
-        await ElasticReportStore(es).list("scan-1")
+        await ElasticReportStore(es).get("scan-1")

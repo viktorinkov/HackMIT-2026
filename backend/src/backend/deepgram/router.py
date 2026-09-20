@@ -93,17 +93,20 @@ async def create_concern_report(
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
-@router.get("/{scan_id}/reports", response_model=list[ConcernReport])
-async def list_concern_reports(
+@router.get("/{scan_id}/reports", response_model=ConcernReport)
+async def get_report(
     scan_id: str,
     store: StoreDep,
     reports: ReportsDep,
-) -> list[ConcernReport]:
+) -> ConcernReport:
     await _require_scan(store, scan_id)
     try:
-        return await reports.list(scan_id)
+        report = await reports.get(scan_id)
     except KnowledgeError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    if report is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"no report for {scan_id}")
+    return report
 
 
 async def _require_scan(store: ScanStore, scan_id: str) -> dict[str, Any]:

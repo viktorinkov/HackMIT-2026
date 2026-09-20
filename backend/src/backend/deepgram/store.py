@@ -1,4 +1,4 @@
-"""Concern reports in `peel-concern-reports`, joined to scans by `scan_id`."""
+"""Reports in `peel-reports`: one document per scan, keyed by `scan_id`."""
 
 from __future__ import annotations
 
@@ -6,31 +6,34 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Protocol
 
-from elasticsearch import ApiError, AsyncElasticsearch, TransportError
+from elasticsearch import ApiError, AsyncElasticsearch, NotFoundError, TransportError
 from fastapi import Depends
 
 from backend.deepgram.models import ConcernReport, PurchaseLocation
 from backend.knowledge.client import KnowledgeError, get_es
 from backend.knowledge.fields import REPORTS_INDEX, Report
 
-LIST_SIZE = 50
-
 
 class ReportStore(Protocol):
     async def add(self, report: ConcernReport) -> ConcernReport: ...
-    async def list(self, scan_id: str) -> list[ConcernReport]: ...
+    async def get(self, scan_id: str) -> ConcernReport | None: ...
 
 
 class MemoryReportStore:
     def __init__(self) -> None:
-        self._reports: dict[str, list[ConcernReport]] = {}
+        self._reports: dict[str, ConcernReport] = {}
 
     async def add(self, report: ConcernReport) -> ConcernReport:
-        self._reports.setdefault(report.scan_id, []).append(report)
+        existing = self._reports.get(report.scan_id)
+        if existing is not None:
+            report = report.model_copy(
+                update={"report_id": existing.report_id, "created_at": existing.created_at}
+            )
+        self._reports[report.scan_id] = report
         return report
 
-    async def list(self, scan_id: str) -> list[ConcernReport]:
-        return list(reversed(self._reports.get(scan_id, [])))
+    async def get(self, scan_id: str) -> ConcernReport | None:
+        return self._reports.get(scan_id)
 
 
 class ElasticReportStore:
@@ -38,27 +41,31 @@ class ElasticReportStore:
         self._es = es
 
     async def add(self, report: ConcernReport) -> ConcernReport:
-        with _api_errors("could not store the concern report", status_code=503):
-            # No refresh wait: Serverless refresh is slow, and POST returns the
-            # document immediately. GET /reports is a search and can lag.
+        existing = await self.get(report.scan_id)
+        if existing is not None:
+            report = report.model_copy(
+                update={"report_id": existing.report_id, "created_at": existing.created_at}
+            )
+        with _api_errors("could not store the report", status_code=503):
+            # `_id` is scan_id so GET is realtime; no search, no refresh wait.
             await self._es.index(
                 index=REPORTS_INDEX,
-                id=report.report_id,
+                id=report.scan_id,
                 document=document_from_report(report),
                 refresh=False,
             )
         return report
 
-    async def list(self, scan_id: str) -> list[ConcernReport]:
-        with _api_errors("could not list concern reports"):
-            response = await self._es.search(
-                index=REPORTS_INDEX,
-                query={"term": {Report.SCAN_ID: scan_id}},
-                sort=[{Report.CREATED_AT: {"order": "desc"}}],
-                size=LIST_SIZE,
-            )
-        hits = response.get("hits", {}).get("hits", [])
-        return [report_from_document(hit["_source"]) for hit in hits]
+    async def get(self, scan_id: str) -> ConcernReport | None:
+        try:
+            response = await self._es.get(index=REPORTS_INDEX, id=scan_id, realtime=True)
+        except NotFoundError:
+            return None
+        except ApiError as exc:
+            raise _wrapped("could not read the report", exc) from exc
+        except TransportError as exc:
+            raise _unreachable("could not read the report", exc) from exc
+        return report_from_document(dict(response["_source"]))
 
 
 def get_report_store(es: AsyncElasticsearch = Depends(get_es)) -> ElasticReportStore:
