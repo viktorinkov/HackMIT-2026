@@ -54,7 +54,9 @@ async def main():
                 writer.write(b'{"displayRelay":2,"t":-1,"trans":200,"scat":40,"tC":null}\n')
                 await writer.drain()
             while raw := await reader.readline():
-                command = raw.strip()
+                # Session may request diagnostics with an unframed d before a
+                # display line. Ignore that read-only request in this display mock.
+                command = raw.strip().lstrip(b'd')
                 phase = len(command) == 6 and command[:5] == b'PHASE' and command[5:6] in b'01234567'
                 if command not in (b'HELLO', b'PEEL') and not phase:
                     writer.write(b'{"error":"Unknown display command"}\n')
