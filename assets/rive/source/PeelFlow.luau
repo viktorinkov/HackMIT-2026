@@ -14,7 +14,7 @@ export type PeelFlow = {
 local C={ink=Color.rgb(43,33,24),orange=Color.rgb(255,159,28),deep=Color.rgb(185,71,0),
  soft=Color.rgb(255,240,217),canvas=Color.rgb(255,252,247),white=Color.rgb(255,255,255),
  teal=Color.rgb(39,107,101),liquid=Color.rgb(229,243,239),muted=Color.rgb(102,88,76),
- red=Color.rgb(198,75,75),green=Color.rgb(110,168,121),blue=Color.rgb(92,143,214)}
+ red=Color.rgb(255,59,48),green=Color.rgb(50,255,99),blue=Color.rgb(22,139,255)}
 local PI=math.pi
 local function clamp(x) return math.max(0,math.min(1,x)) end
 local function smooth(x) x=clamp(x);return x*x*(3-2*x) end
@@ -153,7 +153,8 @@ local function phone(self,r,p,t)
  line(self,r,-10,64,10,64,C.muted,2.5);r:restore()
 end
 local function waterLines(self,r,t)
- local phase=t*2*PI/(self.lastStage==4 and 6 or 8)
+ -- Use the persistent clock at one speed so stage changes preserve phase.
+ local phase=t*2*PI/6
  for j=0,1 do
   local q=path(self)
   for i=0,36 do
@@ -168,10 +169,17 @@ local function deviceBack(self,r,p,t)
  transform(r,p.deviceX,p.deviceY,p.deviceS,p.deviceR)
  paint(self,r,oval(self,0,0,116,42),C.canvas,C.ink,2.5)
  local liquid=oval(self,0,0,102,31);paint(self,r,liquid,C.liquid,C.teal,2)
- -- LEDs are built into the rear rim: fixed position, color, and brightness.
+ -- Fixed rear-rim LEDs: static colored halos and hot cores, with no pulsing.
  for j,angle in {-2.45,-PI/2,-.69} do
   local x=109*math.cos(angle);local y=36*math.sin(angle)
-  line(self,r,x-6,y,x+6,y,({C.red,C.green,C.blue})[j],4)
+  local color=({C.red,C.green,C.blue})[j]
+  line(self,r,x-7,y,x+7,y,Color.alpha(color,16),16)
+  line(self,r,x-7,y,x+7,y,Color.alpha(color,26),13)
+  line(self,r,x-7,y,x+7,y,Color.alpha(color,42),10)
+  line(self,r,x-8,y,x+8,y,C.ink,8)
+  line(self,r,x-7,y,x+7,y,color,6)
+  line(self,r,x-6,y,x+6,y,Color.alpha(C.white,190),3)
+  line(self,r,x-5,y,x+5,y,C.white,1.3)
  end
  r:restore()
 end
