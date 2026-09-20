@@ -26,7 +26,7 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   static const _height = 132.0;
 
   final _random = Random();
-  final _amplitudes = StreamController<Amplitude>();
+  final _amplitudes = StreamController<Amplitude>.broadcast();
   Timer? _timer;
   int _frame = 0;
 
@@ -67,6 +67,9 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
     return SizedBox(
       height: _height,
       child: AnimatedWaveList(
+        // Restarting the list per state keeps old bars from being recoloured,
+        // so each state reads as its own wave.
+        key: ValueKey(widget.state),
         stream: _amplitudes.stream,
         barBuilder: (animation, amplitude) => _Bar(
           animation: animation,
