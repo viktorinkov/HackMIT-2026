@@ -87,77 +87,20 @@ def _reset() -> Iterator[None]:
 # --------------------------------------------------------------------------- demo path
 
 
-def test_the_demo_graph_is_served_without_elasticsearch_configured(
-    demo_client: TestClient,
-) -> None:
-    response = demo_client.get("/graph", params={"demo": 1})
-    assert response.status_code == 200
-    body = response.json()
-    assert body["meta"]["source"] == "demo"
-    assert body["meta"]["demo"] is True
-    assert body["meta"]["device_id"] == "peel-graph-demo"
-    assert len(body["nodes"]) >= 40
-    assert any(link["alert"] for link in body["links"])
+@pytest.mark.parametrize("path,params", [
+    ("/graph", {}), ("/graph/universe", {}),
+    ("/graph/expand", {"id": "lot:D2402430"}),
+    ("/graph/node", {"id": "med:ibuprofen"}),
+    ("/graph/search", {"q": "ibuprofen"}),
+])
+def test_mock_graph_endpoints_are_disabled(demo_client: TestClient, path: str, params: dict) -> None:
+    response = demo_client.get(path, params={**params, "demo": 1})
+    assert response.status_code == 410
+    assert "removed" in response.json()["detail"]
 
 
-def test_graph_requires_a_device_id_unless_demo_is_set(demo_client: TestClient) -> None:
+def test_graph_requires_a_device_id(demo_client: TestClient) -> None:
     assert demo_client.get("/graph").status_code == 422
-    assert demo_client.get("/graph", params={"demo": 1}).status_code == 200
-
-
-def test_a_live_request_never_falls_back_to_demo_data(demo_client: TestClient) -> None:
-    response = demo_client.get("/graph", params={"device_id": "dev-1"})
-    assert response.status_code == 503
-    assert "demo=1" in response.json()["detail"]
-
-
-def test_the_demo_expansions_cover_the_four_presenter_lots(demo_client: TestClient) -> None:
-    for lot in ("lot:D2402430", "lot:D2402999", "lot:Z400069", "lot:H02605"):
-        response = demo_client.get("/graph/expand", params={"id": lot, "demo": 1})
-        assert response.status_code == 200, lot
-        assert response.json()["anchor"] == lot
-
-
-def test_an_uncanned_demo_expansion_is_an_empty_neighbourhood(demo_client: TestClient) -> None:
-    response = demo_client.get("/graph/expand", params={"id": "med:ibuprofen", "demo": 1})
-    assert response.status_code == 200
-    assert response.json() == {
-        "anchor": "med:ibuprofen",
-        "nodes": [],
-        "links": [],
-        "meta": response.json()["meta"],
-    }
-
-
-def test_the_demo_note_panel_answers_for_a_record_and_404s_otherwise(
-    demo_client: TestClient,
-) -> None:
-    ok = demo_client.get(
-        "/graph/node", params={"id": "rec:fda-enf-D-0785-2026", "demo": 1}
-    )
-    assert ok.status_code == 200
-    body = ok.json()
-    assert body["sources"][0]["link_label"] == "openFDA record (JSON)"
-    assert demo_client.get(
-        "/graph/node", params={"id": "med:nothing-here", "demo": 1}
-    ).status_code == 404
-
-
-def test_the_demo_search_answers_the_scripted_query(demo_client: TestClient) -> None:
-    response = demo_client.get(
-        "/graph/search", params={"q": "subpotent thyroid tablets", "demo": 1}
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["query"] == "subpotent thyroid tablets"
-    assert "rec:fda-enf-D-0785-2026" in [hit["node_id"] for hit in body["hits"]]
-    assert body["highlight"][-1].startswith("scan:")
-
-
-def test_the_demo_universe_degrades_instead_of_failing(demo_client: TestClient) -> None:
-    response = demo_client.get("/graph/universe", params={"demo": 1})
-    assert response.status_code == 200
-    assert response.json()["meta"]["source"] in ("snapshot", "live", "demo")
 
 
 # --------------------------------------------------------------------------- live path
@@ -338,7 +281,7 @@ def test_knowledge_errors_keep_their_status_code() -> None:
 def test_out_of_bounds_parameters_are_rejected(
     demo_client: TestClient, path: str, params: dict[str, Any]
 ) -> None:
-    assert demo_client.get(path, params=params).status_code == 422
+    assert demo_client.get(path, params={k: v for k, v in params.items() if k != "demo"}).status_code == 422
 
 
 def test_health_reports_what_this_build_can_serve(demo_client: TestClient) -> None:

@@ -249,6 +249,8 @@ String _imprintLine(Map<String, dynamic>? imprint) {
 
 String _hardwareLine(Map<String, dynamic>? hardware) {
   if (hardware == null) return 'No hardware observation';
+  final count = hardware['sensor_sample_count'] as int?;
+  if (count != null && count > 0) return '$count sensor readings recorded';
   final status = hardware['status'] as String? ?? 'unknown';
   final pillType = hardware['pill_type'] as String?;
   if (pillType == null || pillType.isEmpty) return 'Hardware: $status';

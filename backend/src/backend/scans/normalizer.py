@@ -131,6 +131,9 @@ def hardware_doc(hardware: PillHardwareResult, model: str | None) -> dict[str, A
         "model": name,
         "spectrum": [float(value) for value in hardware.spectrum],
     }
+    if hardware.sensor_readings:
+        doc["sensor_readings"] = [r.model_dump() for r in hardware.sensor_readings]
+        doc["sensor_sample_count"] = hardware.sensor_sample_count or len(hardware.sensor_readings)
     if name == HARDWARE_MODEL:
         # The voice agent must never narrate a mock spectrum as a measurement.
         doc["limitations"] = MOCK_LIMITATION

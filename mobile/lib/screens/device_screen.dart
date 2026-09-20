@@ -7,6 +7,7 @@ import '../data/api_models.dart';
 import '../services/peel_api.dart';
 import '../main.dart' show deviceRun, deviceHost, peelSimulator;
 import '../device/device_run.dart';
+import '../device/signals.dart';
 import '../device/debug_screen.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
@@ -93,6 +94,8 @@ class _DeviceScreenState extends State<DeviceScreen> {
             status: 'unknown',
             confidence: 0,
             degraded: false,
+            sensorReadings: sensorPayload(run.scan.runReadings),
+            sensorSampleCount: run.scan.runReadings.length,
             spectrum: run.scan.runReadings
                 .where((r) => !r.swept && r.absT != null && r.absT!.isFinite)
                 .map((r) => r.absT!)
@@ -284,4 +287,36 @@ class _DeviceScreenState extends State<DeviceScreen> {
           : null,
     );
   }
+}
+
+/// Keep timestamps and all channels aligned; long runs retain their full span.
+List<Map<String, dynamic>> sensorPayload(List<Reading> readings) {
+  final count = readings.length > 256 ? 256 : readings.length;
+  double? finite(double? value) =>
+      value != null && value.isFinite ? value : null;
+  return [
+    for (var i = 0; i < count; i++)
+      (() {
+        final r =
+            readings[count == readings.length
+                ? i
+                : (i * (readings.length - 1) / (count - 1)).round()];
+        return <String, dynamic>{
+          't': finite(r.t),
+          'trans': finite(r.transMv),
+          'scat': finite(r.scatMv),
+          'absT': finite(r.absT),
+          'absS': finite(r.absS),
+          'tC': finite(r.tempC),
+          'darkTrans': finite(r.darkTransMv),
+          'darkScat': finite(r.darkScatMv),
+          'stir': r.stirPct,
+          'swept': r.swept,
+          'sweep': {for (final e in r.sweep.entries) e.key: finite(e.value)},
+          'sweepS': {
+            for (final e in r.sweepScatter.entries) e.key: finite(e.value),
+          },
+        };
+      })(),
+  ];
 }

@@ -21,6 +21,28 @@ void main() {
       ..addFont(rootBundle.load('assets/fonts/Inter-Regular.ttf'));
     await loader.load();
   });
+  test(
+    'long sensor payload keeps timestamps and endpoint channels aligned',
+    () {
+      final readings = List.generate(
+        300,
+        (i) => Reading(
+          t: i.toDouble(),
+          transMv: i.toDouble(),
+          scatMv: 3,
+          darkTransMv: -2,
+          sweep: const {'red': -10, 'blue': null},
+        ),
+      );
+      final rows = sensorPayload(readings);
+      expect(rows, hasLength(256));
+      expect(rows.first['t'], 0);
+      expect(rows.last['t'], 299);
+      expect(rows.last['trans'], 299);
+      expect(rows.first['darkTrans'], -2);
+      expect(rows.first['sweep'], {'red': -10.0, 'blue': null});
+    },
+  );
   for (final skip in [true, false]) {
     testWidgets(
       skip
@@ -91,6 +113,12 @@ void main() {
           expect(hardware['spectrum'], [-0.2, 0.3]);
           expect(hardware['status'], 'unknown');
           expect(hardware['confidence'], 0);
+          expect(hardware['sensor_sample_count'], 3);
+          final rows = hardware['sensor_readings'] as List;
+          expect(rows, hasLength(3));
+          expect(rows[0]['absT'], -0.2);
+          expect(rows[1]['swept'], true);
+          expect(rows[2]['t'], 2);
         }
         scan.reset();
         session.dispose();

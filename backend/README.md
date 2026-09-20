@@ -37,7 +37,7 @@ Three capabilities make up the layer:
 ```
  photo(bottle) ──▶ POST /photo-identification/bottle  (GPT-4o vision)
  photo(imprint) ─▶ POST /photo-identification/imprint (GPT-4o vision)
- spectrometer ───▶ POST /pill                         (mock-spectrometry)
+ spectrometer ───▶ mobile ───▶ POST /scans             (measured sensor data)
                               │
                               ▼
                        POST /scans  (ScanCreate)
@@ -1032,8 +1032,8 @@ but nothing reads it any more; only `scripts/deepgram-chat.py` uses it locally.)
 next pod start. Editing the pod env replaces the container, so keep the app on the
 network volume.
 
-The deployed API currently has no client authentication. `/pill` still returns
-mock spectrometry. External service calls require valid OpenAI, Firecrawl,
+The API currently has no client authentication. The mock `/pill` endpoint and
+`/graph?demo=1` responses have been removed. External service calls require valid OpenAI, Firecrawl,
 and Elasticsearch credentials.
 
 Check the running API from your computer:
@@ -1042,11 +1042,7 @@ Check the running API from your computer:
 curl --fail https://<pod-id>-8000.proxy.runpod.net/health
 ```
 
-```bash
-curl --fail https://<pod-id>-8000.proxy.runpod.net/pill \
-  -H 'Content-Type: application/json' \
-  -d '{"status":"unknown"}'
-```
+
 
 Open the existing pod's SSH terminal:
 
@@ -1067,3 +1063,19 @@ The pod is left running so the API stays available. Terminating it deletes its
 container disk; the network volume remains and continues billing. For complete
 cleanup, terminate the pod first, then delete `peel-fastapi-data` from the Runpod
 Storage page. Deleting that volume permanently deletes the deployed files.
+
+## Real hardware evidence
+
+`POST /scans` accepts `hardware.sensor_readings` (up to 256 aligned samples),
+`sensor_sample_count`, and the existing absorbance trace. Each sample carries
+time, transmission/scattering mV, absorbance, temperature, stir percentage and
+nullable colour sweep channels. Startup adds these fields to the existing scan
+index without deleting data. Research and voice share bounded raw samples and
+computed ranges/changes; unknown identity does not suppress the measurements.
+The voice context uses `status: measured` when real readings exist without an
+identified candidate. Missing/skipped hardware is never replaced by a mock.
+
+Deploy the backend with the updated APK: older servers ignore the new sensor
+fields and do not expose them to the AI. Existing stored mock scans remain
+explicitly labelled as simulated. No model is asked to invent drug identity or
+potency from an uncalibrated optical trace.

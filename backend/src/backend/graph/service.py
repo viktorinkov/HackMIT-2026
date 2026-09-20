@@ -103,7 +103,7 @@ NOTICE = (
     "Peel checks published records only. It cannot tell you what is inside a tablet — "
     "if anything looks or feels wrong, ask a pharmacist."
 )
-OFFLINE_MESSAGE = "Elasticsearch is not configured; add ?demo=1 for the offline graph"
+OFFLINE_MESSAGE = "Elasticsearch is not configured; connect it to load real graph data"
 
 
 @lru_cache(maxsize=8)

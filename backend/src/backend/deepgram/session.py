@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.sensor_data import measurement_sentence
+
 from backend.deepgram.prompt import build_playground_prompt
 from backend.research.contract import to_scan_context
 
@@ -73,7 +75,9 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     else:
         imprint_line = "Imprint: no marking lookup yet."
 
-    if pill:
+    if hardware and hardware.get("measurements"):
+        pill_line = "Pill: " + measurement_sentence(hardware["measurements"])
+    elif pill:
         pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
     elif hardware:
         if hardware.get("reported_status") == "unknown":

@@ -48,7 +48,7 @@ Peel keeps three observations separate, then looks them up:
 | --- | --- |
 | **Bottle** | GPT-4o vision reads a photo of the container (name, strength, NDC, lot, manufacturer). |
 | **Imprint** | GPT-4o vision reads a photo of the tablet (characters, color, shape). |
-| **Pill** | A phone-attached instrument measures the physical tablet. The API still mocks this (`POST /pill` → `mock-spectrometry`). |
+| **Pill** | A phone-attached instrument records optical sensor data; `POST /scans` carries the actual readings to research and voice. |
 
 The rest of this README is the system that sits behind those three inputs.
 
@@ -150,7 +150,7 @@ The API is meant to run as a long-lived process on [Runpod](https://www.runpod.i
 
 Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
+The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 display) streams JSON over USB to `mobile`. The app sends timestamped optical readings with the scan. Research and voice receive bounded samples and channel statistics, separately from drug identity. The old mock `POST /pill` endpoint has been removed.
 
 ### Elasticsearch
 
@@ -286,7 +286,6 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | --- | --- | --- |
 | `POST` | `/photo-identification/bottle` | Vision → bottle observation |
 | `POST` | `/photo-identification/imprint` | Vision → imprint observation |
-| `POST` | `/pill` | Mock hardware observation |
 | `POST` | `/scans` | Create scan, start pipeline (`202`) |
 | `GET` | `/scans/{id}` | Poll envelope (`pending` / `partial` / `complete`) |
 | `GET` | `/scans/{id}/context` | `scan_context` for the voice agent (`?as_string=true`) |

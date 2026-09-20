@@ -24,6 +24,16 @@ def build_playground_prompt(doc: dict[str, Any]) -> PlaygroundPrompt:
         scan_json = json.dumps(slim, separators=(",", ":"), ensure_ascii=False)
         prompt = load_system_prompt().replace("{{scan_context}}", scan_json)
     if len(prompt) > PROMPT_LIMIT:
+        measurements = (slim.get("hardware") or {}).get("measurements")
+        if measurements:
+            for key, limit in (("sensor_readings", 8), ("absorbance_trace", 16)):
+                values = measurements.get(key) or []
+                if len(values) > limit:
+                    measurements[key] = [values[round(i * (len(values) - 1) / (limit - 1))] for i in range(limit)]
+            measurements["voice_samples_reduced"] = True
+            scan_json = json.dumps(slim, separators=(",", ":"), ensure_ascii=False)
+            prompt = load_system_prompt().replace("{{scan_context}}", scan_json)
+    if len(prompt) > PROMPT_LIMIT:
         raise ValueError(
             f"Playground prompt is {len(prompt)} characters; managed Deepgram prompts cap at {PROMPT_LIMIT}."
         )

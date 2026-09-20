@@ -12,7 +12,6 @@ from backend.knowledge.client import close_es, get_es
 from backend.knowledge.indices import ensure_indices
 from backend.knowledge.router import router as knowledge_router
 from backend.photo_identification import router as photo_identification_router
-from backend.pill import router as pill_router
 from backend.reports.router import router as reports_router
 from backend.research.agent_builder import close_agent_builder
 from backend.research.pipeline import cancel_all as cancel_research
@@ -48,7 +47,6 @@ app.add_middleware(
 )
 app.include_router(photo_identification_router)
 app.include_router(drug_facts_router)
-app.include_router(pill_router)
 app.include_router(scans_router)
 app.include_router(reports_router)
 app.include_router(knowledge_router)
@@ -71,7 +69,6 @@ def root() -> dict[str, object]:
             "bottle": "/drug-facts/bottle",
             "imprint": "/drug-facts/imprint",
         },
-        "pill": "/pill",
         "scans": {
             "create": "POST /scans",
             "get": "/scans/{scan_id}",
