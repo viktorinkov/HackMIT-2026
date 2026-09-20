@@ -6,7 +6,7 @@
 
 ## Check the bottle, the imprint, and the pill — then read the evidence.
 
-Peel is an open-source medicine check for places where a tablet and its packaging may not match. Photograph the **bottle**, read the **imprint**, measure the **pill**. The backend turns those three observations into a sourced report against a regulatory corpus, live web evidence, and (when present) a hardware reading.
+Peel is an open-source medicine check for places where a tablet and its packaging may not match. It is two things: a low-cost **instrument** that plugs into an Android phone and watches a tablet dissolve through light, and a **backend** that looks up what the phone saw. Photograph the **bottle**, read the **imprint**, measure the **pill**. Those three observations become a sourced report against a regulatory corpus, live web evidence, and the instrument's reading.
 
 [![Hardware CI](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml/badge.svg)](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
@@ -30,6 +30,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 ## Table of contents
 
 - [Why Peel exists](#why-peel-exists)
+- [The instrument](#the-instrument)
 - [Architecture](#architecture)
 - [Backend](#backend)
 - [Getting started](#getting-started)
@@ -47,9 +48,38 @@ Peel keeps three observations separate, then looks them up:
 | --- | --- |
 | **Bottle** | GPT-4o vision reads a photo of the container (name, strength, NDC, lot, manufacturer). |
 | **Imprint** | GPT-4o vision reads a photo of the tablet (characters, color, shape). |
-| **Pill** | A phone-attached instrument measures the physical tablet. The API still mocks this (`POST /pill` → `mock-spectrometry`). |
+| **Pill** | The Peel instrument dissolves the tablet in a stirred vial and measures it with six LEDs and two light sensors. `hardware/classify` turns the run into a dose and release verdict. |
 
-The rest of this README is the system that sits behind those three inputs.
+A copied label and a faked imprint both pass a photo. Neither changes how much active ingredient comes out of the tablet, which is what the instrument reads.
+
+## The instrument
+
+A tablet goes into a vial of water on a magnetic stirrer. LEDs shine through the vial, and the instrument records how the light changes as the tablet breaks up and releases its contents.
+
+| Part | Job |
+| --- | --- |
+| **Espressif ESP32-S3-BOX-3** | The instrument's brain and its face. The ESP32-S3 inside drives six LEDs and the stirrer, reads the sensors, and streams one JSON line a second over USB-C to the phone. Its 2.4" touchscreen in the wall of the case shows state, takes a blank, and starts and stops a run. |
+| **Six LEDs** (IR 940 nm, red, yellow, green, blue, violet 400 nm) | Green stays on as the fast channel. A periodic sweep through all six gives a coarse absorbance spectrum. |
+| **Two TEMT6000 light sensors** | One reads transmission through the vial, one reads scatter. Scatter separates a cloudy vial from a coloured one. |
+| **DS18B20 probe** | Water temperature, since dissolution rate depends on it. |
+| **TT motor + neodymium magnets** | Magnetic stirrer, PWM-driven through a 2N2222A. |
+
+A run:
+
+1. **Blank** on plain water. Every later reading is an absorbance against it.
+2. **Drop the tablet in.** The firmware marks t = 0 itself when transmission falls 6 %.
+3. **Watch** until the fast channel flattens. `hardware/classify` reads the plateau, % released, the time to 80 % release, turbidity, and four-colour absorbance, then converts absorbance to mg/L through a calibration line fitted on standards read on the same rig.
+4. **Verdict**, which becomes the scan's `hardware` observation:
+
+| Status | When |
+| --- | --- |
+| `pass_screen` | Dose inside the label band (90–110 %) and every gate held. |
+| `refer_to_lab` | The active was seen but the dose is outside the band, it released too slowly, or there was no absorbance at all for the claimed product. |
+| `cannot_verify` | Cloudy vial, saturated read, absorbance on colours the active does not absorb, too short a run, or no calibration. |
+
+This is a screen, not a compendial assay. It reads actives that absorb visible light (the calibrated reference is riboflavin), and it runs room-temperature water rather than a pharmacopoeial medium. `refer_to_lab` means exactly that.
+
+Firmware, the debug app, a software board you can break on purpose, and real captures from the hardware: [`hardware/README.md`](hardware/README.md).
 
 ## Architecture
 
@@ -57,7 +87,8 @@ The rest of this README is the system that sits behind those three inputs.
 flowchart TB
   subgraph clients [Clients]
     phone[Phone / Flutter]
-    hw[XIAO + BOX-3 instrument]
+    hw[ESP32-S3-BOX-3 instrument]
+    classify[hardware/classify]
   end
 
   subgraph runpod [Runpod — FastAPI]
@@ -81,9 +112,10 @@ flowchart TB
   end
 
   phone -->|bottle + imprint photos| vision
-  hw -->|USB serial JSON| phone
+  hw -->|USB serial JSON, 1 Hz| phone
+  hw -->|same stream| classify
   vision --> scans
-  phone -->|hardware observation| scans
+  classify -->|hardware observation| scans
   scans --> pipe
   pipe -->|exact + hybrid search| reg
   pipe --> pills
@@ -100,7 +132,7 @@ flowchart TB
   pipe -->|scan_context| voice
 ```
 
-A check is one **scan** document in Elasticsearch. The phone (or curl) posts bottle, imprint, and hardware observations to `POST /scans`. That returns `202` immediately with `status: pending`. A background asyncio task then researches the scan and writes back to the same document. The client polls `GET /scans/{id}`.
+A check is one **scan** document in Elasticsearch. The bottle and imprint observations come from the phone's photos, the hardware observation from the instrument's run (`classify.cli run --post`), and all three are posted to `POST /scans`. That returns `202` immediately with `status: pending`. A background asyncio task then researches the scan and writes back to the same document. The client polls `GET /scans/{id}`.
 
 ```
 pending  →  partial  →  complete
@@ -149,7 +181,7 @@ The API is meant to run as a long-lived process on [Runpod](https://www.runpod.i
 
 Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
+The pill reading does not run on Runpod. The instrument streams over USB, `hardware/classify` produces the verdict next to it, and the backend only stores and researches the result. `POST /pill` is a deterministic stand-in (`model = mock-spectrometry`) for developing without the instrument; a scan that used it says so in `limitations`.
 
 ### Elasticsearch
 
@@ -268,7 +300,7 @@ uv run peel-seed seed --sources all
 uv run backend                 # http://127.0.0.1:8000  — OpenAPI at /docs
 ```
 
-Hardware firmware, debug app, and simulator: [`hardware/README.md`](hardware/README.md).
+To run the instrument (flash the firmware, install the app, calibrate, run a tablet), see [`hardware/README.md`](hardware/README.md) and [`hardware/classify/README.md`](hardware/classify/README.md). With no board plugged in, `hardware/sim/fake_board.py` is the board in software.
 
 ```bash
 cd backend
@@ -285,7 +317,7 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | --- | --- | --- |
 | `POST` | `/photo-identification/bottle` | Vision → bottle observation |
 | `POST` | `/photo-identification/imprint` | Vision → imprint observation |
-| `POST` | `/pill` | Mock hardware observation |
+| `POST` | `/pill` | Stand-in hardware observation for development without the instrument |
 | `POST` | `/scans` | Create scan, start pipeline (`202`) |
 | `GET` | `/scans/{id}` | Poll envelope (`pending` / `partial` / `complete`) |
 | `GET` | `/scans/{id}/context` | `scan_context` for the voice agent (`?as_string=true`) |
@@ -308,7 +340,13 @@ HackMIT-2026/
 │   ├── src/backend/         vision, scans, research, knowledge, reports, Deepgram
 │   ├── scripts/             smoke tests, runpod-start.sh
 │   └── README.md            mappings, retrieval, Agent Builder, Firecrawl budget
-├── hardware/                XIAO firmware, BOX-3 face, debug Flutter app, simulator
+├── hardware/                the instrument
+│   ├── firmware/            17_stream (measurement), 21_box3_face (the face), self-test and bring-up
+│   ├── classify/            serial stream → dose and release verdict → the scan's hardware field
+│   ├── peel_app/            Flutter Android app: USB serial → parser → faults → session log
+│   ├── sim/                 fake_board.py, the board in software
+│   └── data/                real captures from this hardware
+├── mobile/                  Peel Flutter Android app
 ├── assets/                  README images and media placeholders
 ├── photos-for-testing/      sample bottle and imprint photos
 └── LICENSE
