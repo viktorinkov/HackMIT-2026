@@ -13,7 +13,17 @@ _DATA = Path(__file__).resolve().parent / "data"
 _DEMO_CONTEXTS = _DATA / "demo-contexts.json"
 _NITRO = _DATA / "demo-degradation-with-sources.json"
 
-FIXTURE_NAMES = ("pending", "mismatch", "suspected_degradation", "nitroglycerin")
+FIXTURE_ALIASES = {"mismatch_bottle": "mismatch"}
+FIXTURE_NAMES = (
+    "pending",
+    "mismatch",
+    "mismatch_bottle",
+    "mismatch_bottle_pill",
+    "mismatch_pill_imprint",
+    "mismatch_all",
+    "suspected_degradation",
+    "nitroglycerin",
+)
 
 
 def _demo_research(
@@ -139,6 +149,7 @@ def _report_from_demo(raw: dict[str, Any], scan_id: str) -> ScanReport:
 
 
 def load_fixture(name: str, scan_id: str) -> ScanReport:
+    name = FIXTURE_ALIASES.get(name, name)
     if name == "nitroglycerin":
         raw = json.loads(_NITRO.read_text(encoding="utf-8"))
         return _report_from_demo(raw, scan_id)

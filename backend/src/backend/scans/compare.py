@@ -36,6 +36,21 @@ def _pill_identity(channel: PillChannel) -> str | None:
     )
 
 
+def pair_mismatches(
+    bottle: BottleChannel | None,
+    imprint: ImprintChannel | None,
+    pill: PillChannel | None,
+) -> tuple[bool, bool, bool]:
+    bottle_id = _bottle_identity(bottle) if bottle else None
+    imprint_id = _imprint_identity(imprint) if imprint else None
+    pill_id = _pill_identity(pill) if pill else None
+    return (
+        bool(bottle_id and imprint_id and bottle_id != imprint_id),
+        bool(bottle_id and pill_id and bottle_id != pill_id),
+        bool(imprint_id and pill_id and imprint_id != pill_id),
+    )
+
+
 def compare_channels(
     bottle: BottleChannel | None,
     imprint: ImprintChannel | None,

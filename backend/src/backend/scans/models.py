@@ -43,7 +43,16 @@ class ScanReport(BaseModel):
 
 
 class CreateScanRequest(BaseModel):
-    fixture: Literal["pending", "mismatch", "suspected_degradation", "nitroglycerin"] | None = (
+    fixture: Literal[
+        "pending",
+        "mismatch",
+        "mismatch_bottle",
+        "mismatch_bottle_pill",
+        "mismatch_pill_imprint",
+        "mismatch_all",
+        "suspected_degradation",
+        "nitroglycerin",
+    ] | None = (
         None
     )
     demo: bool = False
