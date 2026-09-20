@@ -26,12 +26,18 @@ local function path(self)
  if not p then p=Path.new();self.paths[self.cursor]=p else p:reset() end
  return p
 end
+-- Use cubic segments for quadratic curves; this keeps the same curve geometry
+-- across the editor and runtime path renderers.
+local function quad(p,from,control,to)
+ p:cubicTo(Vector.xy(from.x+(control.x-from.x)*2/3,from.y+(control.y-from.y)*2/3),
+  Vector.xy(to.x+(control.x-to.x)*2/3,to.y+(control.y-to.y)*2/3),to)
+end
 local function rect(self,x,y,w,h,r)
  local p=path(self);r=math.min(r or 0,w/2,h/2)
- p:moveTo(Vector.xy(x+r,y));p:lineTo(Vector.xy(x+w-r,y));p:quadTo(Vector.xy(x+w,y),Vector.xy(x+w,y+r))
- p:lineTo(Vector.xy(x+w,y+h-r));p:quadTo(Vector.xy(x+w,y+h),Vector.xy(x+w-r,y+h))
- p:lineTo(Vector.xy(x+r,y+h));p:quadTo(Vector.xy(x,y+h),Vector.xy(x,y+h-r))
- p:lineTo(Vector.xy(x,y+r));p:quadTo(Vector.xy(x,y),Vector.xy(x+r,y));p:close();return p
+ p:moveTo(Vector.xy(x+r,y));p:lineTo(Vector.xy(x+w-r,y));quad(p,Vector.xy(x+w-r,y),Vector.xy(x+w,y),Vector.xy(x+w,y+r))
+ p:lineTo(Vector.xy(x+w,y+h-r));quad(p,Vector.xy(x+w,y+h-r),Vector.xy(x+w,y+h),Vector.xy(x+w-r,y+h))
+ p:lineTo(Vector.xy(x+r,y+h));quad(p,Vector.xy(x+r,y+h),Vector.xy(x,y+h),Vector.xy(x,y+h-r))
+ p:lineTo(Vector.xy(x,y+r));quad(p,Vector.xy(x,y+r),Vector.xy(x,y),Vector.xy(x+r,y));p:close();return p
 end
 local function oval(self,x,y,rx,ry)
  local p=path(self);local k=.5522847498
@@ -61,11 +67,11 @@ local function bottle(self,r,x,y,scale,angle,cap)
  transform(r,x,y,scale,angle)
  local p=path(self);p:moveTo(Vector.xy(-38,-64));p:lineTo(Vector.xy(38,-64));p:lineTo(Vector.xy(38,-53))
  p:cubicTo(Vector.xy(38,-44),Vector.xy(54,-38),Vector.xy(54,-20));p:lineTo(Vector.xy(54,91))
- p:quadTo(Vector.xy(54,107),Vector.xy(38,107));p:lineTo(Vector.xy(-38,107));p:quadTo(Vector.xy(-54,107),Vector.xy(-54,91))
+ quad(p,Vector.xy(54,91),Vector.xy(54,107),Vector.xy(38,107));p:lineTo(Vector.xy(-38,107));quad(p,Vector.xy(-38,107),Vector.xy(-54,107),Vector.xy(-54,91))
  p:lineTo(Vector.xy(-54,-20));p:cubicTo(Vector.xy(-54,-38),Vector.xy(-38,-44),Vector.xy(-38,-53));p:close()
  paint(self,r,p,C.orange,C.ink,2.5)
- p=path(self);p:moveTo(Vector.xy(43,-34));p:quadTo(Vector.xy(53,-26),Vector.xy(53,-16));p:lineTo(Vector.xy(53,91));p:quadTo(Vector.xy(53,106),Vector.xy(36,106));p:lineTo(Vector.xy(24,106));p:quadTo(Vector.xy(42,101),Vector.xy(42,87));p:close();paint(self,r,p,C.deep,nil)
- p=path(self);p:moveTo(Vector.xy(-42,-19));p:quadTo(Vector.xy(-42,-29),Vector.xy(-32,-34));paint(self,r,p,nil,C.soft,5)
+ p=path(self);p:moveTo(Vector.xy(43,-34));quad(p,Vector.xy(43,-34),Vector.xy(53,-26),Vector.xy(53,-16));p:lineTo(Vector.xy(53,91));quad(p,Vector.xy(53,91),Vector.xy(53,106),Vector.xy(36,106));p:lineTo(Vector.xy(24,106));quad(p,Vector.xy(24,106),Vector.xy(42,101),Vector.xy(42,87));p:close();paint(self,r,p,C.deep,nil)
+ p=path(self);p:moveTo(Vector.xy(-42,-19));quad(p,Vector.xy(-42,-19),Vector.xy(-42,-29),Vector.xy(-32,-34));paint(self,r,p,nil,C.soft,5)
  paint(self,r,rect(self,-53,-5,106,76,5),C.canvas,C.ink,2.5)
  line(self,r,-37,14,16,14,C.ink,5);line(self,r,-37,31,28,31,C.ink,4);line(self,r,-37,48,5,48,C.ink,4)
  paint(self,r,rect(self,-47,-75-cap,94,30,8),C.canvas,C.ink,2.5)
@@ -195,8 +201,8 @@ end
 local function deviceFront(self,r,p)
  transform(r,p.deviceX,p.deviceY,p.deviceS,p.deviceR)
  local q=path(self);q:moveTo(Vector.xy(-116,0));q:cubicTo(Vector.xy(-102,49),Vector.xy(102,49),Vector.xy(116,0));q:cubicTo(Vector.xy(116,80),Vector.xy(72,113),Vector.xy(0,113));q:cubicTo(Vector.xy(-72,113),Vector.xy(-116,80),Vector.xy(-116,0));q:close();paint(self,r,q,C.orange,C.ink,2.5)
- q=path(self);q:moveTo(Vector.xy(96,24));q:quadTo(Vector.xy(93,96),Vector.xy(4,109));q:cubicTo(Vector.xy(67,113),Vector.xy(114,75),Vector.xy(114,7));q:close();paint(self,r,q,C.deep,nil)
- q=path(self);q:moveTo(Vector.xy(-94,38));q:quadTo(Vector.xy(-88,58),Vector.xy(-75,65));paint(self,r,q,nil,C.soft,5)
+ q=path(self);q:moveTo(Vector.xy(96,24));quad(q,Vector.xy(96,24),Vector.xy(93,96),Vector.xy(4,109));q:cubicTo(Vector.xy(67,113),Vector.xy(114,75),Vector.xy(114,7));q:close();paint(self,r,q,C.deep,nil)
+ q=path(self);q:moveTo(Vector.xy(-94,38));quad(q,Vector.xy(-94,38),Vector.xy(-88,58),Vector.xy(-75,65));paint(self,r,q,nil,C.soft,5)
  for _,v in {{-65,86,-61,89},{-41,95,-37,96},{39,88,43,86},{62,74,65,71}} do line(self,r,v[1],v[2],v[3],v[4],C.deep,3) end
  r:restore()
 end
@@ -204,17 +210,17 @@ local function orangeTop(self,r,p,t)
  transform(r,p.deviceX,p.deviceY,p.deviceS,p.deviceR)
  r:transform(Mat2D.withTranslation(0,-1000*(1-p.close)))
  local q=path(self);q:moveTo(Vector.xy(-116,0));q:cubicTo(Vector.xy(-116,-65),Vector.xy(-72,-109),Vector.xy(0,-109));q:cubicTo(Vector.xy(72,-109),Vector.xy(116,-65),Vector.xy(116,0));q:cubicTo(Vector.xy(102,50),Vector.xy(-102,50),Vector.xy(-116,0));q:close();paint(self,r,q,C.orange,C.ink,2.5)
- q=path(self);q:moveTo(Vector.xy(-90,-33));q:quadTo(Vector.xy(-83,-62),Vector.xy(-59,-73));paint(self,r,q,nil,C.soft,6)
+ q=path(self);q:moveTo(Vector.xy(-90,-33));quad(q,Vector.xy(-90,-33),Vector.xy(-83,-62),Vector.xy(-59,-73));paint(self,r,q,nil,C.soft,6)
  line(self,r,-3,-107,1,-127,C.ink,4)
  transform(r,0,-120,1,math.rad(3*math.sin(t*2*PI/5)))
- q=path(self);q:moveTo(Vector.xy(0,0));q:quadTo(Vector.xy(7,-29),Vector.xy(43,-18));q:quadTo(Vector.xy(35,8),Vector.xy(0,0));q:close();paint(self,r,q,C.teal,C.ink,2.5);r:restore()
+ q=path(self);q:moveTo(Vector.xy(0,0));quad(q,Vector.xy(0,0),Vector.xy(7,-29),Vector.xy(43,-18));quad(q,Vector.xy(43,-18),Vector.xy(35,8),Vector.xy(0,0));q:close();paint(self,r,q,C.teal,C.ink,2.5);r:restore()
  for _,v in {{-37,-83,-33,-85},{30,-76,35,-74},{67,-50,70,-46}} do line(self,r,v[1],v[2],v[3],v[4],C.deep,3) end
  r:restore()
 end
 local function miniOrange(self,r,x,y,angle)
  transform(r,x,y,1,angle)
  paint(self,r,oval(self,0,0,15,15),C.orange,C.ink,2)
- local q=path(self);q:moveTo(Vector.xy(-2,-15));q:quadTo(Vector.xy(0,-25),Vector.xy(11,-22));q:quadTo(Vector.xy(10,-14),Vector.xy(-2,-15));q:close();paint(self,r,q,C.teal,C.ink,1.5)
+ local q=path(self);q:moveTo(Vector.xy(-2,-15));quad(q,Vector.xy(-2,-15),Vector.xy(0,-25),Vector.xy(11,-22));quad(q,Vector.xy(11,-22),Vector.xy(10,-14),Vector.xy(-2,-15));q:close();paint(self,r,q,C.teal,C.ink,1.5)
  line(self,r,-11,-2,-9,-5,C.deep,2);line(self,r,8,6,5,8,C.deep,2);r:restore()
 end
 local function research(self,r,p,t,foreground)
@@ -226,7 +232,7 @@ local function research(self,r,p,t,foreground)
   for i=1,60 do local u=i/60;q:lineTo(Vector.xy(-35+435*u,baseline+16*math.sin(u*2*PI))) end
   paint(self,r,q,nil,C.teal,3)
  end
- q=path(self);q:moveTo(Vector.xy(75,162));q:quadTo(Vector.xy(122,205),Vector.xy(177,279));q:quadTo(Vector.xy(224,233),Vector.xy(271,152));paint(self,r,q,nil,C.teal,3)
+ q=path(self);q:moveTo(Vector.xy(75,162));quad(q,Vector.xy(75,162),Vector.xy(122,205),Vector.xy(177,279));quad(q,Vector.xy(177,279),Vector.xy(224,233),Vector.xy(271,152));paint(self,r,q,nil,C.teal,3)
  -- A 3 s offset keeps at least one orange visible at either clipped reset.
  for j=2,2 do
   local time=self.researchClock;local cycle=math.floor(time/6);local u=(time%6)/6
