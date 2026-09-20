@@ -12,7 +12,12 @@ class DeepgramSessionRequest(BaseModel):
 class DeepgramSession(BaseModel):
     scan_id: str
     websocket_url: str
-    authorization: Literal["Token"] = "Token"
+    # "Bearer": connect with `Authorization: Bearer <access_token>`.
+    # "Token": no token could be minted; a demo build may use its own usage key.
+    authorization: Literal["Bearer", "Token"]
+    access_token: str | None = None
+    expires_in: int | None = None
+    grant_error: str | None = None
     settings: dict[str, Any]
     opening_messages: list[str]
 

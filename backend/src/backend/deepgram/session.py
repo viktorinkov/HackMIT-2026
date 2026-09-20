@@ -62,12 +62,21 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     return [bottle_line, imprint_line, pill_line]
 
 
-def greeting_from_scan(doc: dict[str, Any]) -> str:
+def intro_from_scan(doc: dict[str, Any]) -> str:
     context = to_scan_context(doc)
     lines = ["Hi, I'm Peel."]
     if context.get("demo"):
         lines.append("These findings are a simulated demo.")
     return " ".join(lines)
+
+
+def greeting_from_scan(doc: dict[str, Any]) -> str:
+    """The intro plus the three source lines, as one utterance.
+
+    One greeting instead of three injected messages: the user can interrupt it
+    at any point, and there is no InjectionRefused race while it plays.
+    """
+    return " ".join([intro_from_scan(doc), *opening_messages_from_scan(doc)])
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
@@ -154,39 +163,98 @@ def draft_report_function() -> dict[str, Any]:
     }
 
 
+# Deepgram's stated accuracy sweet spot for Nova and Flux; anything higher only
+# costs upload bandwidth. Output stays at Flux TTS's default 24 kHz.
+INPUT_SAMPLE_RATE = 16000
+OUTPUT_SAMPLE_RATE = 24000
+
+# Flux STT (v2): end-of-turn detection lives inside the model, which is what makes
+# barge-in reliable. The thresholds are Deepgram's documented knobs; 0.75 leans
+# slightly toward not cutting off a hesitant speaker, eager 0.5 buys ~150-250 ms
+# of latency, and 4 s is the silence backstop so a long pause never stalls a turn.
+LISTEN_MODEL = "flux-general-en"
+EOT_THRESHOLD = 0.75
+EAGER_EOT_THRESHOLD = 0.5
+EOT_TIMEOUT_MS = 4000
+
+# Flux TTS (v2) first for its turn lifecycle and cross-turn voice consistency;
+# Brooke is one of Deepgram's healthcare-tagged voices. Aura-2 is the automatic
+# fallback: Deepgram moves to the next provider on SPEAK_REQUEST_FAILED.
+SPEAK_MODEL = "flux-brooke-en"
+SPEAK_FALLBACK_MODEL = "aura-2-thalia-en"
+
+# Both in Deepgram's Standard price tier. A THINK_REQUEST_FAILED warning falls
+# through to the second provider instead of producing a dead turn.
+THINK_MODEL = "gpt-4o-mini"
+THINK_FALLBACK = ("google", "gemini-2.5-flash")
+THINK_TEMPERATURE = 0.3
+
+
 def build_voice_agent_settings(doc: dict[str, Any]) -> dict[str, Any]:
     prompt = build_playground_prompt(doc).prompt
+    functions = [draft_report_function()]
+    verdict = ((doc.get("research") or {}).get("verdict")) or "unknown"
     return {
         "type": "Settings",
+        "tags": ["peel", "hackmit-2026", str(verdict)],
         "mip_opt_out": True,
         "audio": {
-            "input": {"encoding": "linear16", "sample_rate": 24000},
-            "output": {"encoding": "linear16", "sample_rate": 24000, "container": "none"},
+            "input": {"encoding": "linear16", "sample_rate": INPUT_SAMPLE_RATE},
+            "output": {
+                "encoding": "linear16",
+                "sample_rate": OUTPUT_SAMPLE_RATE,
+                "container": "none",
+            },
         },
         "agent": {
             "listen": {
                 "provider": {
                     "type": "deepgram",
-                    "model": "nova-3",
-                    "smart_format": True,
+                    "version": "v2",
+                    "model": LISTEN_MODEL,
                     "keyterms": keyterms_from_scan(doc),
+                    "eot_threshold": EOT_THRESHOLD,
+                    "eager_eot_threshold": EAGER_EOT_THRESHOLD,
+                    "eot_timeout_ms": EOT_TIMEOUT_MS,
                 }
             },
-            "think": {
-                "provider": {
-                    "type": "open_ai",
-                    "model": "gpt-4o-mini",
-                    "temperature": 0.3,
+            "think": [
+                {
+                    "provider": {
+                        "type": "open_ai",
+                        "model": THINK_MODEL,
+                        "temperature": THINK_TEMPERATURE,
+                    },
+                    "prompt": prompt,
+                    "functions": functions,
                 },
-                "prompt": prompt,
-                "functions": [draft_report_function()],
-            },
-            "speak": {
-                "provider": {
-                    "type": "deepgram",
-                    "model": "aura-2-thalia-en",
-                }
-            },
+                {
+                    "provider": {
+                        "type": THINK_FALLBACK[0],
+                        "model": THINK_FALLBACK[1],
+                        "temperature": THINK_TEMPERATURE,
+                    },
+                    "prompt": prompt,
+                    "functions": functions,
+                },
+            ],
+            "speak": [
+                {
+                    "provider": {
+                        "type": "deepgram",
+                        "version": "v2",
+                        "model": SPEAK_MODEL,
+                        "expressivity": 0,
+                    }
+                },
+                {
+                    "provider": {
+                        "type": "deepgram",
+                        "version": "v1",
+                        "model": SPEAK_FALLBACK_MODEL,
+                    }
+                },
+            ],
             "greeting": greeting_from_scan(doc),
         },
     }

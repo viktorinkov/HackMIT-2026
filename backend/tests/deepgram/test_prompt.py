@@ -9,8 +9,13 @@ def test_prompt_embeds_the_scan_context() -> None:
     assert prompt.scan_id == "scan-1"
     assert '"scan_id":"scan-1"' in prompt.prompt
     assert "acetaminophen" in prompt.prompt
-    assert "three separate messages" in prompt.prompt
-    assert "Do not add a fourth opening line" in prompt.prompt
+    # The greeting carries the three sources now; the prompt must say so and
+    # must tell Peel how to behave when the user interrupts.
+    assert "Your greeting already introduced you" in prompt.prompt
+    assert "Do not add an opening line" in prompt.prompt
+    assert "The user can interrupt you at any time" in prompt.prompt
+    assert "Do not restart or finish the summary" in prompt.prompt
+    assert "One moment, I'll open the report" in prompt.prompt
     assert "call draft_report once" in prompt.prompt
     assert "Never say it was submitted" in prompt.prompt
     assert "YYYY-MM-DD" in prompt.prompt
