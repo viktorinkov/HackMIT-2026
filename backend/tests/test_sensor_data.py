@@ -41,6 +41,7 @@ def test_measurements_reach_research_and_voice_without_inventing_identity():
     assert context["status"] == "measured"
     assert context["candidate"] is None
     assert context["reported_status"] == "unknown"
+    assert context["degradation"]["status"] == "not_assessed"
     assert context["measurements"] == evidence
     assert "3 sensor samples" in opening_messages_from_scan(scan)[2]
     prompt = build_playground_prompt(scan).prompt

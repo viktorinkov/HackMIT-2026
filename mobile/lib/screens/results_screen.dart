@@ -251,6 +251,10 @@ String _hardwareLine(Map<String, dynamic>? hardware) {
   if (hardware == null) return 'No hardware observation';
   final count = hardware['sensor_sample_count'] as int?;
   if (count != null && count > 0) return '$count sensor readings recorded';
+  final trace = hardware['spectrum'] as List? ?? const [];
+  if (trace.isNotEmpty && hardware['model'] != 'mock-spectrometry') {
+    return '${trace.length} absorbance readings recorded';
+  }
   final status = hardware['status'] as String? ?? 'unknown';
   final pillType = hardware['pill_type'] as String?;
   if (pillType == null || pillType.isEmpty) return 'Hardware: $status';

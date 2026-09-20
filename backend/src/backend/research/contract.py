@@ -160,7 +160,7 @@ def _degradation(hardware: dict[str, Any]) -> dict[str, Any]:
     elif hardware.get("degraded"):
         state = "detected"
     elif status == "unknown":
-        state = "inconclusive"
+        state = "not_assessed" if sensor_evidence(hardware) else "inconclusive"
     else:
         state = "not_assessed"
     degradation: dict[str, Any] = {"status": state}
