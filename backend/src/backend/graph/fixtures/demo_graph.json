@@ -1,0 +1,1643 @@
+{
+ "nodes": [
+  {
+   "id": "scan:demo-levo-d2402430",
+   "type": "scan",
+   "label": "Levothyroxine 200 mcg",
+   "sublabel": "Scanned 18 Sep 2026",
+   "val": 3.4,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-18T09:12:00Z",
+   "verdict": "recall_match",
+   "risk_level": "high",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ],
+   "attrs": {
+    "headline": "A recall names this lot number.",
+    "verdict_label": "A recall or alert names this lot",
+    "expired": false,
+    "gaps_n": 1,
+    "hardware": {
+     "status": "substandard",
+     "degraded": true,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "lot": "D2402430",
+    "ndc9": "167290457"
+   }
+  },
+  {
+   "id": "scan:demo-levo-d2402999",
+   "type": "scan",
+   "label": "Levothyroxine 200 mcg",
+   "sublabel": "Scanned 18 Sep 2026",
+   "val": 3.0,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-18T09:20:00Z",
+   "verdict": "no_adverse_findings",
+   "risk_level": "low",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ],
+   "attrs": {
+    "headline": "No recall names this lot number.",
+    "verdict_label": "Nothing found in the records searched",
+    "expired": false,
+    "gaps_n": 1,
+    "hardware": {
+     "status": "real",
+     "degraded": false,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "lot": "D2402999",
+    "ndc9": "167290457"
+   }
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069",
+   "type": "scan",
+   "label": "Chlorpromazine 10 mg",
+   "sublabel": "Scanned 12 Sep 2026",
+   "val": 3.4,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-12T18:40:00Z",
+   "verdict": "recall_match",
+   "risk_level": "high",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ],
+   "attrs": {
+    "headline": "A recall names this lot number.",
+    "verdict_label": "A recall or alert names this lot",
+    "expired": false,
+    "gaps_n": 1,
+    "hardware": {
+     "status": "real",
+     "degraded": false,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "lot": "Z400069",
+    "ndc9": "707101129"
+   }
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605",
+   "type": "scan",
+   "label": "Healmoxy amoxicillin 500 mg",
+   "sublabel": "Scanned 8 Sep 2026 · Cameroon",
+   "val": 3.6,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-08T11:05:00Z",
+   "verdict": "recall_match",
+   "risk_level": "high",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "headline": "Two regulators name this batch number.",
+    "verdict_label": "A recall or alert names this lot",
+    "expired": false,
+    "gaps_n": 2,
+    "hardware": {
+     "status": "fake",
+     "degraded": true,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "lot": "H02605"
+   }
+  },
+  {
+   "id": "scan:demo-ibuprofen-i2",
+   "type": "scan",
+   "label": "Ibuprofen 200 mg",
+   "sublabel": "Scanned 3 Sep 2026",
+   "val": 2.8,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-03T08:30:00Z",
+   "verdict": "no_adverse_findings",
+   "risk_level": "low",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ],
+   "attrs": {
+    "headline": "No recall or alert was found in the records searched.",
+    "verdict_label": "Nothing found in the records searched",
+    "expired": false,
+    "gaps_n": 2,
+    "hardware": {
+     "status": "real",
+     "degraded": false,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "imprint": "I2"
+   }
+  },
+  {
+   "id": "scan:demo-ibuprofen-5892v",
+   "type": "scan",
+   "label": "Ibuprofen 200 mg",
+   "sublabel": "Scanned 31 Aug 2026",
+   "val": 3.2,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-08-31T20:15:00Z",
+   "verdict": "mismatch_found",
+   "risk_level": "medium",
+   "status": "complete",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ],
+   "attrs": {
+    "headline": "The imprint on the tablet does not match the label.",
+    "verdict_label": "The label and the reference do not agree",
+    "expired": true,
+    "gaps_n": 2,
+    "hardware": {
+     "status": "real",
+     "degraded": false,
+     "simulated": true,
+     "model": "mock-spectrometry"
+    },
+    "imprint": "5892V"
+   }
+  },
+  {
+   "id": "med:levothyroxine",
+   "type": "medicine",
+   "label": "Levothyroxine",
+   "val": 2.6,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "attrs": {
+    "aliases": [
+     "levothyroxine sodium"
+    ],
+    "brand": false
+   }
+  },
+  {
+   "id": "med:chlorpromazine",
+   "type": "medicine",
+   "label": "Chlorpromazine",
+   "val": 2.2,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "aliases": [
+     "chlorpromazine hydrochloride"
+    ],
+    "brand": false
+   }
+  },
+  {
+   "id": "med:amoxicillin",
+   "type": "medicine",
+   "label": "Amoxicillin",
+   "val": 2.2,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "aliases": [
+     "amoxicillin"
+    ],
+    "brand": false
+   }
+  },
+  {
+   "id": "med:healmoxy",
+   "type": "medicine",
+   "label": "HEALMOXY",
+   "sublabel": "brand name on the label",
+   "val": 2.0,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "aliases": [
+     "healmoxy"
+    ],
+    "brand": true
+   }
+  },
+  {
+   "id": "med:ibuprofen",
+   "type": "medicine",
+   "label": "Ibuprofen",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "attrs": {
+    "aliases": [
+     "ibuprofen"
+    ],
+    "brand": false
+   }
+  },
+  {
+   "id": "med:temazepam",
+   "type": "medicine",
+   "label": "Temazepam",
+   "sublabel": "from the imprint, not the label",
+   "val": 2.0,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "aliases": [
+     "temazepam"
+    ],
+    "brand": false
+   }
+  },
+  {
+   "id": "product:167290457",
+   "type": "product",
+   "label": "Levothyroxine 200 mcg · Accord",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "attrs": {
+    "product_ndc": "16729-457",
+    "dosage_form": "tablet",
+    "listing_expired": false
+   }
+  },
+  {
+   "id": "product:707101129",
+   "type": "product",
+   "label": "Chlorpromazine 10 mg · Zydus",
+   "val": 2.2,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "product_ndc": "70710-1129",
+    "dosage_form": "tablet",
+    "listing_expired": false
+   }
+  },
+  {
+   "id": "lot:D2402430",
+   "type": "lot",
+   "label": "Lot D2402430",
+   "sublabel": "on your levothyroxine bottle",
+   "val": 2.6,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ],
+   "attrs": {
+    "lot": "D2402430"
+   }
+  },
+  {
+   "id": "lot:D2402999",
+   "type": "lot",
+   "label": "Lot D2402999",
+   "sublabel": "on your second levothyroxine bottle",
+   "val": 2.2,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ],
+   "attrs": {
+    "lot": "D2402999"
+   }
+  },
+  {
+   "id": "lot:Z400069",
+   "type": "lot",
+   "label": "Lot Z400069",
+   "sublabel": "on your chlorpromazine bottle",
+   "val": 2.6,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ],
+   "attrs": {
+    "lot": "Z400069"
+   }
+  },
+  {
+   "id": "lot:H02605",
+   "type": "lot",
+   "label": "Lot H02605",
+   "sublabel": "on your amoxicillin pack",
+   "val": 2.8,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "lot": "H02605"
+   }
+  },
+  {
+   "id": "mfr:accord healthcare",
+   "type": "manufacturer",
+   "label": "Accord Healthcare",
+   "val": 2.8,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "attrs": {
+    "variants": [
+     "Accord Healthcare Inc.",
+     "ACCORD HEALTHCARE, INC."
+    ]
+   }
+  },
+  {
+   "id": "mfr:zydus pharmaceuticals",
+   "type": "manufacturer",
+   "label": "Zydus Pharmaceuticals",
+   "val": 2.2,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "attrs": {
+    "variants": [
+     "Zydus Pharmaceuticals (USA) Inc."
+    ]
+   }
+  },
+  {
+   "id": "mfr:maxheal pharmaceuticals",
+   "type": "manufacturer",
+   "label": "Maxheal Pharmaceuticals",
+   "sublabel": "name printed on the label",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "attrs": {
+    "variants": [
+     "MAXHEAL PHARMACEUTICALS (India) Limited",
+     "Maxheal Pharmaceuticals (India), with batch numbers 023011 and H02605, found in Cameroon and H02605 in the Central African Republic (CAR)"
+    ],
+    "stated_only": true
+   }
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026",
+   "type": "record",
+   "label": "Class II recall: Levothyroxine 200 mcg",
+   "sublabel": "FDA · 2 Sep 2026 · Subpotent Drug",
+   "val": 3.2,
+   "personal": true,
+   "expandable": true,
+   "date": "2026-09-02T00:00:00Z",
+   "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+   "severity": "high",
+   "source_org": "FDA",
+   "freshness": "this_month",
+   "match_tier": "match",
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ],
+   "attrs": {
+    "doc_type": "recall",
+    "lot_count": 4,
+    "covers_all_lots": false,
+    "age_days": 17,
+    "event_id": "99584",
+    "classification_raw": "Class II",
+    "link_label": "openFDA record (JSON)"
+   }
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025",
+   "type": "record",
+   "label": "Class II recall: Chlorpromazine 10 mg",
+   "sublabel": "FDA · 16 Apr 2025 · Nitrosamine impurity",
+   "val": 3.0,
+   "personal": true,
+   "expandable": true,
+   "date": "2025-04-16T00:00:00Z",
+   "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0361-2025%22",
+   "severity": "high",
+   "source_org": "FDA",
+   "freshness": "older",
+   "match_tier": "match",
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ],
+   "attrs": {
+    "doc_type": "recall",
+    "lot_count": 1,
+    "covers_all_lots": false,
+    "age_days": 521,
+    "event_id": "96626",
+    "classification_raw": "Class II",
+    "link_label": "openFDA record (JSON)"
+   }
+  },
+  {
+   "id": "rec:nafdac-17970",
+   "type": "record",
+   "label": "NAFDAC 11/2025: various product recall",
+   "sublabel": "NAFDAC · 29 Apr 2025 · lot number only",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "date": "2025-04-29T15:25:16Z",
+   "url": "https://nafdac.gov.ng/public-alert-no-11-2025-recall-of-various-products-by-sun-pharma-glenmark-and-zydus-pharmaceuticals-over-manufacturing-issues/",
+   "severity": "high",
+   "source_org": "NAFDAC",
+   "freshness": "older",
+   "match_tier": "context",
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ],
+   "attrs": {
+    "doc_type": "recall",
+    "lot_count": 1,
+    "covers_all_lots": false,
+    "age_days": 508,
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "uncorroborated": "This record does not name your product."
+   }
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "type": "record",
+   "label": "WHO N°2/2025: Falsified HEALMOXY",
+   "sublabel": "WHO · 23 Apr 2025 · falsified product",
+   "val": 3.4,
+   "personal": true,
+   "expandable": true,
+   "date": "2025-04-23T08:46:11Z",
+   "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+   "severity": "critical",
+   "source_org": "WHO",
+   "freshness": "older",
+   "match_tier": "match",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "doc_type": "falsified_alert",
+    "lot_count": 3,
+    "covers_all_lots": false,
+    "age_days": 514,
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO"
+   }
+  },
+  {
+   "id": "rec:nafdac-18658",
+   "type": "record",
+   "label": "NAFDAC 17/2025: Falsified Healmoxy",
+   "sublabel": "NAFDAC · 1 Jun 2025 · falsified product",
+   "val": 3.2,
+   "personal": true,
+   "expandable": true,
+   "date": "2025-06-01T00:38:19Z",
+   "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+   "severity": "critical",
+   "source_org": "NAFDAC",
+   "freshness": "older",
+   "match_tier": "match",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "doc_type": "falsified_alert",
+    "lot_count": 3,
+    "covers_all_lots": false,
+    "age_days": 475,
+    "attribution": "NAFDAC Nigeria — summarised and linked"
+   }
+  },
+  {
+   "id": "reg:fda",
+   "type": "regulator",
+   "label": "FDA",
+   "sublabel": "U.S. Food and Drug Administration",
+   "val": 4.0,
+   "personal": true,
+   "expandable": true,
+   "count": 17963,
+   "source_org": "FDA",
+   "attrs": {
+    "seeded": true,
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain"
+   }
+  },
+  {
+   "id": "reg:who",
+   "type": "regulator",
+   "label": "WHO",
+   "sublabel": "World Health Organization",
+   "val": 3.6,
+   "personal": true,
+   "expandable": true,
+   "count": 83,
+   "source_org": "WHO",
+   "attrs": {
+    "seeded": true,
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO"
+   }
+  },
+  {
+   "id": "reg:nafdac",
+   "type": "regulator",
+   "label": "NAFDAC",
+   "sublabel": "Nigeria",
+   "val": 3.6,
+   "personal": true,
+   "expandable": true,
+   "count": 403,
+   "source_org": "NAFDAC",
+   "attrs": {
+    "seeded": true,
+    "attribution": "NAFDAC Nigeria — summarised and linked"
+   }
+  },
+  {
+   "id": "country:united-states",
+   "type": "country",
+   "label": "United States",
+   "val": 1.8,
+   "personal": true,
+   "expandable": true,
+   "count": 3
+  },
+  {
+   "id": "country:cameroon",
+   "type": "country",
+   "label": "Cameroon",
+   "val": 1.8,
+   "personal": true,
+   "expandable": true,
+   "count": 3
+  },
+  {
+   "id": "country:central-african-republic",
+   "type": "country",
+   "label": "Central African Republic",
+   "val": 1.6,
+   "personal": true,
+   "expandable": true,
+   "count": 2
+  },
+  {
+   "id": "country:nigeria",
+   "type": "country",
+   "label": "Nigeria",
+   "val": 1.6,
+   "personal": true,
+   "expandable": true,
+   "count": 2
+  },
+  {
+   "id": "country:india",
+   "type": "country",
+   "label": "India",
+   "val": 1.6,
+   "personal": true,
+   "expandable": true,
+   "count": 3
+  },
+  {
+   "id": "web:62a8176ee4a9b3b015e7d3df9fc32aec",
+   "type": "web_page",
+   "label": "WHO alert page: HEALMOXY",
+   "sublabel": "who.int",
+   "val": 1.6,
+   "personal": true,
+   "expandable": true,
+   "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+   "date": "2025-04-23T08:46:11Z",
+   "source_org": "WHO",
+   "freshness": "older",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "domain": "who.int",
+    "source_tier": "regulator",
+    "flags": [
+     "falsified"
+    ],
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO"
+   }
+  },
+  {
+   "id": "web:c11b7a335f8a05143ffb6a1de847bd43",
+   "type": "web_page",
+   "label": "NAFDAC alert page: Healmoxy",
+   "sublabel": "nafdac.gov.ng",
+   "val": 1.6,
+   "personal": true,
+   "expandable": true,
+   "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+   "date": "2025-06-01T00:38:19Z",
+   "source_org": "NAFDAC",
+   "freshness": "older",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "domain": "nafdac.gov.ng",
+    "source_tier": "regulator",
+    "flags": [
+     "falsified"
+    ],
+    "attribution": "NAFDAC Nigeria — summarised and linked"
+   }
+  },
+  {
+   "id": "imprint:I2",
+   "type": "imprint",
+   "label": "Imprint I2",
+   "val": 1.8,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ],
+   "attrs": {
+    "rung": 1,
+    "shape_relaxed": false,
+    "candidates_n": 3
+   }
+  },
+  {
+   "id": "imprint:5892V",
+   "type": "imprint",
+   "label": "Imprint 5892 V",
+   "val": 2.0,
+   "personal": true,
+   "expandable": true,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ],
+   "attrs": {
+    "rung": 1,
+    "shape_relaxed": false,
+    "candidates_n": 1
+   }
+  },
+  {
+   "id": "pillref:471fa2f1-73a0-49be-89f3-d3e2cfdaeca0-0603-5892-0",
+   "type": "pill_ref",
+   "label": "Temazepam 15 mg · Qualitest",
+   "val": 1.6,
+   "personal": true,
+   "attrs": {
+    "match_kind": "imprint_exact",
+    "shape": "capsule",
+    "colors": [
+     "pink"
+    ],
+    "product_ndc": "0603-5892"
+   }
+  },
+  {
+   "id": "topic:subpotent",
+   "type": "topic",
+   "label": "Subpotent",
+   "val": 1.8,
+   "personal": true,
+   "expandable": true,
+   "count": 1
+  },
+  {
+   "id": "topic:impurity-nitrosamine",
+   "type": "topic",
+   "label": "Impurity",
+   "val": 1.8,
+   "personal": true,
+   "expandable": true,
+   "count": 1
+  },
+  {
+   "id": "topic:falsified",
+   "type": "topic",
+   "label": "Falsified product",
+   "val": 2.0,
+   "personal": true,
+   "expandable": true,
+   "count": 2
+  },
+  {
+   "id": "cluster:reg:fda|records",
+   "type": "cluster",
+   "label": "+17,961 more FDA records",
+   "val": 1.4,
+   "count": 17961,
+   "expandable": true,
+   "attrs": {
+    "relation": "records",
+    "parent": "reg:fda"
+   }
+  },
+  {
+   "id": "cluster:reg:who|records",
+   "type": "cluster",
+   "label": "+82 more WHO records",
+   "val": 1.2,
+   "count": 82,
+   "expandable": true,
+   "attrs": {
+    "relation": "records",
+    "parent": "reg:who"
+   }
+  },
+  {
+   "id": "cluster:rec:fda-enf-D-0785-2026|lots",
+   "type": "cluster",
+   "label": "+3 more lots in this recall",
+   "val": 1.2,
+   "count": 3,
+   "expandable": true,
+   "attrs": {
+    "relation": "lots",
+    "parent": "rec:fda-enf-D-0785-2026"
+   }
+  }
+ ],
+ "links": [
+  {
+   "id": "scan:demo-levo-d2402430>names>med:levothyroxine",
+   "source": "scan:demo-levo-d2402430",
+   "target": "med:levothyroxine",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402430>labelled_ndc>product:167290457",
+   "source": "scan:demo-levo-d2402430",
+   "target": "product:167290457",
+   "kind": "labelled_ndc",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402430>labelled_lot>lot:D2402430",
+   "source": "scan:demo-levo-d2402430",
+   "target": "lot:D2402430",
+   "kind": "labelled_lot",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402430>labelled_maker>mfr:accord healthcare",
+   "source": "scan:demo-levo-d2402430",
+   "target": "mfr:accord healthcare",
+   "kind": "labelled_maker",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402430>scanned_in>country:united-states",
+   "source": "scan:demo-levo-d2402430",
+   "target": "country:united-states",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "lot:D2402430>exact_lot>rec:fda-enf-D-0785-2026",
+   "source": "lot:D2402430",
+   "target": "rec:fda-enf-D-0785-2026",
+   "kind": "exact_lot",
+   "strong": true,
+   "weight": 1.0,
+   "alert": true,
+   "match_kind": "exact_lot",
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>names>med:levothyroxine",
+   "source": "scan:demo-levo-d2402999",
+   "target": "med:levothyroxine",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>labelled_ndc>product:167290457",
+   "source": "scan:demo-levo-d2402999",
+   "target": "product:167290457",
+   "kind": "labelled_ndc",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>labelled_lot>lot:D2402999",
+   "source": "scan:demo-levo-d2402999",
+   "target": "lot:D2402999",
+   "kind": "labelled_lot",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>labelled_maker>mfr:accord healthcare",
+   "source": "scan:demo-levo-d2402999",
+   "target": "mfr:accord healthcare",
+   "kind": "labelled_maker",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>scanned_in>country:united-states",
+   "source": "scan:demo-levo-d2402999",
+   "target": "country:united-states",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "product:167290457>ndc_in_description>rec:fda-enf-D-0785-2026",
+   "source": "product:167290457",
+   "target": "rec:fda-enf-D-0785-2026",
+   "kind": "ndc_in_description",
+   "strong": false,
+   "weight": 0.5,
+   "match_kind": "ndc_in_description",
+   "count": 2,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "product:167290457>contains>med:levothyroxine",
+   "source": "product:167290457",
+   "target": "med:levothyroxine",
+   "kind": "contains",
+   "strong": true,
+   "weight": 0.6,
+   "count": 2,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "product:167290457>registered_to>mfr:accord healthcare",
+   "source": "product:167290457",
+   "target": "mfr:accord healthcare",
+   "kind": "registered_to",
+   "strong": true,
+   "weight": 0.6,
+   "count": 2,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>issued_by>reg:fda",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "reg:fda",
+   "kind": "issued_by",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>about>med:levothyroxine",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "med:levothyroxine",
+   "kind": "about",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>names_maker>mfr:accord healthcare",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "mfr:accord healthcare",
+   "kind": "names_maker",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>affects>country:united-states",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "country:united-states",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>topic>topic:subpotent",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "topic:subpotent",
+   "kind": "topic",
+   "strong": false,
+   "weight": 0.2
+  },
+  {
+   "id": "rec:fda-enf-D-0785-2026>more>cluster:rec:fda-enf-D-0785-2026|lots",
+   "source": "rec:fda-enf-D-0785-2026",
+   "target": "cluster:rec:fda-enf-D-0785-2026|lots",
+   "kind": "more",
+   "strong": false,
+   "weight": 0.1
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069>names>med:chlorpromazine",
+   "source": "scan:demo-chlorpromazine-z400069",
+   "target": "med:chlorpromazine",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069>labelled_ndc>product:707101129",
+   "source": "scan:demo-chlorpromazine-z400069",
+   "target": "product:707101129",
+   "kind": "labelled_ndc",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069>labelled_lot>lot:Z400069",
+   "source": "scan:demo-chlorpromazine-z400069",
+   "target": "lot:Z400069",
+   "kind": "labelled_lot",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069>labelled_maker>mfr:zydus pharmaceuticals",
+   "source": "scan:demo-chlorpromazine-z400069",
+   "target": "mfr:zydus pharmaceuticals",
+   "kind": "labelled_maker",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "scan:demo-chlorpromazine-z400069>scanned_in>country:united-states",
+   "source": "scan:demo-chlorpromazine-z400069",
+   "target": "country:united-states",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "product:707101129>contains>med:chlorpromazine",
+   "source": "product:707101129",
+   "target": "med:chlorpromazine",
+   "kind": "contains",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "product:707101129>registered_to>mfr:zydus pharmaceuticals",
+   "source": "product:707101129",
+   "target": "mfr:zydus pharmaceuticals",
+   "kind": "registered_to",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "lot:Z400069>exact_lot>rec:fda-enf-D-0361-2025",
+   "source": "lot:Z400069",
+   "target": "rec:fda-enf-D-0361-2025",
+   "kind": "exact_lot",
+   "strong": true,
+   "weight": 1.0,
+   "alert": true,
+   "match_kind": "exact_lot",
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "lot:Z400069>lot_only_match>rec:nafdac-17970",
+   "source": "lot:Z400069",
+   "target": "rec:nafdac-17970",
+   "kind": "lot_only_match",
+   "strong": false,
+   "weight": 0.2,
+   "match_kind": "lot_only_match",
+   "scan_ids": [
+    "scan:demo-chlorpromazine-z400069"
+   ]
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025>issued_by>reg:fda",
+   "source": "rec:fda-enf-D-0361-2025",
+   "target": "reg:fda",
+   "kind": "issued_by",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025>about>med:chlorpromazine",
+   "source": "rec:fda-enf-D-0361-2025",
+   "target": "med:chlorpromazine",
+   "kind": "about",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025>names_maker>mfr:zydus pharmaceuticals",
+   "source": "rec:fda-enf-D-0361-2025",
+   "target": "mfr:zydus pharmaceuticals",
+   "kind": "names_maker",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025>affects>country:united-states",
+   "source": "rec:fda-enf-D-0361-2025",
+   "target": "country:united-states",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:fda-enf-D-0361-2025>topic>topic:impurity-nitrosamine",
+   "source": "rec:fda-enf-D-0361-2025",
+   "target": "topic:impurity-nitrosamine",
+   "kind": "topic",
+   "strong": false,
+   "weight": 0.2
+  },
+  {
+   "id": "rec:nafdac-17970>issued_by>reg:nafdac",
+   "source": "rec:nafdac-17970",
+   "target": "reg:nafdac",
+   "kind": "issued_by",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:nafdac-17970>affects>country:nigeria",
+   "source": "rec:nafdac-17970",
+   "target": "country:nigeria",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-17970>affects>country:united-states",
+   "source": "rec:nafdac-17970",
+   "target": "country:united-states",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-17970>affects>country:india",
+   "source": "rec:nafdac-17970",
+   "target": "country:india",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>names>med:amoxicillin",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "med:amoxicillin",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>names>med:healmoxy",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "med:healmoxy",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "med:healmoxy>brand_of>med:amoxicillin",
+   "source": "med:healmoxy",
+   "target": "med:amoxicillin",
+   "kind": "brand_of",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>labelled_lot>lot:H02605",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "lot:H02605",
+   "kind": "labelled_lot",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>labelled_maker>mfr:maxheal pharmaceuticals",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "mfr:maxheal pharmaceuticals",
+   "kind": "labelled_maker",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>scanned_in>country:cameroon",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "country:cameroon",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "lot:H02605>exact_lot>rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "source": "lot:H02605",
+   "target": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "kind": "exact_lot",
+   "strong": true,
+   "weight": 1.0,
+   "alert": true,
+   "match_kind": "exact_lot",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "lot:H02605>exact_lot>rec:nafdac-18658",
+   "source": "lot:H02605",
+   "target": "rec:nafdac-18658",
+   "kind": "exact_lot",
+   "strong": true,
+   "weight": 1.0,
+   "alert": true,
+   "match_kind": "exact_lot",
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>issued_by>reg:who",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "reg:who",
+   "kind": "issued_by",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>about>med:amoxicillin",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "med:amoxicillin",
+   "kind": "about",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>about>med:healmoxy",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "med:healmoxy",
+   "kind": "about",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>stated_manufacturer>mfr:maxheal pharmaceuticals",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "mfr:maxheal pharmaceuticals",
+   "kind": "stated_manufacturer",
+   "strong": false,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>affects>country:cameroon",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "country:cameroon",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>affects>country:central-african-republic",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "country:central-african-republic",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>affects>country:india",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "country:india",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd>topic>topic:falsified",
+   "source": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+   "target": "topic:falsified",
+   "kind": "topic",
+   "strong": false,
+   "weight": 0.2
+  },
+  {
+   "id": "rec:nafdac-18658>issued_by>reg:nafdac",
+   "source": "rec:nafdac-18658",
+   "target": "reg:nafdac",
+   "kind": "issued_by",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:nafdac-18658>about>med:healmoxy",
+   "source": "rec:nafdac-18658",
+   "target": "med:healmoxy",
+   "kind": "about",
+   "strong": true,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:nafdac-18658>stated_manufacturer>mfr:maxheal pharmaceuticals",
+   "source": "rec:nafdac-18658",
+   "target": "mfr:maxheal pharmaceuticals",
+   "kind": "stated_manufacturer",
+   "strong": false,
+   "weight": 0.5
+  },
+  {
+   "id": "rec:nafdac-18658>affects>country:cameroon",
+   "source": "rec:nafdac-18658",
+   "target": "country:cameroon",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-18658>affects>country:central-african-republic",
+   "source": "rec:nafdac-18658",
+   "target": "country:central-african-republic",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-18658>affects>country:nigeria",
+   "source": "rec:nafdac-18658",
+   "target": "country:nigeria",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-18658>affects>country:india",
+   "source": "rec:nafdac-18658",
+   "target": "country:india",
+   "kind": "affects",
+   "strong": true,
+   "weight": 0.3
+  },
+  {
+   "id": "rec:nafdac-18658>topic>topic:falsified",
+   "source": "rec:nafdac-18658",
+   "target": "topic:falsified",
+   "kind": "topic",
+   "strong": false,
+   "weight": 0.2
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>fetched_for>web:62a8176ee4a9b3b015e7d3df9fc32aec",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "web:62a8176ee4a9b3b015e7d3df9fc32aec",
+   "kind": "fetched_for",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>fetched_for>web:c11b7a335f8a05143ffb6a1de847bd43",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "web:c11b7a335f8a05143ffb6a1de847bd43",
+   "kind": "fetched_for",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "web:62a8176ee4a9b3b015e7d3df9fc32aec>lists_lot>lot:H02605",
+   "source": "web:62a8176ee4a9b3b015e7d3df9fc32aec",
+   "target": "lot:H02605",
+   "kind": "lists_lot",
+   "strong": true,
+   "weight": 0.5,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "web:c11b7a335f8a05143ffb6a1de847bd43>lists_lot>lot:H02605",
+   "source": "web:c11b7a335f8a05143ffb6a1de847bd43",
+   "target": "lot:H02605",
+   "kind": "lists_lot",
+   "strong": true,
+   "weight": 0.5,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "web:62a8176ee4a9b3b015e7d3df9fc32aec>published_by>reg:who",
+   "source": "web:62a8176ee4a9b3b015e7d3df9fc32aec",
+   "target": "reg:who",
+   "kind": "published_by",
+   "strong": true,
+   "weight": 0.4
+  },
+  {
+   "id": "web:c11b7a335f8a05143ffb6a1de847bd43>published_by>reg:nafdac",
+   "source": "web:c11b7a335f8a05143ffb6a1de847bd43",
+   "target": "reg:nafdac",
+   "kind": "published_by",
+   "strong": true,
+   "weight": 0.4
+  },
+  {
+   "id": "scan:demo-ibuprofen-i2>names>med:ibuprofen",
+   "source": "scan:demo-ibuprofen-i2",
+   "target": "med:ibuprofen",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-i2>observed_imprint>imprint:I2",
+   "source": "scan:demo-ibuprofen-i2",
+   "target": "imprint:I2",
+   "kind": "observed_imprint",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-i2>scanned_in>country:united-states",
+   "source": "scan:demo-ibuprofen-i2",
+   "target": "country:united-states",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "imprint:I2>identifies_as>med:ibuprofen",
+   "source": "imprint:I2",
+   "target": "med:ibuprofen",
+   "kind": "identifies_as",
+   "strong": true,
+   "weight": 0.6,
+   "match_kind": "imprint_exact",
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-5892v>names>med:ibuprofen",
+   "source": "scan:demo-ibuprofen-5892v",
+   "target": "med:ibuprofen",
+   "kind": "names",
+   "strong": true,
+   "weight": 0.8,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-5892v>observed_imprint>imprint:5892V",
+   "source": "scan:demo-ibuprofen-5892v",
+   "target": "imprint:5892V",
+   "kind": "observed_imprint",
+   "strong": true,
+   "weight": 0.6,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-5892v>scanned_in>country:united-states",
+   "source": "scan:demo-ibuprofen-5892v",
+   "target": "country:united-states",
+   "kind": "scanned_in",
+   "strong": false,
+   "weight": 0.1,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "imprint:5892V>identifies_as>med:temazepam",
+   "source": "imprint:5892V",
+   "target": "med:temazepam",
+   "kind": "identifies_as",
+   "strong": true,
+   "weight": 0.6,
+   "match_kind": "imprint_exact",
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "imprint:5892V>related>pillref:471fa2f1-73a0-49be-89f3-d3e2cfdaeca0-0603-5892-0",
+   "source": "imprint:5892V",
+   "target": "pillref:471fa2f1-73a0-49be-89f3-d3e2cfdaeca0-0603-5892-0",
+   "kind": "related",
+   "strong": false,
+   "weight": 0.25,
+   "match_kind": "imprint_exact",
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "pillref:471fa2f1-73a0-49be-89f3-d3e2cfdaeca0-0603-5892-0>identifies_as>med:temazepam",
+   "source": "pillref:471fa2f1-73a0-49be-89f3-d3e2cfdaeca0-0603-5892-0",
+   "target": "med:temazepam",
+   "kind": "identifies_as",
+   "strong": false,
+   "weight": 0.25,
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "med:temazepam>conflicts_with>med:ibuprofen",
+   "source": "med:temazepam",
+   "target": "med:ibuprofen",
+   "kind": "conflicts_with",
+   "strong": true,
+   "weight": 0.7,
+   "match_kind": "imprint",
+   "scan_ids": [
+    "scan:demo-ibuprofen-5892v"
+   ]
+  },
+  {
+   "id": "reg:fda>more>cluster:reg:fda|records",
+   "source": "reg:fda",
+   "target": "cluster:reg:fda|records",
+   "kind": "more",
+   "strong": false,
+   "weight": 0.1
+  },
+  {
+   "id": "reg:who>more>cluster:reg:who|records",
+   "source": "reg:who",
+   "target": "cluster:reg:who|records",
+   "kind": "more",
+   "strong": false,
+   "weight": 0.1
+  }
+ ],
+ "meta": {
+  "device_id": "peel-graph-demo",
+  "scans": 6,
+  "generated_at": "2026-09-19T23:30:00Z",
+  "source": "demo",
+  "demo": true,
+  "truncated": false,
+  "index_date": "2026-09-19",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "counts": {
+   "scan": 6,
+   "medicine": 6,
+   "product": 2,
+   "lot": 4,
+   "manufacturer": 3,
+   "record": 5,
+   "regulator": 3,
+   "country": 5,
+   "web_page": 2,
+   "imprint": 2,
+   "pill_ref": 1,
+   "topic": 3,
+   "cluster": 3
+  },
+  "timeline": [
+   {
+    "year": 2025,
+    "total": 3,
+    "by_org": {
+     "FDA": 1,
+     "WHO": 1,
+     "NAFDAC": 1
+    }
+   },
+   {
+    "year": 2026,
+    "total": 1,
+    "by_org": {
+     "FDA": 1
+    }
+   }
+  ]
+ }
+}

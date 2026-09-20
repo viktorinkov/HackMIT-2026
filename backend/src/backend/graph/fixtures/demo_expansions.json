@@ -1,0 +1,300 @@
+{
+ "lot:D2402430": {
+  "anchor": "lot:D2402430",
+  "nodes": [
+   {
+    "id": "lot:D2402431",
+    "type": "lot",
+    "label": "Lot D2402431",
+    "sublabel": "also named in this recall",
+    "val": 1.6,
+    "expandable": true,
+    "attrs": {
+     "lot": "D2402431"
+    }
+   },
+   {
+    "id": "lot:D2402432",
+    "type": "lot",
+    "label": "Lot D2402432",
+    "sublabel": "also named in this recall",
+    "val": 1.6,
+    "expandable": true,
+    "attrs": {
+     "lot": "D2402432"
+    }
+   },
+   {
+    "id": "lot:D2500180",
+    "type": "lot",
+    "label": "Lot D2500180",
+    "sublabel": "also named in this recall",
+    "val": 1.6,
+    "expandable": true,
+    "attrs": {
+     "lot": "D2500180"
+    }
+   }
+  ],
+  "links": [
+   {
+    "id": "lot:D2402431>lot_listed>rec:fda-enf-D-0785-2026",
+    "source": "lot:D2402431",
+    "target": "rec:fda-enf-D-0785-2026",
+    "kind": "lot_listed",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_listed"
+   },
+   {
+    "id": "lot:D2402432>lot_listed>rec:fda-enf-D-0785-2026",
+    "source": "lot:D2402432",
+    "target": "rec:fda-enf-D-0785-2026",
+    "kind": "lot_listed",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_listed"
+   },
+   {
+    "id": "lot:D2500180>lot_listed>rec:fda-enf-D-0785-2026",
+    "source": "lot:D2500180",
+    "target": "rec:fda-enf-D-0785-2026",
+    "kind": "lot_listed",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_listed"
+   }
+  ],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "records": 1,
+    "lots": 4,
+    "prior_scans": 1
+   }
+  }
+ },
+ "lot:D2402999": {
+  "anchor": "lot:D2402999",
+  "nodes": [],
+  "links": [],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "records": 0,
+    "web_pages": 0,
+    "prior_scans": 1
+   }
+  }
+ },
+ "lot:Z400069": {
+  "anchor": "lot:Z400069",
+  "nodes": [],
+  "links": [
+   {
+    "id": "lot:Z400069>exact_lot>rec:fda-enf-D-0361-2025",
+    "source": "lot:Z400069",
+    "target": "rec:fda-enf-D-0361-2025",
+    "kind": "exact_lot",
+    "strong": true,
+    "alert": true,
+    "weight": 1.0,
+    "match_kind": "exact_lot",
+    "scan_ids": [
+     "scan:demo-chlorpromazine-z400069"
+    ]
+   },
+   {
+    "id": "lot:Z400069>lot_only_match>rec:nafdac-17970",
+    "source": "lot:Z400069",
+    "target": "rec:nafdac-17970",
+    "kind": "lot_only_match",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_only_match",
+    "scan_ids": [
+     "scan:demo-chlorpromazine-z400069"
+    ]
+   }
+  ],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "records": 2,
+    "corroborated": 1,
+    "prior_scans": 1
+   }
+  }
+ },
+ "lot:H02605": {
+  "anchor": "lot:H02605",
+  "nodes": [
+   {
+    "id": "lot:023011",
+    "type": "lot",
+    "label": "Lot 023011",
+    "sublabel": "also named in both alerts",
+    "val": 1.6,
+    "expandable": true,
+    "attrs": {
+     "lot": "023011"
+    }
+   }
+  ],
+  "links": [
+   {
+    "id": "lot:023011>lot_listed>rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "source": "lot:023011",
+    "target": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "kind": "lot_listed",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_listed"
+   },
+   {
+    "id": "lot:023011>lot_listed>rec:nafdac-18658",
+    "source": "lot:023011",
+    "target": "rec:nafdac-18658",
+    "kind": "lot_listed",
+    "strong": false,
+    "alert": false,
+    "weight": 0.2,
+    "match_kind": "lot_listed"
+   },
+   {
+    "id": "web:62a8176ee4a9b3b015e7d3df9fc32aec>lists_lot>lot:H02605",
+    "source": "web:62a8176ee4a9b3b015e7d3df9fc32aec",
+    "target": "lot:H02605",
+    "kind": "lists_lot",
+    "strong": true,
+    "alert": false,
+    "weight": 0.5
+   },
+   {
+    "id": "web:c11b7a335f8a05143ffb6a1de847bd43>lists_lot>lot:H02605",
+    "source": "web:c11b7a335f8a05143ffb6a1de847bd43",
+    "target": "lot:H02605",
+    "kind": "lists_lot",
+    "strong": true,
+    "alert": false,
+    "weight": 0.5
+   }
+  ],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "records": 2,
+    "regulators": 2,
+    "web_pages": 2,
+    "prior_scans": 1
+   }
+  }
+ },
+ "reg:fda": {
+  "anchor": "reg:fda",
+  "nodes": [
+   {
+    "id": "cluster:reg:fda|records",
+    "type": "cluster",
+    "label": "+17,961 more FDA records",
+    "val": 1.4,
+    "count": 17961,
+    "expandable": true,
+    "attrs": {
+     "relation": "records",
+     "parent": "reg:fda"
+    }
+   },
+   {
+    "id": "topic:subpotent",
+    "type": "topic",
+    "label": "Subpotent",
+    "val": 1.8,
+    "expandable": true,
+    "count": 1
+   },
+   {
+    "id": "topic:impurity-nitrosamine",
+    "type": "topic",
+    "label": "Impurity",
+    "val": 1.8,
+    "expandable": true,
+    "count": 1
+   }
+  ],
+  "links": [
+   {
+    "id": "reg:fda>more>cluster:reg:fda|records",
+    "source": "reg:fda",
+    "target": "cluster:reg:fda|records",
+    "kind": "more",
+    "strong": false,
+    "weight": 0.1
+   },
+   {
+    "id": "rec:fda-enf-D-0785-2026>issued_by>reg:fda",
+    "source": "rec:fda-enf-D-0785-2026",
+    "target": "reg:fda",
+    "kind": "issued_by",
+    "strong": true,
+    "weight": 0.5
+   },
+   {
+    "id": "rec:fda-enf-D-0361-2025>issued_by>reg:fda",
+    "source": "rec:fda-enf-D-0361-2025",
+    "target": "reg:fda",
+    "kind": "issued_by",
+    "strong": true,
+    "weight": 0.5
+   }
+  ],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "records": 17963,
+    "in_your_graph": 2,
+    "class_ii": 2
+   }
+  }
+ }
+}

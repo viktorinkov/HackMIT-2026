@@ -1,0 +1,1524 @@
+{
+ "scan:demo-levo-d2402430": {
+  "id": "scan:demo-levo-d2402430",
+  "type": "scan",
+  "title": "Levothyroxine Sodium 200 mcg tablets",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 18 September 2026 · United States",
+  "badges": [
+   "A recall or alert names this lot",
+   "Simulated hardware reading",
+   "Hardware reading degraded"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot on the label",
+    "value": "D2402430"
+   },
+   {
+    "key": "ndc",
+    "label": "NDC",
+    "value": "16729-457-15"
+   },
+   {
+    "key": "manufacturer",
+    "label": "Manufacturer on the label",
+    "value": "Accord Healthcare"
+   },
+   {
+    "key": "strength",
+    "label": "Strength",
+    "value": "200 mcg"
+   },
+   {
+    "key": "expiration",
+    "label": "Expires",
+    "value": "October 2026"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "substandard (simulated, no physical measurement)"
+   }
+  ],
+  "body": "An FDA Class II recall issued on 2 September 2026 lists lot D2402430 of this product as subpotent.",
+  "findings": [
+   {
+    "statement": "FDA recall D-0785-2026 lists lot D2402430 of NDC 16729-457.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   },
+   {
+    "statement": "The recall reason on the record is \"Subpotent Drug\".",
+    "severity": "caution",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "gaps": [
+   "Live web research was disabled for this demo scan."
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:D2402430",
+    "type": "lot",
+    "label": "Lot D2402430",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-levo-d2402430"
+   },
+   {
+    "node_id": "product:167290457",
+    "type": "product",
+    "label": "Levothyroxine 200 mcg · Accord",
+    "relation": "product line",
+    "scan_id": "scan:demo-levo-d2402430"
+   },
+   {
+    "node_id": "rec:fda-enf-D-0785-2026",
+    "type": "record",
+    "label": "Class II recall: Levothyroxine 200 mcg",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-levo-d2402430"
+   }
+  ],
+  "counts": {
+   "records": 1,
+   "alerts": 1
+  },
+  "demo": true
+ },
+ "scan:demo-levo-d2402999": {
+  "id": "scan:demo-levo-d2402999",
+  "type": "scan",
+  "title": "Levothyroxine Sodium 200 mcg tablets",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 18 September 2026 · United States",
+  "badges": [
+   "Nothing found in the records searched",
+   "Simulated hardware reading"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot on the label",
+    "value": "D2402999"
+   },
+   {
+    "key": "ndc",
+    "label": "NDC",
+    "value": "16729-457-15"
+   },
+   {
+    "key": "manufacturer",
+    "label": "Manufacturer on the label",
+    "value": "Accord Healthcare"
+   },
+   {
+    "key": "strength",
+    "label": "Strength",
+    "value": "200 mcg"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "real (simulated, no physical measurement)"
+   }
+  ],
+  "body": "A recall exists for this product line, but it does not list this lot number. The edge to that recall is shown faint for exactly that reason.",
+  "findings": [
+   {
+    "statement": "FDA recall D-0785-2026 names this product line but not lot D2402999.",
+    "severity": "info",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "gaps": [
+   "Live web research was disabled for this demo scan."
+  ],
+  "next_steps": [
+   "Keep the medicine in its original packaging with the label and lot number intact.",
+   "Ask a pharmacist to check the medicine together with its packaging."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:D2402999",
+    "type": "lot",
+    "label": "Lot D2402999",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-levo-d2402999"
+   },
+   {
+    "node_id": "product:167290457",
+    "type": "product",
+    "label": "Levothyroxine 200 mcg · Accord",
+    "relation": "product line",
+    "scan_id": "scan:demo-levo-d2402999"
+   }
+  ],
+  "counts": {
+   "records": 1,
+   "alerts": 0
+  },
+  "demo": true
+ },
+ "scan:demo-chlorpromazine-z400069": {
+  "id": "scan:demo-chlorpromazine-z400069",
+  "type": "scan",
+  "title": "Chlorpromazine Hydrochloride 10 mg tablets",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 12 September 2026 · United States",
+  "badges": [
+   "A recall or alert names this lot",
+   "Simulated hardware reading"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot on the label",
+    "value": "Z400069"
+   },
+   {
+    "key": "ndc",
+    "label": "NDC",
+    "value": "70710-1129-1"
+   },
+   {
+    "key": "manufacturer",
+    "label": "Manufacturer on the label",
+    "value": "Zydus Pharmaceuticals"
+   },
+   {
+    "key": "strength",
+    "label": "Strength",
+    "value": "10 mg"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "real (simulated, no physical measurement)"
+   }
+  ],
+  "body": "An FDA Class II recall lists lot Z400069 of this product. A NAFDAC notice lists the same lot string without naming the product, so that second edge stays uncorroborated.",
+  "findings": [
+   {
+    "statement": "FDA recall D-0361-2025 lists lot Z400069 of NDC 70710-1129.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   },
+   {
+    "statement": "NAFDAC 11/2025 lists the same lot string but names no product.",
+    "severity": "caution",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "gaps": [
+   "Live web research was disabled for this demo scan."
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0361-2025",
+    "title": "Class II recall: chlorproMAZINE Hydrochloride Tablets, USP 10 mg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0361-2025%22",
+    "source_org": "FDA",
+    "published_at": "2025-04-16",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   },
+   {
+    "id": "rec:nafdac-17970",
+    "title": "Public Alert No. 11/2025 – Recall of Various Products by Sun Pharma, Glenmark, and Zydus",
+    "url": "https://nafdac.gov.ng/public-alert-no-11-2025-recall-of-various-products-by-sun-pharma-glenmark-and-zydus-pharmaceuticals-over-manufacturing-issues/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-04-29",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:Z400069",
+    "type": "lot",
+    "label": "Lot Z400069",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   },
+   {
+    "node_id": "rec:fda-enf-D-0361-2025",
+    "type": "record",
+    "label": "Class II recall: Chlorpromazine 10 mg",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   },
+   {
+    "node_id": "rec:nafdac-17970",
+    "type": "record",
+    "label": "NAFDAC 11/2025: various product recall",
+    "relation": "lot number only",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   }
+  ],
+  "counts": {
+   "records": 2,
+   "alerts": 1
+  },
+  "demo": true
+ },
+ "scan:demo-healmoxy-h02605": {
+  "id": "scan:demo-healmoxy-h02605",
+  "type": "scan",
+  "title": "HEALMOXY (Amoxicillin) 500 mg capsules",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 8 September 2026 · Cameroon",
+  "badges": [
+   "A recall or alert names this lot",
+   "Simulated hardware reading",
+   "Hardware reading degraded"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Batch on the pack",
+    "value": "H02605"
+   },
+   {
+    "key": "manufacturer",
+    "label": "Name printed on the pack",
+    "value": "Maxheal Pharmaceuticals"
+   },
+   {
+    "key": "strength",
+    "label": "Strength",
+    "value": "500 mg"
+   },
+   {
+    "key": "country",
+    "label": "Scanned in",
+    "value": "Cameroon"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "fake (simulated, no physical measurement)"
+   }
+  ],
+  "body": "Two regulators published falsified-product alerts naming batch H02605 of HEALMOXY 500 mg capsules in Cameroon and the Central African Republic.",
+  "findings": [
+   {
+    "statement": "WHO Medical Product Alert N°2/2025 lists batch H02605.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   },
+   {
+    "statement": "NAFDAC Public Alert No. 17/2025 lists the same batch.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   },
+   {
+    "statement": "Both notices describe a falsified product, so the firm named on the pack is the firm whose name was copied.",
+    "severity": "caution",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "gaps": [
+   "Live web research was disabled for this demo scan.",
+   "Pill identification did not run: no imprint was read."
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "title": "Medical Product Alert N°2/2025: Falsified HEALMOXY (Amoxicillin) Capsules 500mg",
+    "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+    "source_org": "WHO",
+    "published_at": "2025-04-23",
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO",
+    "link_label": "WHO alert page"
+   },
+   {
+    "id": "rec:nafdac-18658",
+    "title": "Public Alert No. 17/2025 – Alert on Falsified Batches of Healmoxy Capsules 500mg",
+    "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-06-01",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:H02605",
+    "type": "lot",
+    "label": "Lot H02605",
+    "relation": "batch on this pack",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "type": "record",
+    "label": "WHO N°2/2025: Falsified HEALMOXY",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "rec:nafdac-18658",
+    "type": "record",
+    "label": "NAFDAC 17/2025: Falsified Healmoxy",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   }
+  ],
+  "counts": {
+   "records": 2,
+   "alerts": 2,
+   "regulators": 2
+  },
+  "demo": true
+ },
+ "scan:demo-ibuprofen-i2": {
+  "id": "scan:demo-ibuprofen-i2",
+  "type": "scan",
+  "title": "Ibuprofen 200 mg tablets",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 3 September 2026 · United States",
+  "badges": [
+   "Nothing found in the records searched",
+   "Simulated hardware reading"
+  ],
+  "properties": [
+   {
+    "key": "imprint",
+    "label": "Imprint read from the tablet",
+    "value": "I 2"
+   },
+   {
+    "key": "strength",
+    "label": "Strength",
+    "value": "200 mg"
+   },
+   {
+    "key": "shape",
+    "label": "Shape and colour",
+    "value": "round, brown"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "real (simulated, no physical measurement)"
+   }
+  ],
+  "body": "No recall or safety alert matching this medicine was found in the FDA, WHO and NAFDAC records searched, which are current to 19 September 2026. That is not a confirmation about the medicine itself.",
+  "findings": [
+   {
+    "statement": "The imprint I 2 matches ibuprofen 200 mg in the pill reference.",
+    "severity": "info",
+    "evidence_type": "imprint_reference"
+   }
+  ],
+  "gaps": [
+   "Live web research was disabled for this demo scan.",
+   "The pill reference is a US archive frozen in January 2021."
+  ],
+  "next_steps": [
+   "Keep the medicine in its original packaging with the label and lot number intact.",
+   "Ask a pharmacist to check the medicine together with its packaging."
+  ],
+  "sources": [],
+  "backlinks": [
+   {
+    "node_id": "imprint:I2",
+    "type": "imprint",
+    "label": "Imprint I2",
+    "relation": "read from the tablet",
+    "scan_id": "scan:demo-ibuprofen-i2"
+   },
+   {
+    "node_id": "med:ibuprofen",
+    "type": "medicine",
+    "label": "Ibuprofen",
+    "relation": "named on the label",
+    "scan_id": "scan:demo-ibuprofen-i2"
+   }
+  ],
+  "counts": {
+   "records": 0,
+   "alerts": 0
+  },
+  "demo": true
+ },
+ "scan:demo-ibuprofen-5892v": {
+  "id": "scan:demo-ibuprofen-5892v",
+  "type": "scan",
+  "title": "Ibuprofen 200 mg label, unmatched tablet",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Scanned 31 August 2026 · United States",
+  "badges": [
+   "The label and the reference do not agree",
+   "Past its expiry date",
+   "Simulated hardware reading"
+  ],
+  "properties": [
+   {
+    "key": "imprint",
+    "label": "Imprint read from the tablet",
+    "value": "5892 V"
+   },
+   {
+    "key": "label",
+    "label": "Name on the label",
+    "value": "Ibuprofen 200 mg"
+   },
+   {
+    "key": "shape",
+    "label": "Shape and colour",
+    "value": "capsule, pink"
+   },
+   {
+    "key": "expiration",
+    "label": "Expires",
+    "value": "March 2026"
+   },
+   {
+    "key": "hardware",
+    "label": "Instrument reading",
+    "value": "real (simulated, no physical measurement)"
+   }
+  ],
+  "body": "The imprint 5892 V is listed in the pill reference as temazepam 15 mg, not as ibuprofen. The label and the tablet disagree.",
+  "findings": [
+   {
+    "statement": "Imprint 5892 V matches temazepam 15 mg (Qualitest) in the reference.",
+    "severity": "serious",
+    "evidence_type": "imprint_reference"
+   }
+  ],
+  "mismatches": [
+   "The label says ibuprofen 200 mg; the imprint matches temazepam 15 mg."
+  ],
+  "gaps": [
+   "The pill reference is a US archive frozen in January 2021."
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist and ask them to identify the tablet."
+  ],
+  "sources": [],
+  "backlinks": [
+   {
+    "node_id": "imprint:5892V",
+    "type": "imprint",
+    "label": "Imprint 5892 V",
+    "relation": "read from the tablet",
+    "scan_id": "scan:demo-ibuprofen-5892v"
+   },
+   {
+    "node_id": "med:temazepam",
+    "type": "medicine",
+    "label": "Temazepam",
+    "relation": "the imprint's reference",
+    "scan_id": "scan:demo-ibuprofen-5892v"
+   },
+   {
+    "node_id": "med:ibuprofen",
+    "type": "medicine",
+    "label": "Ibuprofen",
+    "relation": "named on the label",
+    "scan_id": "scan:demo-ibuprofen-5892v"
+   }
+  ],
+  "counts": {
+   "records": 0,
+   "alerts": 0,
+   "mismatches": 1
+  },
+  "demo": true
+ },
+ "rec:fda-enf-D-0785-2026": {
+  "id": "rec:fda-enf-D-0785-2026",
+  "type": "record",
+  "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "FDA · recall · 2 September 2026",
+  "badges": [
+   "High severity",
+   "Class II",
+   "Ongoing"
+  ],
+  "properties": [
+   {
+    "key": "recall_number",
+    "label": "Recall number",
+    "value": "D-0785-2026"
+   },
+   {
+    "key": "reason",
+    "label": "Reason",
+    "value": "Subpotent Drug"
+   },
+   {
+    "key": "classification",
+    "label": "Classification",
+    "value": "Class II"
+   },
+   {
+    "key": "status",
+    "label": "Status",
+    "value": "ongoing"
+   },
+   {
+    "key": "lots",
+    "label": "Lots named",
+    "value": "D2402430, D2402431, D2402432, D2500180"
+   },
+   {
+    "key": "lot_count",
+    "label": "Number of lots",
+    "value": "4"
+   },
+   {
+    "key": "firm",
+    "label": "Recalling firm",
+    "value": "Accord Healthcare, Inc."
+   },
+   {
+    "key": "countries",
+    "label": "Countries",
+    "value": "United States"
+   },
+   {
+    "key": "age",
+    "label": "Published",
+    "value": "17 days ago"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "U.S. Food and Drug Administration (openFDA), public domain"
+   }
+  ],
+  "body": "Subpotent Drug. Levothyroxine Sodium Tablets, USP, 200 mcg (0.2 mg), packaged in 90-count bottles (NDC 16729-457-15) and 1000-count bottles (NDC 16729-457-17).",
+  "findings": [
+   {
+    "statement": "Lot D2402430 on your label is one of the four lots named.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   }
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:D2402430",
+    "type": "lot",
+    "label": "Lot D2402430",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-levo-d2402430"
+   },
+   {
+    "node_id": "product:167290457",
+    "type": "product",
+    "label": "Levothyroxine 200 mcg · Accord",
+    "relation": "names this product line",
+    "scan_id": "scan:demo-levo-d2402999"
+   },
+   {
+    "node_id": "scan:demo-levo-d2402430",
+    "type": "scan",
+    "label": "Levothyroxine 200 mcg",
+    "relation": "your scan",
+    "scan_id": "scan:demo-levo-d2402430"
+   }
+  ],
+  "counts": {
+   "lots": 4,
+   "scans": 2
+  }
+ },
+ "rec:fda-enf-D-0361-2025": {
+  "id": "rec:fda-enf-D-0361-2025",
+  "type": "record",
+  "title": "Class II recall: chlorproMAZINE Hydrochloride Tablets, USP 10 mg",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "FDA · recall · 16 April 2025",
+  "badges": [
+   "High severity",
+   "Class II",
+   "Ongoing"
+  ],
+  "properties": [
+   {
+    "key": "recall_number",
+    "label": "Recall number",
+    "value": "D-0361-2025"
+   },
+   {
+    "key": "reason",
+    "label": "Reason",
+    "value": "CGMP deviations: N-Nitroso-Desmethyl Chlorpromazine impurity above the recommended interim limit"
+   },
+   {
+    "key": "classification",
+    "label": "Classification",
+    "value": "Class II"
+   },
+   {
+    "key": "lots",
+    "label": "Lots named",
+    "value": "Z400069"
+   },
+   {
+    "key": "firm",
+    "label": "Recalling firm",
+    "value": "Zydus Pharmaceuticals (USA) Inc."
+   },
+   {
+    "key": "countries",
+    "label": "Countries",
+    "value": "United States"
+   },
+   {
+    "key": "age",
+    "label": "Published",
+    "value": "521 days ago"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "U.S. Food and Drug Administration (openFDA), public domain"
+   }
+  ],
+  "body": "CGMP deviations: presence of N-Nitroso-Desmethyl Chlorpromazine impurity above the recommended interim limit. Chlorpromazine Hydrochloride Tablets, USP 10 mg, NDC 70710-1129-1.",
+  "findings": [
+   {
+    "statement": "Lot Z400069 on your label is the lot named in this recall.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   }
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0361-2025",
+    "title": "Class II recall: chlorproMAZINE Hydrochloride Tablets, USP 10 mg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0361-2025%22",
+    "source_org": "FDA",
+    "published_at": "2025-04-16",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:Z400069",
+    "type": "lot",
+    "label": "Lot Z400069",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   },
+   {
+    "node_id": "scan:demo-chlorpromazine-z400069",
+    "type": "scan",
+    "label": "Chlorpromazine 10 mg",
+    "relation": "your scan",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   }
+  ],
+  "counts": {
+   "lots": 1,
+   "scans": 1
+  }
+ },
+ "rec:nafdac-17970": {
+  "id": "rec:nafdac-17970",
+  "type": "record",
+  "title": "Public Alert No. 11/2025 – Recall of Various Products by Sun Pharma, Glenmark and Zydus",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "NAFDAC · recall · 29 April 2025",
+  "badges": [
+   "High severity",
+   "Lot number only"
+  ],
+  "properties": [
+   {
+    "key": "reason",
+    "label": "Reason",
+    "value": "Manufacturing issues"
+   },
+   {
+    "key": "lots",
+    "label": "Lots named",
+    "value": "Z400069"
+   },
+   {
+    "key": "countries",
+    "label": "Countries",
+    "value": "Nigeria, United States, India"
+   },
+   {
+    "key": "products",
+    "label": "Products named",
+    "value": "not specified in the notice"
+   },
+   {
+    "key": "age",
+    "label": "Published",
+    "value": "508 days ago"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "NAFDAC Nigeria — summarised and linked"
+   }
+  ],
+  "body": "NAFDAC notified the public of the recall of various products by three drug manufacturing companies in the United States. Summary only; read the notice at the link below.",
+  "findings": [
+   {
+    "statement": "This notice lists the lot string Z400069 but does not name a product, so it neither confirms nor rules out your bottle.",
+    "severity": "caution",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "next_steps": [
+   "Shown for context. This record does not name the lot on your label."
+  ],
+  "sources": [
+   {
+    "id": "rec:nafdac-17970",
+    "title": "Public Alert No. 11/2025 – Recall of Various Products by Sun Pharma, Glenmark, and Zydus",
+    "url": "https://nafdac.gov.ng/public-alert-no-11-2025-recall-of-various-products-by-sun-pharma-glenmark-and-zydus-pharmaceuticals-over-manufacturing-issues/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-04-29",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:Z400069",
+    "type": "lot",
+    "label": "Lot Z400069",
+    "relation": "lot number only",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   }
+  ],
+  "counts": {
+   "lots": 1,
+   "scans": 1
+  }
+ },
+ "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd": {
+  "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+  "type": "record",
+  "title": "Medical Product Alert N°2/2025: Falsified HEALMOXY (Amoxicillin) Capsules 500mg",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "WHO · falsified product alert · 23 April 2025",
+  "badges": [
+   "Critical severity",
+   "Falsified product"
+  ],
+  "properties": [
+   {
+    "key": "batches",
+    "label": "Batches named",
+    "value": "023011, H02605, H026051"
+   },
+   {
+    "key": "countries",
+    "label": "Countries",
+    "value": "Cameroon, Central African Republic, India"
+   },
+   {
+    "key": "stated_manufacturer",
+    "label": "Name printed on the packs",
+    "value": "MAXHEAL PHARMACEUTICALS (India) Limited"
+   },
+   {
+    "key": "age",
+    "label": "Published",
+    "value": "514 days ago"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "World Health Organization, CC BY-NC-SA 3.0 IGO"
+   }
+  ],
+  "body": "This WHO Medical Product Alert refers to four batches of falsified HEALMOXY Capsules 500mg detected in Cameroon and the Central African Republic and reported to WHO in March 2025. Summary only; read the alert at the link below.",
+  "findings": [
+   {
+    "statement": "Batch H02605 on your pack is named in this alert.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   },
+   {
+    "statement": "The firm named is the firm whose name appears on the falsified packs.",
+    "severity": "caution",
+    "evidence_type": "regulatory_record"
+   }
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "title": "Medical Product Alert N°2/2025: Falsified HEALMOXY (Amoxicillin) Capsules 500mg",
+    "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+    "source_org": "WHO",
+    "published_at": "2025-04-23",
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO",
+    "link_label": "WHO alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:H02605",
+    "type": "lot",
+    "label": "Lot H02605",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "mfr:maxheal pharmaceuticals",
+    "type": "manufacturer",
+    "label": "Maxheal Pharmaceuticals",
+    "relation": "name printed on the label",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "scan:demo-healmoxy-h02605",
+    "type": "scan",
+    "label": "Healmoxy amoxicillin 500 mg",
+    "relation": "your scan",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   }
+  ],
+  "counts": {
+   "lots": 3,
+   "countries": 3,
+   "scans": 1
+  }
+ },
+ "rec:nafdac-18658": {
+  "id": "rec:nafdac-18658",
+  "type": "record",
+  "title": "Public Alert No. 17/2025 – Falsified Batches of Healmoxy Capsules 500mg",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "NAFDAC · falsified product alert · 1 June 2025",
+  "badges": [
+   "Critical severity",
+   "Falsified product"
+  ],
+  "properties": [
+   {
+    "key": "batches",
+    "label": "Batches named",
+    "value": "023011, H02605, HO26051"
+   },
+   {
+    "key": "countries",
+    "label": "Countries",
+    "value": "Nigeria, India, Cameroon, Central African Republic"
+   },
+   {
+    "key": "stated_manufacturer",
+    "label": "Name printed on the packs",
+    "value": "Maxheal Pharmaceuticals"
+   },
+   {
+    "key": "age",
+    "label": "Published",
+    "value": "475 days ago"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "NAFDAC Nigeria — summarised and linked"
+   }
+  ],
+  "body": "NAFDAC notified the public of falsified batches of Healmoxy Capsules 500mg, with batch numbers 023011 and H02605, found in Cameroon and the Central African Republic. Summary only; read the notice at the link below.",
+  "findings": [
+   {
+    "statement": "Batch H02605 on your pack is named in this alert.",
+    "severity": "serious",
+    "evidence_type": "exact_lot_match"
+   }
+  ],
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:nafdac-18658",
+    "title": "Public Alert No. 17/2025 – Alert on Falsified Batches of Healmoxy Capsules 500mg",
+    "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-06-01",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "lot:H02605",
+    "type": "lot",
+    "label": "Lot H02605",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "mfr:maxheal pharmaceuticals",
+    "type": "manufacturer",
+    "label": "Maxheal Pharmaceuticals",
+    "relation": "name printed on the label",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   }
+  ],
+  "counts": {
+   "lots": 3,
+   "countries": 4,
+   "scans": 1
+  }
+ },
+ "lot:D2402430": {
+  "id": "lot:D2402430",
+  "type": "lot",
+  "title": "Lot D2402430",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Read from the label of one of your scans",
+  "badges": [
+   "Named in a recall"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot as read",
+    "value": "D2402430"
+   },
+   {
+    "key": "product",
+    "label": "On your label",
+    "value": "Levothyroxine 200 mcg, NDC 16729-457-15"
+   },
+   {
+    "key": "records",
+    "label": "Records naming this lot",
+    "value": "1"
+   }
+  ],
+  "body": "A lot number identifies a production run only together with its product. This one matched a recall for the same product line and NDC.",
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "scan:demo-levo-d2402430",
+    "type": "scan",
+    "label": "Levothyroxine 200 mcg",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-levo-d2402430"
+   },
+   {
+    "node_id": "rec:fda-enf-D-0785-2026",
+    "type": "record",
+    "label": "Class II recall: Levothyroxine 200 mcg",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-levo-d2402430"
+   }
+  ],
+  "counts": {
+   "records": 1,
+   "scans": 1
+  }
+ },
+ "lot:D2402999": {
+  "id": "lot:D2402999",
+  "type": "lot",
+  "title": "Lot D2402999",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Read from the label of one of your scans",
+  "badges": [
+   "Not named in any record searched"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot as read",
+    "value": "D2402999"
+   },
+   {
+    "key": "product",
+    "label": "On your label",
+    "value": "Levothyroxine 200 mcg, NDC 16729-457-15"
+   },
+   {
+    "key": "records",
+    "label": "Records naming this lot",
+    "value": "0"
+   }
+  ],
+  "body": "The recall on this product line names four other lots. This one is not among them, which is why the only edge from this bottle to that recall runs through the product node and is drawn faint.",
+  "next_steps": [
+   "Shown for context. This record does not name the lot on your label."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "scan:demo-levo-d2402999",
+    "type": "scan",
+    "label": "Levothyroxine 200 mcg",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-levo-d2402999"
+   }
+  ],
+  "counts": {
+   "records": 0,
+   "scans": 1
+  }
+ },
+ "lot:Z400069": {
+  "id": "lot:Z400069",
+  "type": "lot",
+  "title": "Lot Z400069",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Read from the label of one of your scans",
+  "badges": [
+   "Named in a recall",
+   "Also a lot-string collision"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Lot as read",
+    "value": "Z400069"
+   },
+   {
+    "key": "product",
+    "label": "On your label",
+    "value": "Chlorpromazine 10 mg, NDC 70710-1129-1"
+   },
+   {
+    "key": "records",
+    "label": "Records naming this lot string",
+    "value": "2"
+   }
+  ],
+  "body": "One record names this lot together with your product. The other lists the same string without naming a product, so it stays uncorroborated.",
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0361-2025",
+    "title": "Class II recall: chlorproMAZINE Hydrochloride Tablets, USP 10 mg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0361-2025%22",
+    "source_org": "FDA",
+    "published_at": "2025-04-16",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   },
+   {
+    "id": "rec:nafdac-17970",
+    "title": "Public Alert No. 11/2025 – Recall of Various Products by Sun Pharma, Glenmark, and Zydus",
+    "url": "https://nafdac.gov.ng/public-alert-no-11-2025-recall-of-various-products-by-sun-pharma-glenmark-and-zydus-pharmaceuticals-over-manufacturing-issues/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-04-29",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "scan:demo-chlorpromazine-z400069",
+    "type": "scan",
+    "label": "Chlorpromazine 10 mg",
+    "relation": "lot on this label",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   },
+   {
+    "node_id": "rec:fda-enf-D-0361-2025",
+    "type": "record",
+    "label": "Class II recall: Chlorpromazine 10 mg",
+    "relation": "names this lot",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   },
+   {
+    "node_id": "rec:nafdac-17970",
+    "type": "record",
+    "label": "NAFDAC 11/2025: various product recall",
+    "relation": "lot number only",
+    "scan_id": "scan:demo-chlorpromazine-z400069"
+   }
+  ],
+  "counts": {
+   "records": 2,
+   "scans": 1
+  }
+ },
+ "lot:H02605": {
+  "id": "lot:H02605",
+  "type": "lot",
+  "title": "Lot H02605",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Read from the pack of one of your scans",
+  "badges": [
+   "Named by two regulators"
+  ],
+  "properties": [
+   {
+    "key": "lot",
+    "label": "Batch as read",
+    "value": "H02605"
+   },
+   {
+    "key": "product",
+    "label": "On your pack",
+    "value": "HEALMOXY (Amoxicillin) 500 mg capsules"
+   },
+   {
+    "key": "records",
+    "label": "Records naming this batch",
+    "value": "2"
+   },
+   {
+    "key": "regulators",
+    "label": "Regulators",
+    "value": "WHO, NAFDAC"
+   }
+  ],
+  "body": "Two regulators in two formats published alerts about the same batch number. They converge on this one node.",
+  "next_steps": [
+   "Set this medicine aside in its original packaging and keep the packaging.",
+   "Take the bottle and this result to a pharmacist promptly and ask them to compare the lot number on the label with the recall notice.",
+   "Ask the pharmacist what to do next before you change anything about how you take it."
+  ],
+  "sources": [
+   {
+    "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "title": "Medical Product Alert N°2/2025: Falsified HEALMOXY (Amoxicillin) Capsules 500mg",
+    "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+    "source_org": "WHO",
+    "published_at": "2025-04-23",
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO",
+    "link_label": "WHO alert page"
+   },
+   {
+    "id": "rec:nafdac-18658",
+    "title": "Public Alert No. 17/2025 – Alert on Falsified Batches of Healmoxy Capsules 500mg",
+    "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-06-01",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "scan:demo-healmoxy-h02605",
+    "type": "scan",
+    "label": "Healmoxy amoxicillin 500 mg",
+    "relation": "batch on this pack",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "type": "record",
+    "label": "WHO N°2/2025: Falsified HEALMOXY",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "rec:nafdac-18658",
+    "type": "record",
+    "label": "NAFDAC 17/2025: Falsified Healmoxy",
+    "relation": "names this batch",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   }
+  ],
+  "counts": {
+   "records": 2,
+   "regulators": 2,
+   "scans": 1
+  }
+ },
+ "reg:fda": {
+  "id": "reg:fda",
+  "type": "regulator",
+  "title": "U.S. Food and Drug Administration",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "17,963 enforcement records in this index",
+  "badges": [
+   "Public domain"
+  ],
+  "properties": [
+   {
+    "key": "records",
+    "label": "Records indexed",
+    "value": "17,963"
+   },
+   {
+    "key": "formats",
+    "label": "Format",
+    "value": "openFDA enforcement JSON API"
+   },
+   {
+    "key": "index_date",
+    "label": "Index current to",
+    "value": "19 September 2026"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "U.S. Food and Drug Administration (openFDA), public domain"
+   }
+  ],
+  "body": "FDA drug enforcement reports. Each record's source link is an openFDA API query, so it opens as JSON rather than as a web page.",
+  "sources": [
+   {
+    "id": "rec:fda-enf-D-0785-2026",
+    "title": "Class II recall: Levothyroxine Sodium Tablets, USP, 200 mcg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0785-2026%22",
+    "source_org": "FDA",
+    "published_at": "2026-09-02",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   },
+   {
+    "id": "rec:fda-enf-D-0361-2025",
+    "title": "Class II recall: chlorproMAZINE Hydrochloride Tablets, USP 10 mg",
+    "url": "https://api.fda.gov/drug/enforcement.json?search=recall_number:%22D-0361-2025%22",
+    "source_org": "FDA",
+    "published_at": "2025-04-16",
+    "attribution": "U.S. Food and Drug Administration (openFDA), public domain",
+    "link_label": "openFDA record (JSON)"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "rec:fda-enf-D-0785-2026",
+    "type": "record",
+    "label": "Class II recall: Levothyroxine 200 mcg",
+    "relation": "issued by"
+   },
+   {
+    "node_id": "rec:fda-enf-D-0361-2025",
+    "type": "record",
+    "label": "Class II recall: Chlorpromazine 10 mg",
+    "relation": "issued by"
+   }
+  ],
+  "counts": {
+   "records": 17963,
+   "in_your_graph": 2
+  }
+ },
+ "reg:who": {
+  "id": "reg:who",
+  "type": "regulator",
+  "title": "World Health Organization",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "83 medical product alerts in this index",
+  "badges": [
+   "CC BY-NC-SA 3.0 IGO"
+  ],
+  "properties": [
+   {
+    "key": "records",
+    "label": "Records indexed",
+    "value": "83"
+   },
+   {
+    "key": "formats",
+    "label": "Format",
+    "value": "Medical Product Alert web pages"
+   },
+   {
+    "key": "index_date",
+    "label": "Index current to",
+    "value": "19 September 2026"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "World Health Organization, CC BY-NC-SA 3.0 IGO"
+   }
+  ],
+  "body": "WHO Medical Product Alerts about falsified and substandard medicines. Summaries only; each alert links back to who.int.",
+  "sources": [
+   {
+    "id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "title": "Medical Product Alert N°2/2025: Falsified HEALMOXY (Amoxicillin) Capsules 500mg",
+    "url": "https://www.who.int/news/item/23-04-2025-medical-product-alert-n-2-2025--falsified-healmoxy-(amoxicillin)-capsules-500mg",
+    "source_org": "WHO",
+    "published_at": "2025-04-23",
+    "attribution": "World Health Organization, CC BY-NC-SA 3.0 IGO",
+    "link_label": "WHO alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "rec:who-mpa-f2d738e5-8445-45ab-9dc4-10bcb4f0afcd",
+    "type": "record",
+    "label": "WHO N°2/2025: Falsified HEALMOXY",
+    "relation": "issued by"
+   }
+  ],
+  "counts": {
+   "records": 83,
+   "in_your_graph": 1
+  }
+ },
+ "reg:nafdac": {
+  "id": "reg:nafdac",
+  "type": "regulator",
+  "title": "NAFDAC (Nigeria)",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "403 public alerts in this index",
+  "badges": [
+   "Summarised and linked"
+  ],
+  "properties": [
+   {
+    "key": "records",
+    "label": "Records indexed",
+    "value": "403"
+   },
+   {
+    "key": "formats",
+    "label": "Format",
+    "value": "Public alert web pages"
+   },
+   {
+    "key": "index_date",
+    "label": "Index current to",
+    "value": "19 September 2026"
+   },
+   {
+    "key": "attribution",
+    "label": "Source",
+    "value": "NAFDAC Nigeria — summarised and linked"
+   }
+  ],
+  "body": "NAFDAC public alerts. NAFDAC publishes no licence, so Peel stores a short summary and always links back to the notice.",
+  "sources": [
+   {
+    "id": "rec:nafdac-18658",
+    "title": "Public Alert No. 17/2025 – Alert on Falsified Batches of Healmoxy Capsules 500mg",
+    "url": "https://nafdac.gov.ng/public-alert-no-17-2025-alert-on-falsified-batches-of-healmoxy-capsules-500mg-found-in-cameroon-and-central-african-republic-car/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-06-01",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   },
+   {
+    "id": "rec:nafdac-17970",
+    "title": "Public Alert No. 11/2025 – Recall of Various Products by Sun Pharma, Glenmark, and Zydus",
+    "url": "https://nafdac.gov.ng/public-alert-no-11-2025-recall-of-various-products-by-sun-pharma-glenmark-and-zydus-pharmaceuticals-over-manufacturing-issues/",
+    "source_org": "NAFDAC",
+    "published_at": "2025-04-29",
+    "attribution": "NAFDAC Nigeria — summarised and linked",
+    "link_label": "NAFDAC alert page"
+   }
+  ],
+  "backlinks": [
+   {
+    "node_id": "rec:nafdac-18658",
+    "type": "record",
+    "label": "NAFDAC 17/2025: Falsified Healmoxy",
+    "relation": "issued by"
+   },
+   {
+    "node_id": "rec:nafdac-17970",
+    "type": "record",
+    "label": "NAFDAC 11/2025: various product recall",
+    "relation": "issued by"
+   }
+  ],
+  "counts": {
+   "records": 403,
+   "in_your_graph": 2
+  }
+ }
+}

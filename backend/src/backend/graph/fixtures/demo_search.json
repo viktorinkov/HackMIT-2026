@@ -1,0 +1,41 @@
+{
+ "query": "subpotent thyroid tablets",
+ "nodes": [],
+ "links": [],
+ "hits": [
+  {
+   "node_id": "rec:fda-enf-D-0785-2026",
+   "score": 1.0,
+   "highlight": "Subpotent Drug — Levothyroxine Sodium Tablets, USP, 200 mcg"
+  },
+  {
+   "node_id": "topic:subpotent",
+   "score": 0.62,
+   "highlight": "Subpotent: the reason on 1 record in your graph"
+  },
+  {
+   "node_id": "rec:fda-enf-D-0361-2025",
+   "score": 0.31,
+   "highlight": "CGMP deviations: N-Nitroso-Desmethyl Chlorpromazine impurity"
+  }
+ ],
+ "highlight": [
+  "rec:fda-enf-D-0785-2026",
+  "lot:D2402430",
+  "scan:demo-levo-d2402430"
+ ],
+ "meta": {
+  "device_id": "peel-graph-demo",
+  "scans": 6,
+  "generated_at": "2026-09-19T23:30:00Z",
+  "source": "demo",
+  "demo": true,
+  "truncated": false,
+  "index_date": "2026-09-19",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "counts": {
+   "hits": 3,
+   "paths": 1
+  }
+ }
+}
