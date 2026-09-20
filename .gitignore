@@ -39,3 +39,6 @@ Thumbs.db
 
 # Seed corpus cache (raw downloads + normalized JSONL)
 backend/data/
+
+# Local Rive handoff bundle
+/upload to devin/

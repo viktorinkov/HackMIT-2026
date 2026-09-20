@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="364" height="416" viewBox="0 0 364 416">
+  <title>Peel bottle scan — editable Rive source</title>
+  <g id="Bottle">
+    <path id="BottleBody" d="M94 139 L94 132 Q94 125 101 125 L163 125 Q170 125 170 132 L170 139 C170 147 186 151 186 168 L186 279 Q186 295 170 295 L94 295 Q78 295 78 279 L78 168 C78 151 94 147 94 139Z" fill="#FF9F1C" stroke="#2B2118" stroke-width="2.5"/>
+    <path id="BottleDepth" d="M174 154 Q185 159 185 169 L185 279 Q185 294 170 294 L157 294 Q173 290 173 277 L173 168 Q173 160 174 154Z" fill="#B94700"/>
+    <path id="BottleHighlight" d="M90 169 Q90 159 100 155" fill="none" stroke="#FFF0D9" stroke-width="5" stroke-linecap="round"/>
+    <rect id="BottleLabel" x="79" y="183" width="106" height="76" rx="5" fill="#FFFCF7" stroke="#2B2118" stroke-width="2.5"/>
+    <path id="LabelLine1" d="M95 202 H148" fill="none" stroke="#2B2118" stroke-width="5" stroke-linecap="round"/>
+    <path id="LabelLine2" d="M95 219 H160" fill="none" stroke="#2B2118" stroke-width="4" stroke-linecap="round"/>
+    <path id="LabelLine3" d="M95 236 H137" fill="none" stroke="#2B2118" stroke-width="4" stroke-linecap="round"/>
+    <g id="BottleCap">
+      <rect id="Cap" x="85" y="113" width="94" height="30" rx="8" fill="#FFFCF7" stroke="#2B2118" stroke-width="2.5"/>
+      <path id="CapGrips" d="M99 122 V134 M113 122 V134 M127 122 V134 M141 122 V134 M155 122 V134 M168 122 V134" fill="none" stroke="#66584C" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+  </g>
+  <g id="Phone" transform="translate(207 147)">
+    <g id="PhoneTilt" transform="rotate(7 45 80)">
+      <rect id="PhoneBody" x="0" y="0" width="90" height="160" rx="17" fill="#2B2118" stroke="#2B2118" stroke-width="2.5"/>
+      <rect id="PhoneScreen" x="7" y="8" width="76" height="144" rx="11" fill="#FFFFFF"/>
+      <rect id="PhoneCamera" x="31" y="13" width="28" height="5" rx="2.5" fill="#2B2118"/>
+      <g id="PreviewBottle">
+        <path id="PreviewBody" d="M32 59 V52 H58 V59 Q65 65 65 72 V114 Q65 119 60 119 H30 Q25 119 25 114 V72 Q25 65 32 59Z" fill="#FF9F1C" stroke="#2B2118" stroke-width="2"/>
+        <rect id="PreviewCap" x="29" y="47" width="32" height="12" rx="3" fill="#FFFCF7" stroke="#2B2118" stroke-width="2"/>
+        <rect id="PreviewLabel" x="26" y="78" width="38" height="28" rx="2" fill="#FFFCF7" stroke="#2B2118" stroke-width="1.5"/>
+        <path id="PreviewLabelMarks" d="M33 86 H52 M33 92 H57 M33 99 H47" fill="none" stroke="#2B2118" stroke-width="2" stroke-linecap="round"/>
+      </g>
+      <g id="CameraBrackets">
+        <path id="BracketTL" d="M27 38 H18 V49" fill="none" stroke="#276B65" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="BracketTR" d="M63 38 H72 V49" fill="none" stroke="#276B65" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="BracketBL" d="M18 118 V129 H27" fill="none" stroke="#276B65" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path id="BracketBR" d="M63 129 H72 V118" fill="none" stroke="#276B65" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <g id="ScanLine">
+        <path id="ScanStroke" d="M29 81 H61" fill="none" stroke="#276B65" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+      <rect id="HomeIndicator" x="34" y="141" width="22" height="3" rx="1.5" fill="#66584C"/>
+    </g>
+  </g>
+</svg>
