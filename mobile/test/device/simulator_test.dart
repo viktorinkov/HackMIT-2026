@@ -5,9 +5,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/faults.dart';
-import 'package:peel_app/session.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/device/faults.dart';
+import 'package:peel_mobile/device/session.dart';
+import 'package:peel_mobile/device/signals.dart';
 
 /// The whole stack against a board that is not there: `sim/fake_board.py` over TCP, the
 /// real [TcpLink], the real parser, the real fault engine.
@@ -24,7 +24,7 @@ class Sim {
   static Future<Sim> start(List<String> args, {bool control = false}) async {
     final process = await Process.start(
       'python3',
-      ['../sim/fake_board.py', '--tcp', '0', if (control) ...['--control', '0'], ...args],
+      ['../hardware/sim/fake_board.py', '--tcp', '0', if (control) ...['--control', '0'], ...args],
       workingDirectory: Directory.current.path,
     );
     final banner = process.stdout
@@ -122,8 +122,6 @@ void main() {
     await session.send('s');
     await waitFor(() => session.latest?.running == false ? true : null);
 
-    await session.send('a');
-    await waitFor(() => session.autoZero == false ? true : null);
 
     await session.send('d');
     final diag = await waitFor(() => session.diag);
@@ -162,6 +160,11 @@ void main() {
   ]) {
     test('${spec[1]} is recognised from the stream', () async {
       await connect(['--speed', '10', '--fault', spec[0]]);
+      // Radio failures accumulate after boot; request a fresh idle diagnostic.
+      if (spec[1] == 'RADIO_DOWN') {
+        await waitFor(() => session.history.samples.length >= 6 ? true : null);
+        await session.send('d');
+      }
       final fault = await waitForFault(session, spec[1]);
       expect(fault.evidence['threshold'], isNotNull);
       expect(fault.message, isNotEmpty);
@@ -221,7 +224,7 @@ void main() {
   });
 
   test('replaying the real capture produces the same readings the rig did', () async {
-    await connect(['--replay', '../data/session_full_cycle.jsonl', '--speed', '20']);
+    await connect(['--replay', '../hardware/data/session_full_cycle.jsonl', '--speed', '20']);
     await waitFor(() => session.history.samples.length >= 20 ? true : null);
     final first = session.history.samples.first.reading;
     expect(first.transMv, greaterThan(0));

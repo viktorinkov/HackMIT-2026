@@ -5,10 +5,12 @@ on:
   push:
     paths:
       - 'hardware/**'
+      - 'mobile/**'
       - '.github/workflows/hardware.yml'
   pull_request:
     paths:
       - 'hardware/**'
+      - 'mobile/**'
       - '.github/workflows/hardware.yml'
 
 jobs:
@@ -35,27 +37,27 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.5
           cache: true
       - name: pub get
-        working-directory: hardware/peel_app
+        working-directory: mobile
         run: flutter pub get
       - name: analyze
-        working-directory: hardware/peel_app
+        working-directory: mobile
         run: flutter analyze
       - name: test
-        working-directory: hardware/peel_app
+        working-directory: mobile
         run: flutter test
       - name: build apk
-        working-directory: hardware/peel_app
+        working-directory: mobile
         run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
           name: peel-app-debug-apk
-          path: hardware/peel_app/build/app/outputs/flutter-apk/app-debug.apk
+          path: mobile/build/app/outputs/flutter-apk/app-debug.apk
 
   firmware:
     name: firmware

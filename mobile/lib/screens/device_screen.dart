@@ -4,16 +4,17 @@ import 'package:flutter/material.dart';
 
 import '../rive/peel_rive_stage.dart';
 import '../rive/peel_rive_widgets.dart';
-import '../state/scan_session.dart';
+import '../main.dart' show deviceRun;
+import '../device/device_run.dart';
+import '../device/debug_screen.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
 import '../widgets/scan_steps.dart';
+import '../state/scan_session.dart' show ScanStep;
 import 'results_screen.dart';
 
-enum DevicePhase { connecting, connected, checking, complete }
-
-/// Device connect + pill check. The device link and the readings are mocked.
+/// Device connect + pill check, driven by the instrument.
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
 
@@ -22,87 +23,111 @@ class DeviceScreen extends StatefulWidget {
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  DevicePhase _phase = DevicePhase.connecting;
+  DevicePhase get _phase => deviceRun.phase;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _schedule(const Duration(seconds: 2), DevicePhase.connected);
+    deviceRun.addListener(_changed);
+    if (!deviceRun.session.connected) deviceRun.session.connectUsb();
+    _changed();
+  }
+
+  void _changed() {
+    if (!mounted) return;
+    setState(() {});
+    if (_phase != DevicePhase.complete) {
+      _timer?.cancel();
+      _timer = null;
+    } else {
+      _timer ??= Timer(const Duration(milliseconds: 1600), () {
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => const ResultsScreen(),
+            settings: const RouteSettings(name: 'results'),
+          ),
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
+    deviceRun.removeListener(_changed);
     _timer?.cancel();
     super.dispose();
   }
 
-  void _schedule(Duration delay, DevicePhase next) {
-    _timer?.cancel();
-    _timer = Timer(delay, () {
-      if (!mounted) return;
-      setState(() => _phase = next);
-      if (next == DevicePhase.complete) {
-        _timer = Timer(const Duration(milliseconds: 1600), () {
-          if (!mounted) return;
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute<void>(
-              builder: (_) => const ResultsScreen(),
-              settings: const RouteSettings(name: 'results'),
-            ),
-          );
-        });
-      }
-    });
-  }
-
-  void _startCheck() {
-    setState(() => _phase = DevicePhase.checking);
-    _schedule(const Duration(milliseconds: 2400), DevicePhase.complete);
-  }
-
   PeelStage get _stage => switch (_phase) {
-        DevicePhase.connecting => PeelStage.deviceConnect,
-        DevicePhase.connected => PeelStage.pillSubmerged,
-        DevicePhase.checking => PeelStage.checking,
-        DevicePhase.complete => PeelStage.complete,
-      };
+    DevicePhase.connecting => PeelStage.deviceConnect,
+    DevicePhase.connected ||
+    DevicePhase.temperature ||
+    DevicePhase.ready => PeelStage.pillSubmerged,
+    DevicePhase.checking => PeelStage.checking,
+    DevicePhase.complete => PeelStage.complete,
+  };
 
-  ({String title, String body, String placeholder}) get _copy =>
-      switch (_phase) {
-        DevicePhase.connecting => (
-            title: 'Check pill',
-            body: 'Looking for the Peel device nearby.',
-            placeholder: 'Device blinks while the phone looks for it',
-          ),
-        DevicePhase.connected => (
-            title: 'Check pill',
-            body: 'Connected. Put the pill in and close it.',
-            placeholder: 'Pill drops into the open device tray',
-          ),
-        DevicePhase.checking => (
-            title: 'Checking pill',
-            body: 'Reading the pill. This takes a few seconds.',
-            placeholder: 'Light sweeps over the pill inside the device',
-          ),
-        DevicePhase.complete => (
-            title: 'Scan complete',
-            body: 'All three steps done. Opening results.',
-            placeholder: 'Orange closes around the pill',
-          ),
-      };
+  ({String title, String body, String placeholder})
+  get _copy => switch (_phase) {
+    DevicePhase.connecting => (
+      title: 'Check pill',
+      body:
+          deviceRun.session.error ??
+          'Connect Peel with a USB cable. Waiting for readings.',
+      placeholder: 'Device blinks while the phone looks for it',
+    ),
+    DevicePhase.connected => (
+      title: 'Check pill',
+      body: 'Fill with clear water and close the lid.',
+      placeholder: 'Pill drops into the open device tray',
+    ),
+    DevicePhase.temperature => (
+      title: 'Water temperature',
+      body:
+          'Water is too ${deviceRun.temperature! < 35.5 ? 'cold' : 'hot'} (${deviceRun.temperature} °C). Aim for 37 °C.',
+      placeholder: 'Water temperature',
+    ),
+    DevicePhase.ready => (
+      title: 'Check pill',
+      body: deviceRun.temperature == null
+          ? 'Probe not connected. Drop the pill in; you can still run.'
+          : 'Ready. Drop the pill in and close it.',
+      placeholder: 'Pill drops into the open device tray',
+    ),
+    DevicePhase.checking => (
+      title: 'Checking pill',
+      body:
+          'Reading the pill: ${deviceRun.session.latest?.t} s. Stirrer ${deviceRun.session.latest?.stirPct}%.',
+      placeholder: 'Light sweeps over the pill inside the device',
+    ),
+    DevicePhase.complete => (
+      title: 'Scan complete',
+      body: 'All three steps done. Opening results.',
+      placeholder: 'Orange closes around the pill',
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
     final copy = _copy;
-    final busy =
-        _phase == DevicePhase.connecting || _phase == DevicePhase.checking;
 
     return PeelScaffold(
       fill: true,
       padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
       content: [
-        PeelStageHeader(title: copy.title),
+        GestureDetector(
+          onLongPress: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Theme(
+                data: ThemeData(),
+                child: DebugScreen(session: deviceRun.session),
+              ),
+            ),
+          ),
+          child: PeelStageHeader(title: copy.title),
+        ),
         PeelRiveSlot(stage: _stage),
         const SizedBox(height: PeelSpace.x16),
         const ScanSteps(current: ScanStep.pill),
@@ -111,7 +136,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
           child: Text(
             copy.body,
             style: PeelText.body,
-            maxLines: 1,
+            maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -120,11 +145,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
         if (_phase != DevicePhase.complete)
           PeelButton(
             label: switch (_phase) {
-              DevicePhase.connecting => 'Connecting…',
-              DevicePhase.connected => 'Check pill',
-              _ => 'Checking…',
+              DevicePhase.connecting => 'Retry connection',
+              DevicePhase.connected => 'Water ready',
+              DevicePhase.temperature => 'Start anyway',
+              DevicePhase.ready => 'Check pill',
+              _ => 'Stop',
             },
-            onPressed: busy ? null : _startCheck,
+            onPressed: deviceRun.act,
           ),
         if (_phase != DevicePhase.complete)
           PeelButton(

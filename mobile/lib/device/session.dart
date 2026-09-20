@@ -54,8 +54,12 @@ class Session extends ChangeNotifier {
   bool get connected => state == LinkState.connected;
   int get lineCount => _lineCount;
 
-  /// 17_stream boots with auto t=0 on and announces every change.
-  bool autoZero = true;
+  /// Unknown unless explicitly announced by the firmware.
+  bool? autoZero;
+
+  bool _initialDiagSent = false;
+  bool _startPending = false;
+  int resetCount = 0;
 
   // ------------------------------------------------------------------ streams
   final _readings = StreamController<Reading>.broadcast();
@@ -77,7 +81,6 @@ class Session extends ChangeNotifier {
   StreamSubscription<UsbEvent>? _usbSub;
   Timer? _clock;
   Timer? _diagClock;
-  Timer? _firstDiag;
   bool _disposed = false;
   int _lineCount = 0;
 
@@ -109,8 +112,10 @@ class Session extends ChangeNotifier {
     try {
       final device = UsbLink.pick(await UsbLink.devices());
       if (device == null) {
-        throw StateError('No board found. Plug the XIAO into the phone with a USB-C cable '
-            'that carries data, and allow the permission dialog.');
+        throw StateError(
+          'No board found. Plug the XIAO into the phone with a USB-C cable '
+          'that carries data, and allow the permission dialog.',
+        );
       }
       // Opening the port is what triggers Android's permission dialog; if the user says no,
       // open() returns false and UsbLink throws with that explanation.
@@ -148,28 +153,32 @@ class Session extends ChangeNotifier {
     deviceLabel = link.label;
     state = LinkState.connected;
     _lineCount = 0;
-    autoZero = true;
+    autoZero = null;
+    _initialDiagSent = false;
+    _startPending = false;
     history.clear();
     history.connectedAt = DateTime.now();
     faults = const [];
     if (logging) {
       log = null;
-      _openLog().then((opened) {
-        // The file opens in its own time, and the connection it was for may be gone by
-        // then: hung up, or replaced by one with a log of its own on the way. Nothing
-        // would ever close this one, so it is closed here instead of adopted.
-        if (_disposed || !identical(_link, link)) {
-          unawaited(opened.close());
-          return;
-        }
-        log = opened;
-        opened.event('connected', {'device': link.label}, DateTime.now());
-        notifyListeners();
-      }).catchError((Object e) {
-        // A log we cannot write is not a reason to lose the run.
-        error = 'Session log unavailable: $e';
-        return null;
-      });
+      _openLog()
+          .then((opened) {
+            // The file opens in its own time, and the connection it was for may be gone by
+            // then: hung up, or replaced by one with a log of its own on the way. Nothing
+            // would ever close this one, so it is closed here instead of adopted.
+            if (_disposed || !identical(_link, link)) {
+              unawaited(opened.close());
+              return;
+            }
+            log = opened;
+            opened.event('connected', {'device': link.label}, DateTime.now());
+            notifyListeners();
+          })
+          .catchError((Object e) {
+            // A log we cannot write is not a reason to lose the run.
+            error = 'Session log unavailable: $e';
+            return null;
+          });
     }
     _lineSub = link.lines.listen(
       _onLine,
@@ -187,6 +196,8 @@ class Session extends ChangeNotifier {
 
   Future<void> _close({required bool deliberate}) async {
     _stopDiag();
+    state = LinkState.idle;
+    notifyListeners();
     await _lineSub?.cancel();
     _lineSub = null;
     final link = _link;
@@ -222,8 +233,15 @@ class Session extends ChangeNotifier {
 
   /// b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer, d diagnostics.
   Future<void> send(String command) async {
+    // Automatic tablet detection is unreliable on the demo instrument.
+    if (command.contains('a')) return;
+    if (command.contains('d') &&
+        (latest == null || latest!.running || _startPending)) {
+      return;
+    }
     final link = _link;
     if (link == null) return;
+    if (command == 'z') _startPending = true;
     log?.event('command', {'command': command}, DateTime.now());
     try {
       await link.send(command);
@@ -245,10 +263,21 @@ class Session extends ChangeNotifier {
 
     switch (parsed) {
       case DataLine(:final reading):
+        if (reading.running) _startPending = false;
+        if (!_initialDiagSent && !reading.running) {
+          _initialDiagSent = true;
+          unawaited(send('d'));
+        }
         if (!_readings.isClosed) _readings.add(reading);
       case NoteLine(:final text):
         if (text.startsWith('auto t=0')) autoZero = text.endsWith('on');
-        if (text.startsWith('17_stream ready')) autoZero = true;
+        if (text.startsWith('17_stream ready')) {
+          resetCount++;
+          history.samples.clear();
+          history.diag = null;
+          autoZero = null;
+          _startPending = false;
+        }
       case DiagLine():
       case UnknownLine():
         break;
@@ -256,18 +285,16 @@ class Session extends ChangeNotifier {
     _refresh(at);
   }
 
-  /// The board streams into the void whether anyone is listening or not, so the phone
-  /// almost always misses the boot diagnostics. Ask for a fresh set on connect, and again
-  /// every [diagEvery]: that is what keeps the LED, probe and radio faults current.
+  /// Probe once after an idle data line confirms that it is safe. Only firmware
+  /// that actually returns structured diagnostics is polled again, and only idle.
   void _startDiag() {
     _stopDiag();
-    _firstDiag = Timer(const Duration(milliseconds: 300), () => send('d'));
-    _diagClock = Timer.periodic(diagEvery, (_) => send('d'));
+    _diagClock = Timer.periodic(diagEvery, (_) {
+      if (diag != null) unawaited(send('d'));
+    });
   }
 
   void _stopDiag() {
-    _firstDiag?.cancel();
-    _firstDiag = null;
     _diagClock?.cancel();
     _diagClock = null;
   }
@@ -284,7 +311,8 @@ class Session extends ChangeNotifier {
     final next = evaluate(history, now);
     final before = {for (final f in faults) f.id: f};
     final after = {for (final f in next) f.id: f};
-    final changed = before.length != after.length ||
+    final changed =
+        before.length != after.length ||
         !before.keys.every(after.containsKey) ||
         !next.every((f) => before[f.id]?.message == f.message);
     faults = next;
@@ -307,6 +335,7 @@ class Session extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     _clock?.cancel();
     _stopDiag();

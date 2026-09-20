@@ -3,7 +3,7 @@ import 'package:peel_mobile/main.dart';
 
 void main() {
   testWidgets('onboarding leads into the bottle scan', (tester) async {
-    await tester.pumpWidget(const PeelApp());
+    await tester.pumpWidget(const PeelApp(animations: false));
 
     expect(find.text('Peel'), findsOneWidget);
 

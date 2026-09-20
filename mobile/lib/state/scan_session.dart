@@ -3,11 +3,23 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../data/mock_data.dart';
+import '../device/signals.dart';
+export '../main.dart' show scanSession;
 
 export '../data/mock_data.dart' show ScanStep;
 
 /// Single in-memory session shared by the demo screens.
 class ScanSession extends ChangeNotifier {
+  int generation = 0;
+  List<Reading> runReadings = const [];
+  String? runLogPath;
+
+  void finishRun(List<Reading> readings, String? logPath) {
+    runReadings = List.unmodifiable(readings);
+    runLogPath = logPath;
+    notifyListeners();
+  }
+
   File? bottlePhoto;
   File? imprintPhoto;
   File? pillPhoto;
@@ -35,10 +47,10 @@ class ScanSession extends ChangeNotifier {
   }
 
   File? photoFor(ScanStep step) => switch (step) {
-        ScanStep.bottle => bottlePhoto,
-        ScanStep.imprint => imprintPhoto,
-        ScanStep.pill => pillPhoto,
-      };
+    ScanStep.bottle => bottlePhoto,
+    ScanStep.imprint => imprintPhoto,
+    ScanStep.pill => pillPhoto,
+  };
 
   void cycleResult() {
     result = MockBackend.next(result);
@@ -65,6 +77,9 @@ class ScanSession extends ChangeNotifier {
   }
 
   void reset() {
+    generation++;
+    runReadings = const [];
+    runLogPath = null;
     bottlePhoto = null;
     imprintPhoto = null;
     pillPhoto = null;
@@ -72,6 +87,3 @@ class ScanSession extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-/// The demo runs against one session instance.
-final scanSession = ScanSession();

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/lines.dart';
+import 'package:peel_mobile/device/lines.dart';
 
 Uint8List bytes(String s) => Uint8List.fromList(latin1.encode(s));
 

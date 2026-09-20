@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/debug_screen.dart';
-import 'package:peel_app/link.dart';
-import 'package:peel_app/session.dart';
+import 'package:peel_mobile/device/debug_screen.dart';
+import 'package:peel_mobile/device/link.dart';
+import 'package:peel_mobile/device/session.dart';
 
 class FakeLink implements Link {
   @override

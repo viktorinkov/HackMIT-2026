@@ -103,7 +103,6 @@ class _DebugScreenState extends State<DebugScreen> {
         for (final entry in const {
           'b': 'blank',
           'z': 't=0',
-          'a': 'auto t=0',
           's': 'stop',
           'm': 'stirrer',
           'd': 'diagnostics',
@@ -159,7 +158,7 @@ class _DebugScreenState extends State<DebugScreen> {
       );
 
   Widget _diag(Diag? d) {
-    if (d == null) return const Text('no diagnostics yet: press d');
+    if (d == null) return const Text('No structured diagnostics reported by this firmware.');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

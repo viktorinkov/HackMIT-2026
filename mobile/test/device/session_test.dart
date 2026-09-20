@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/link.dart';
-import 'package:peel_app/session.dart';
-import 'package:peel_app/session_log.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/device/link.dart';
+import 'package:peel_mobile/device/session.dart';
+import 'package:peel_mobile/device/session_log.dart';
+import 'package:peel_mobile/device/signals.dart';
 
 /// A board under the test's control: no USB, no sockets.
 class FakeLink implements Link {
@@ -72,15 +72,16 @@ void main() {
     expect(notified, greaterThan(0));
   });
 
-  test('it asks the board for diagnostics on connect and does not stop asking', () async {
+  test('it asks the board for diagnostics after the first idle reading', () async {
     await session.connectTo(link);
+    link.say('{"t":-1,"trans":186,"scat":80}');
     await settle(400);
     expect(link.sent, ['d']);
   });
 
   test('# notes track the auto t=0 state the board reports', () async {
     await session.connectTo(link);
-    expect(session.autoZero, isTrue);
+    expect(session.autoZero, isNull);
     link.say('# auto t=0 off');
     await settle();
     expect(session.autoZero, isFalse);
@@ -127,10 +128,10 @@ void main() {
     await session.send('b');
     expect(link.sent, isEmpty);
     await session.connectTo(link);
-    for (final c in ['b', 'z', 'a', 's', 'm', 'd']) {
+    for (final c in ['b', 'z', 's', 'm']) {
       await session.send(c);
     }
-    expect(link.sent, containsAllInOrder(['b', 'z', 'a', 's', 'm', 'd']));
+    expect(link.sent, containsAllInOrder(['b', 'z', 's', 'm']));
   });
 
   test('STREAM_STALE arrives on the clock, with no line to trigger it', () async {
