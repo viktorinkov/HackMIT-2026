@@ -78,9 +78,9 @@ class ScanStore:
             doc[Scan.HARDWARE] = hardware_doc(payload.hardware, payload.hardware_model)
         # Refuse the scan rather than accept one we cannot persist.
         with _api_errors("could not store the scan", status_code=503):
-            await self._es.index(
-                index=SCANS_INDEX, id=scan_id, document=doc, refresh="wait_for"
-            )
+            # No refresh wait: on Serverless it costs 3-5 s per write, and the app reads
+            # scans with a realtime GET. Only the history list can lag by a few seconds.
+            await self._es.index(index=SCANS_INDEX, id=scan_id, document=doc, refresh=False)
         return doc
 
     async def get(self, scan_id: str) -> dict[str, Any] | None:
@@ -120,7 +120,8 @@ class ScanStore:
                 index=SCANS_INDEX,
                 id=scan_id,
                 script={"source": _UPDATE_SCRIPT, "params": params},
-                refresh="wait_for",
+                # See create(): eight waited writes per scan added ~28 s to every run.
+                refresh=False,
                 source=True,
             )
         except NotFoundError as exc:
