@@ -1,9 +1,10 @@
 /// Every number the fault engine compares against, in one place.
 ///
-/// Each one names the measurement in `hardware/docs/BASELINES.md` (or the firmware
-/// behaviour in `hardware/docs/FAULTS.md`) it comes from. Nothing here is invented, and
-/// nothing here is fitted to a run: if a threshold has to move, the measurement behind it
-/// is the argument for moving it.
+/// Each one names the measurement in `BASELINES.md` (or the firmware behaviour in
+/// `FAULTS.md`) it comes from; both are kept off main, in `hardware/docs/` on the
+/// `hardware-component` branch. Nothing here is invented, and nothing here is fitted to a
+/// run: if a threshold has to move, the measurement behind it is the argument for moving
+/// it.
 class Thresholds {
   const Thresholds._();
 

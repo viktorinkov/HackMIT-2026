@@ -12,7 +12,7 @@
 //   D10 scatter          9          A i4
 //   D7 motor PWM         44         A j7 -> B a14
 //
-//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:XIAO_ESP32S3 sketches/18_selftest
+//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:XIAO_ESP32S3 firmware/18_selftest
 
 #include <OneWire.h>
 #include <DallasTemperature.h>

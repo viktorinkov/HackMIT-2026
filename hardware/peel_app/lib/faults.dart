@@ -6,8 +6,9 @@ import 'thresholds.dart';
 /// Pure functions from what the board has said to what is wrong with it.
 ///
 /// Nothing in here touches a port, a file or a clock: [evaluate] is given the history and
-/// the current time and returns the list of active faults. Every id comes from
-/// `hardware/docs/FAULTS.md` and every number from [Thresholds].
+/// the current time and returns the list of active faults. Every id comes from `FAULTS.md`
+/// (kept off main, in `hardware/docs/` on the `hardware-component` branch) and every
+/// number from [Thresholds].
 
 enum Severity {
   /// Worth showing, not wrong: a swept line, for instance.
@@ -23,7 +24,7 @@ enum Severity {
 class Fault {
   const Fault(this.id, this.severity, this.message, this.evidence);
 
-  /// The stable id from `docs/FAULTS.md`, for example `MOTOR_COUPLING`.
+  /// The stable id from `FAULTS.md`, for example `MOTOR_COUPLING`.
   final String id;
   final Severity severity;
 

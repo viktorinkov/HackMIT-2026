@@ -15,6 +15,10 @@ tools/                   Desktop serial clients: peel_monitor.py, capture.py, fl
 data/                    Real captures from this hardware.
 ```
 
+The reference docs the code comments name (`PROTOCOL.md`, `SIGNALS.md`, `FAULTS.md`,
+`BASELINES.md`, `PLUG_IN_DAY.md`) are kept off main: they are in `hardware/docs/` on the
+`hardware-component` branch.
+
 ## Flash the board
 
 ```bash

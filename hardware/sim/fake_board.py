@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A XIAO running 17_stream, in software, that can be broken on purpose.
 
-Speaks the protocol in ../docs/PROTOCOL.md byte for byte: the same field names and rounding,
+Speaks the protocol in PROTOCOL.md byte for byte: the same field names and rounding,
 `null` where the firmware prints null, `#` notes, `\\r\\n` on the lines the firmware sends with
 `println` and `\\n` on the ones it sends with `printf`, the same one-letter commands and the
 same boot banner. `tools/peel_monitor.py` runs against it unchanged.
@@ -12,7 +12,7 @@ Serve it over TCP, over a pty, or write it to a file:
     python3 fake_board.py --pty                       # prints the slave device path
     python3 fake_board.py --stdout --for 20 --speed 50
 
-Break it on purpose, with the ids from ../docs/FAULTS.md:
+Break it on purpose, with the ids from FAULTS.md:
 
     python3 fake_board.py --tcp 9999 --fault MOTOR_COUPLING:dc
     python3 fake_board.py --tcp 9999 --fault LED_OPEN:blue --fault-at 5
@@ -21,6 +21,9 @@ Break it on purpose, with the ids from ../docs/FAULTS.md:
 Or replay a real capture with its real timing:
 
     python3 fake_board.py --tcp 9999 --replay ../data/session_full_cycle.jsonl
+
+The docs named here (PROTOCOL.md, FAULTS.md, BASELINES.md) are kept off main, in
+hardware/docs/ on the hardware-component branch.
 
 Standard library only, Python 3.10+.
 """
@@ -41,7 +44,7 @@ import time
 # ---------------------------------------------------------------- what the board is made of
 #
 # Healthy numbers are an instrument in its enclosure: an optical path exists, the probe is
-# quiet, the sweep is positive. Fault numbers come from ../docs/BASELINES.md and are named
+# quiet, the sweep is positive. Fault numbers come from BASELINES.md and are named
 # where they are used. Nothing here is fitted to anything; it is the shape of the signal.
 
 CLEAR_T = 2460.0  # resting transmission with clear water, mV

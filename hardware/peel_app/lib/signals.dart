@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 /// Every signal the instrument puts on the wire, and the parser that turns one serial line
-/// into one of them. See `hardware/docs/PROTOCOL.md` and `hardware/docs/SIGNALS.md`.
+/// into one of them. See `PROTOCOL.md` and `SIGNALS.md`: the docs named in this app are
+/// kept off main, in `hardware/docs/` on the `hardware-component` branch.
 ///
 /// Nothing here corrects, smooths or scales a reading. A value is either what the board said
 /// or null.
@@ -118,7 +119,7 @@ class Diag {
   final double? darkScatMv;
 
   /// Forward-drop node voltage per LED, from the MCU's own ADC. Healthy is
-  /// IR < red < yellow < green < blue < violet; see `docs/BASELINES.md`.
+  /// IR < red < yellow < green < blue < violet; see `BASELINES.md`.
   final Map<String, double> diodeMv;
 
   /// Spread of consecutive 100 ms means on a still sensor, peak to peak.

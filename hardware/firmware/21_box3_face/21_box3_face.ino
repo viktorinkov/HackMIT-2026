@@ -3,7 +3,7 @@
 // Vector-style eyes, pill shaped, orange on black, driven by what the instrument is actually
 // doing. The phone stays the readout; this screen is the character and the control.
 //
-//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box sketches/21_box3_face
+//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box firmware/21_box3_face
 //
 // Mute button (left side, above the USB-C):
 //   linked   : tap = stirrer on/off, hold 1.2 s = start a run
@@ -42,7 +42,7 @@ Arduino_GFX *panel = new Arduino_ILI9342(bus, GFX_NOT_DEFINED /* RST: see above 
 Arduino_GFX *gfx = nullptr;          // canvas if PSRAM allows it, else the panel itself
 bool buffered = false;
 
-// ---- the radio packet, identical in sketches/17_stream ----------------------------------
+// ---- the radio packet, identical in firmware/17_stream ----------------------------------
 #define NOW_CHANNEL 1
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 volatile bool havePacket = false;

@@ -5,7 +5,7 @@
 //
 // The phone stays the readout. This screen is for feedback and for launching a run.
 //
-//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box sketches/19_box3_link
+//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box firmware/19_box3_link
 //
 // Commands it can send, the same alphabet the USB serial uses:
 //   b take a blank    z mark t=0 (this is what Start will send)    s stop
@@ -15,7 +15,7 @@
 #include <esp_now.h>
 #include <esp_wifi.h>
 
-// ---- the radio packet, identical in sketches/17_stream ----------------------------------
+// ---- the radio packet, identical in firmware/17_stream ----------------------------------
 #define NOW_CHANNEL 1
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 struct __attribute__((packed)) PeelPacket {

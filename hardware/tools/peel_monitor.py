@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live dashboard for the Peel rig. Reads the JSON stream from sketches/17_stream.
+"""Live dashboard for the Peel rig. Reads the JSON stream from firmware/17_stream.
 
     python3 tools/peel_monitor.py [/dev/cu.usbmodemNNNN]
 

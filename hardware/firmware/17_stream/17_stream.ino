@@ -51,7 +51,7 @@ const int FAST_LED = 3;                 // green: brightest on this rig, so best
 const int PACKET_LEDS[4] = { 1, 2, 3, 4 };   // red, yellow, green, blue
 const int TEMP_PIN = 7;                 // [XIAO D8]
 #ifdef ARDUINO_XIAO_ESP32S3
-const int MOTOR    = 44;                // [XIAO D7] stirrer. 5V bus, see PEEL_BUILD_PLAN.txt
+const int MOTOR    = 44;                // [XIAO D7] stirrer, on the 5V bus
 #else
 const int MOTOR    = 14;                // DevKitC: on the J1 header with every other pin this sketch
 #endif                                  // uses. Plugged into a breadboard, the DevKitC's J3 header is buried.
@@ -60,7 +60,7 @@ const int   SAMPLES        = 24;        // averaged per reported value
 const int   SETTLE_MS      = 12;        // TEMT6000 is microseconds fast; 12 ms is generous
 const unsigned long REPORT_MS      = 1000;
 
-// ---- the radio packet, identical in sketches/19_box3_link -------------------------------
+// ---- the radio packet, identical in firmware/19_box3_link -------------------------------
 #define NOW_CHANNEL 1
 static const uint8_t BCAST[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 struct __attribute__((packed)) PeelPacket {
@@ -160,7 +160,8 @@ void doSweep() {
 
 // Each LED pin is an ADC1 channel. Released to the weak internal pull-up, the node settles
 // at that LED's own forward drop: ~3300 mV means nothing is in the holes, and a few tens of
-// mV means it is in backwards or shorted. Measured drops are in docs/BASELINES.md.
+// mV means it is in backwards or shorted. Measured drops are in BASELINES.md
+// (hardware/docs/ on the hardware-component branch).
 long diodeMv(int pin) {
   pinMode(pin, INPUT_PULLUP);
   delay(60);

@@ -32,7 +32,8 @@ class SessionLog {
 
   /// Opens `peel-<timestamp>.jsonl` in [directory], creating it if needed. On Android
   /// [Directory.systemTemp] is the app's own cache directory, which `adb pull` can reach
-  /// without any storage permission; see `hardware/docs/PLUG_IN_DAY.md`.
+  /// without any storage permission; see `PLUG_IN_DAY.md`, in `hardware/docs/` on the
+  /// `hardware-component` branch.
   static Future<SessionLog> open({Directory? directory, DateTime? now}) async {
     final at = now ?? DateTime.now();
     final dir = directory ?? Directory('${Directory.systemTemp.path}/peel');

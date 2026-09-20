@@ -6,7 +6,7 @@
 //
 // Serial says which config is on screen, counting down, so you can call out which one darkened.
 //
-//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box sketches/22_box3_probe
+//   arduino-cli compile --upload -p <port> --fqbn esp32:esp32:esp32s3box firmware/22_box3_probe
 
 #include <Arduino_GFX_Library.h>
 
