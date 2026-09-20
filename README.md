@@ -6,7 +6,7 @@
 
 ## Check the bottle, the imprint, and the pill — then read the evidence.
 
-Peel is an open-source medicine check for places where a tablet and its packaging may not match. Photograph the **bottle**, read the **imprint**, measure the **pill**. The backend turns those three observations into a sourced report against a regulatory corpus, live web evidence, and (when present) a hardware reading.
+Peel is an open-source medicine check for places where a tablet and its packaging may not match. It is two things: a low-cost **instrument** that plugs into an Android phone and watches a tablet dissolve through light, and a **backend** that looks up what the phone saw. Photograph the **bottle**, read the **imprint**, measure the **pill**. Those three observations become a sourced report against a regulatory corpus, live web evidence, and the instrument's reading.
 
 [![Hardware CI](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml/badge.svg)](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
@@ -28,6 +28,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 ## Table of contents
 
 - [Why Peel exists](#why-peel-exists)
+- [The instrument](#the-instrument)
 - [Architecture](#architecture)
 - [Backend](#backend)
 - [Getting started](#getting-started)
@@ -46,9 +47,72 @@ Peel keeps three observations separate, then looks them up:
 | --- | --- |
 | **Bottle** | GPT-4o vision reads a photo of the container (name, strength, NDC, lot, manufacturer). |
 | **Imprint** | GPT-4o vision reads a photo of the tablet (characters, color, shape). |
-| **Pill** | A phone-attached instrument measures the physical tablet. The API still mocks this (`POST /pill` → `mock-spectrometry`). |
+| **Pill** | The Peel instrument dissolves the tablet in a stirred vial and measures it with six LEDs and two light sensors, once a second. A classification layer turns the run into a verdict on the tablet. |
 
-The rest of this README is the system that sits behind those three inputs.
+A copied label and a faked imprint both pass a photo. Neither changes how much active ingredient comes out of the tablet, which is what the instrument reads.
+
+## The instrument
+
+A tablet goes into a vial of water on a magnetic stirrer. LEDs shine through the vial, and the instrument records how the light changes as the tablet breaks up and releases its contents. The phone powers it, talks to it over USB-C, and is where the numbers are shown.
+
+### Parts
+
+| Part | Job |
+| --- | --- |
+| **ESP32-S3 sensor board** | The measuring half. Drives the LEDs and the stirrer, reads the sensors, streams one JSON line a second over native USB to the phone. `firmware/17_stream` runs unchanged on an Espressif ESP32-S3-DevKitC-1 or a Seeed XIAO ESP32-S3, since pins are raw GPIO numbers. |
+| **Espressif ESP32-S3-BOX-3** | The face in the wall of the case. Its 2.4" touchscreen shows state with eyes and moods, and one button takes a blank, starts and stops a run. Linked to the sensor board over ESP-NOW, so it needs no router or pairing. `firmware/21_box3_face`. |
+| **Six 5 mm LEDs** | IR 940 nm, red 625, yellow 590, green 525, blue 465, violet 400, each on its own GPIO through a series resistor. Green stays on as the fast channel. A periodic sweep through all six gives a coarse absorbance spectrum. |
+| **Two TEMT6000 light sensors** | One looks straight at the LEDs through the liquid (transmission). One sits 90° off the beam (scatter). Scatter separates a cloudy vial from a coloured one. Both are on ADC1, which keeps working with the radio on. |
+| **DS18B20 waterproof probe** | Water temperature, since dissolution rate depends on it. |
+| **Magnetic stirrer** | A TT gear motor with neodymium discs on the hub, a stack of nine 6 × 2 mm discs as the stir bar, 20 kHz PWM through a low-side transistor with a flyback diode. |
+
+### Power
+
+The phone supplies the sensor board, the LEDs and the sensors over the USB-C data cable. The stirrer motor and the BOX-3 run from a power bank, because a phone's USB port supplies roughly 500 mA and the motor alone draws up to 1 A at start. One rule protects the phone: the power bank's 5 V and the phone's VBUS are never tied together. Grounds are common.
+
+### What comes down the wire
+
+One JSON line a second at 115200 baud, plus `# ...` note lines for events.
+
+| Key | Meaning |
+| --- | --- |
+| `t` | Seconds since t = 0, or −1 when no run is in progress. |
+| `trans`, `scat` | Both sensors under the green LED, in mV (mean of 24 ADC reads). |
+| `absT`, `absS` | Absorbance against the stored blank, `log10(blank / reading)`. Null until a blank is taken. |
+| `tC` | Water temperature in °C. |
+| `sweep`, `sweepS` | Transmission and scatter under each of the six LEDs, minus dark. |
+| `dark` | Both sensors with every LED off, measured at the start of each sweep, so ambient light is subtracted. |
+| `stir`, `swept` | Stirrer duty, and a flag on the one line per sweep whose fast-channel reading the sweep disturbed. |
+
+Commands are one ASCII byte, over USB or ESP-NOW: `b` store a blank, `z` mark t = 0, `a` toggle automatic t = 0 (on at boot: a 6 % drop in transmission after a blank), `s` stop, `m` toggle the stirrer, `d` print a diagnostics line. The diagnostics line reports every LED's forward voltage, sensor noise, dark levels, the reset reason, heap, the temperature probe's address and the radio's state.
+
+### Faults are data
+
+The phone side (`hardware/peel_app`) runs a fault engine that is a pure function of the stream's history, with every threshold traced to a measured baseline. A broken rig shows up as a named fault: `LID_OPEN`, `LED_OPEN`, `LED_SHORT`, `LED_SWAPPED`, `SENSOR_SATURATED`, `SENSOR_NOISY`, `SENSOR_UNPOWERED`, `MOTOR_COUPLING`, `BROWNOUT_RESET`, `BOARD_RESET_MIDRUN`, `PROBE_MISSING`, `STREAM_STALE`, `WRONG_FIRMWARE`, `RADIO_DOWN` and more.
+
+### A run
+
+1. **Blank** on plain water. Every later reading is an absorbance against it.
+2. **Drop the tablet in.** The firmware marks t = 0 itself.
+3. **Watch** the fast channel rise and flatten while sweeps record the spectrum.
+4. **Classify.** The run becomes the scan's `hardware` observation: a status of `real`, `substandard`, `fake` or `unknown`, where a reading the rig could not take is always `unknown`.
+
+### Classification
+
+The classification layer is [`truepill`](https://github.com/viktorinkov/HackMIT-2026/pull/26): spectral matching of the sweep against a library measured on this rig, first-order dissolution kinetics `A(t) = A∞ · (1 − e^(−kt))` fitted per channel, percent released, an f2 similarity score against a reference profile, and an `INVALID_READING` verdict for readings the optics cannot have produced. [PR #27](https://github.com/viktorinkov/HackMIT-2026/pull/27) wires it to `POST /pill` and the mobile app. Until those merge, `POST /pill` on main returns a labelled stand-in (`model = mock-spectrometry`).
+
+This is a screen, not a compendial assay. It reads actives that absorb visible light, in room-temperature water rather than a pharmacopoeial medium, and its measured library is small. A failed screen means "send it to a lab".
+
+### Without the hardware
+
+| Path | What it is |
+| --- | --- |
+| `hardware/sim/fake_board.py` | The sensor board in software, standard library only. Same protocol over TCP, a pty or stdout, replay of a real capture, every fault injectable at boot, at a time or live, and a transport that can be broken on purpose (`--chunk 1`, `--junk`, `--disconnect-after`). |
+| `hardware/data/` | Real captures from this hardware: a full run, the ESP-NOW link test, LED diode checks, light response, motor coupling, self-test logs. |
+| `hardware/tools/` | Desktop serial clients: `peel_monitor.py` (terminal dashboard and CSV), `capture.py`, `flash_when_ready.py`. |
+| `firmware/18_selftest` | Bench diagnostic: lock-in LED test, diode check, noise. |
+
+Flashing, the app and the simulator: [`hardware/README.md`](hardware/README.md).
 
 ## Architecture
 
@@ -56,7 +120,8 @@ The rest of this README is the system that sits behind those three inputs.
 flowchart TB
   subgraph clients [Clients]
     phone[Phone / Flutter]
-    hw[XIAO + BOX-3 instrument]
+    hw[ESP32-S3 sensor board + BOX-3 face]
+    classify[Classification layer]
   end
 
   subgraph runpod [Runpod — FastAPI]
@@ -80,9 +145,10 @@ flowchart TB
   end
 
   phone -->|bottle + imprint photos| vision
-  hw -->|USB serial JSON| phone
+  hw -->|USB serial JSON, 1 Hz| phone
+  hw -->|same stream| classify
   vision --> scans
-  phone -->|hardware observation| scans
+  classify -->|hardware observation| scans
   scans --> pipe
   pipe -->|exact + hybrid search| reg
   pipe --> pills
@@ -99,7 +165,7 @@ flowchart TB
   pipe -->|scan_context| voice
 ```
 
-A check is one **scan** document in Elasticsearch. The phone (or curl) posts bottle, imprint, and hardware observations to `POST /scans`. That returns `202` immediately with `status: pending`. A background asyncio task then researches the scan and writes back to the same document. The client polls `GET /scans/{id}`.
+A check is one **scan** document in Elasticsearch. The bottle and imprint observations come from the phone's photos, the hardware observation from the instrument's run, and all three are posted to `POST /scans`. That returns `202` immediately with `status: pending`. A background asyncio task then researches the scan and writes back to the same document. The client polls `GET /scans/{id}`.
 
 ```
 pending  →  partial  →  complete
@@ -148,7 +214,7 @@ The API is meant to run as a long-lived process on [Runpod](https://www.runpod.i
 
 Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
+The pill reading does not run on Runpod. The instrument streams over USB to the phone, the classification layer turns the run into a verdict, and the backend stores and researches the result. `POST /pill` is a deterministic stand-in (`model = mock-spectrometry`) for developing without the instrument; a scan that used it says so in `limitations`.
 
 ### Elasticsearch
 
@@ -267,7 +333,7 @@ uv run peel-seed seed --sources all
 uv run backend                 # http://127.0.0.1:8000  — OpenAPI at /docs
 ```
 
-Hardware firmware, debug app, and simulator: [`hardware/README.md`](hardware/README.md).
+To run the instrument (flash the firmware, install the app, run a tablet), see [`hardware/README.md`](hardware/README.md). With no board plugged in, `hardware/sim/fake_board.py` is the board in software.
 
 ```bash
 cd backend
@@ -284,7 +350,7 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | --- | --- | --- |
 | `POST` | `/photo-identification/bottle` | Vision → bottle observation |
 | `POST` | `/photo-identification/imprint` | Vision → imprint observation |
-| `POST` | `/pill` | Mock hardware observation |
+| `POST` | `/pill` | Stand-in hardware observation for development without the instrument |
 | `POST` | `/scans` | Create scan, start pipeline (`202`) |
 | `GET` | `/scans/{id}` | Poll envelope (`pending` / `partial` / `complete`) |
 | `GET` | `/scans/{id}/context` | `scan_context` for the voice agent (`?as_string=true`) |
@@ -313,7 +379,13 @@ HackMIT-2026/
 │   ├── src/backend/         vision, scans, research, knowledge, reports, Deepgram
 │   ├── scripts/             smoke tests, runpod-start.sh
 │   └── README.md            mappings, retrieval, Agent Builder, Firecrawl budget
-├── hardware/                XIAO firmware, BOX-3 face, debug Flutter app, simulator
+├── hardware/                the instrument
+│   ├── firmware/            17_stream (sensor board), 21_box3_face (BOX-3), 18_selftest, bring-up
+│   ├── peel_app/            Flutter Android app: USB serial → parser → faults → session log
+│   ├── sim/                 fake_board.py, the board in software
+│   ├── tools/               desktop serial clients
+│   └── data/                real captures from this hardware
+├── mobile/                  Peel Flutter Android app
 ├── assets/                  README images and media placeholders
 ├── photos-for-testing/      sample bottle and imprint photos
 └── LICENSE
