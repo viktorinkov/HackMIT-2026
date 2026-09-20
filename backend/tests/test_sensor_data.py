@@ -43,10 +43,10 @@ def test_measurements_reach_research_and_voice_without_inventing_identity():
     assert context["reported_status"] == "unknown"
     assert context["degradation"]["status"] == "not_assessed"
     assert context["measurements"] == evidence
-    assert "3 sensor samples" in opening_messages_from_scan(scan)[2]
+    assert "hardware result is unknown" in opening_messages_from_scan(scan)[2]
     prompt = build_playground_prompt(scan).prompt
-    assert '"trans":100.0' in prompt
-    assert '"blue":null' in prompt
+    assert '"sensor_readings"' not in prompt
+    assert '"absorbance_trace"' not in prompt
 
 
 def test_context_is_bounded_and_keeps_first_and_last_samples():

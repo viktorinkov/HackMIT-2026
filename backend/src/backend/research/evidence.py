@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from backend.sensor_data import sensor_evidence, measurement_sentence
+from backend.reference_match import match_sentence
 from urllib.parse import quote
 
 from backend.knowledge import normalize
@@ -882,7 +883,7 @@ def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
     status = hardware.get("status")
     measurements = hardware.get("measurements")
     if measurements:
-        return Finding(statement=measurement_sentence(measurements), evidence_type="hardware_result",
+        return Finding(statement=(match_sentence(hardware.get("reference_match") or {}) + " " + measurement_sentence(measurements)).strip(), evidence_type="hardware_result",
                        source_ids=[], severity="info", country_scope=None)
     if not status or status == "unknown":
         return None

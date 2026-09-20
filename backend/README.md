@@ -1079,3 +1079,21 @@ Deploy the backend with the updated APK: older servers ignore the new sensor
 fields and do not expose them to the AI. Existing stored mock scans remain
 explicitly labelled as simulated. No model is asked to invent drug identity or
 potency from an uncalibrated optical trace.
+
+### Synthetic reference matching
+
+Real scan absorbance passes through `reference_match.py` before research or voice.
+It baseline-subtracts the non-sweep transmission absorbance series, resamples to 32
+run-progress points, and ranks four generated curves using RMSE in absorbance units.
+The generated B12, acetaminophen, vitamin C and caffeine labels are demonstration
+fixtures, not measured chemical references or a trained spectrometer model. The
+result says `Closest match:` with separate synthetic-library provenance. Rankings
+do not use bottle names or user labels. No probabilities, potency or authenticity
+claims are produced. Fewer than eight valid samples, >20% missing readings, or a
+flat trace produce no match. Close rankings and out-of-library readings are marked.
+Changing concentration, illumination, or run duration may change the match; this
+version compares normalized run progress, not wavelengths or dissolution rates.
+
+Voice follows main at `c4f5c89` (Viktor's parser update), with a short computed-match
+line added. Raw telemetry and long hardware findings stay out of the voice prompt;
+research retains the full bounded evidence.

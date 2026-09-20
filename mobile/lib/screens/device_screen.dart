@@ -88,9 +88,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
                   run.session.diag!.version,
                 ].whereType<String>().join(' '),
           result: PillHardwareResult(
-            pillType:
-                run.scan.bottleResult?.genericName ??
-                run.scan.bottleResult?.brandName,
+            pillType: null,
             status: 'unknown',
             confidence: 0,
             degraded: false,

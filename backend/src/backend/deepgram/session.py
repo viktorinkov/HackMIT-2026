@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.sensor_data import measurement_sentence
-
-from backend.deepgram.prompt import build_playground_prompt
-from backend.research.contract import to_scan_context
+from backend.deepgram.prompt import build_playground_prompt, voice_context
+from backend.reference_match import match_sentence
 
 
 def _named(name: str | None, strength: str | None) -> str | None:
@@ -75,8 +73,9 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     else:
         imprint_line = "Imprint: no marking lookup yet."
 
-    if hardware and hardware.get("measurements"):
-        pill_line = "Pill: " + measurement_sentence(hardware["measurements"])
+    match = (hardware or {}).get("reference_match") or {}
+    if match.get("closest_match"):
+        pill_line = match_sentence(match)
     elif pill:
         pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
     elif hardware:
@@ -91,7 +90,7 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
 
 
 def intro_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     lines = ["Hi, I'm Peel."]
     if context.get("demo"):
         lines.append("These findings are a simulated demo.")
@@ -109,11 +108,11 @@ def greeting_from_scan(doc: dict[str, Any]) -> str:
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
-    return _source_lines(to_scan_context(doc))
+    return _source_lines(voice_context(doc))
 
 
 def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     terms: list[str] = []
 
     def add(value: str | None) -> None:
