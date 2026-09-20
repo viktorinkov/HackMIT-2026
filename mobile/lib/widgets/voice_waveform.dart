@@ -97,6 +97,9 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
               ..addAll(List<double>.filled(bars, 0));
           }
           return Row(
+            // Rebuilding the bars on a state change drops the height/colour
+            // interpolation, so the reset to the baseline is immediate.
+            key: ValueKey(widget.state),
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               for (final level in _levels)
