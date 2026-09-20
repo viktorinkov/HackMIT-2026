@@ -25,6 +25,8 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   static const _tick = Duration(milliseconds: 70);
   static const _height = 132.0;
   static const _barSpace = 8.0;
+  // Long enough for the baseline bars to finish animating in and be seen.
+  static const _flatHold = Duration(milliseconds: 500);
 
   final _random = Random();
   final _amplitudes = StreamController<Amplitude>.broadcast();
@@ -35,10 +37,6 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   void initState() {
     super.initState();
     _flatten();
-    _timer = Timer.periodic(_tick, (_) {
-      _frame++;
-      _amplitudes.add(Amplitude(current: _level * 100, max: 100));
-    });
   }
 
   @override
@@ -47,15 +45,25 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
     if (oldWidget.state != widget.state) _flatten();
   }
 
-  /// Fills the band with baseline bars so the wave starts flat across the
-  /// whole width and rises in place, rather than scrolling in from the right.
+  /// Fills the band with baseline bars and holds them there, so the wave
+  /// starts as a flat line across the full width and rises in place rather
+  /// than scrolling in from the right.
   void _flatten() {
+    _timer?.cancel();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final bars = (MediaQuery.of(context).size.width / _barSpace).ceil();
       for (var i = 0; i < bars; i++) {
         _amplitudes.add(Amplitude(current: 0, max: 100));
       }
+      _timer = Timer(_flatHold, _run);
+    });
+  }
+
+  void _run() {
+    _timer = Timer.periodic(_tick, (_) {
+      _frame++;
+      _amplitudes.add(Amplitude(current: _level * 100, max: 100));
     });
   }
 
