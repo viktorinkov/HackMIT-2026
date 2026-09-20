@@ -292,7 +292,7 @@ def test_sources_add_dates_only_when_the_report_has_them() -> None:
         }
     )
     source = to_scan_context(scan)["sources"][0]
-    assert set(source) == {"id", "title", "url", "label_date"}
+    assert set(source) == {"id", "title", "url", "label_date", "source_org"}
     assert source["label_date"] == "2024-10-15"
 
 
@@ -346,9 +346,10 @@ def test_research_block_is_compact_and_omitted_when_absent() -> None:
     block = to_scan_context(scan)["research"]
     assert set(block) == {
         "verdict", "risk_level", "headline", "findings", "mismatches", "gaps", "next_steps",
+        "recall_hits", "agent_used", "demo",
     }
     assert set(block["findings"][0]) == {
-        "statement", "evidence_type", "severity", "source_ids",
+        "statement", "evidence_type", "severity", "source_ids", "country_scope",
     }
 
 

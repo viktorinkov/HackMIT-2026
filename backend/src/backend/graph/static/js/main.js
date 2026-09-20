@@ -49,27 +49,14 @@ async function loadApiClient() {
     const mod = await import('./api.js');
     return mod.api || mod.default || null;
   } catch (error) {
-    console.info('[atlas] js/api.js not present; using the built-in sample graph');
+    report(new Error('The graph API client is unavailable.'));
     return null;
   }
 }
 
-async function fallbackGraph() {
-  if (isTruthy(params.fixture) || isTruthy(params.demo)) {
-    try {
-      // fixtures/ is served by the API, not by the static mount, so it sits one level up.
-      const response = await fetch('../fixtures/demo_graph.json', { cache: 'no-store' });
-      if (response.ok) return await response.json();
-    } catch (_) { /* fall through to the built-in sample */ }
-  }
-  const { SAMPLE_GRAPH } = await import('./dev/sample.js');
-  return SAMPLE_GRAPH;
-}
-
 async function fetchGraph() {
-  if (params.stress) {
-    const { stressGraph } = await import('./dev/stress.js');
-    return stressGraph(Number(params.stress));
+  if (params.stress || isTruthy(params.fixture) || store.state.demo) {
+    throw new Error('Simulated graphs are disabled. Use real scan data.');
   }
   const universe = store.state.view === 'universe' || isTruthy(params.universe);
   if (api && typeof api.graph === 'function') {
@@ -79,7 +66,7 @@ async function fetchGraph() {
       universe,
     });
   }
-  return fallbackGraph();
+  throw new Error('The graph API client is unavailable.');
 }
 
 function isLiveSession() {

@@ -268,7 +268,7 @@ def _build_scan_detail(doc: dict[str, Any]) -> NodeDetail:
     badges: list[str] = []
     if demo:
         badges.append("Demo scan")
-    is_simulated = bool(hardware) and (hardware.get("model") == HARDWARE_MODEL or hardware.get("limitations"))
+    is_simulated = bool(hardware) and hardware.get("model") == HARDWARE_MODEL
     if is_simulated:
         badges.append("Simulated hardware")
     if hardware.get("degraded"):

@@ -65,25 +65,25 @@ class BottlePhotoResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'is_medication_container': isMedicationContainer,
-        'brand_name': brandName,
-        'generic_name': genericName,
-        'strength': strength,
-        'form': form,
-        'quantity': quantity,
-        'ndc': ndc,
-        'manufacturer': manufacturer,
-        'pharmacy': pharmacy,
-        'rx_number': rxNumber,
-        'directions': directions,
-        'expiration': expiration,
-        'lot_number': lotNumber,
-        'imprint_on_label': imprintOnLabel,
-        'visible_warnings': visibleWarnings,
-        'other_label_text': otherLabelText,
-        'confidence': confidence,
-        'notes': notes,
-      };
+    'is_medication_container': isMedicationContainer,
+    'brand_name': brandName,
+    'generic_name': genericName,
+    'strength': strength,
+    'form': form,
+    'quantity': quantity,
+    'ndc': ndc,
+    'manufacturer': manufacturer,
+    'pharmacy': pharmacy,
+    'rx_number': rxNumber,
+    'directions': directions,
+    'expiration': expiration,
+    'lot_number': lotNumber,
+    'imprint_on_label': imprintOnLabel,
+    'visible_warnings': visibleWarnings,
+    'other_label_text': otherLabelText,
+    'confidence': confidence,
+    'notes': notes,
+  };
 
   String get displayName {
     final name = genericName ?? brandName;
@@ -131,21 +131,24 @@ class ImprintPhotoResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'is_pill': isPill,
-        'imprint': imprint,
-        'color': color,
-        'shape': shape,
-        'form': form,
-        'score': score,
-        'additional_markings': additionalMarkings,
-        'confidence': confidence,
-        'notes': notes,
-      };
+    'is_pill': isPill,
+    'imprint': imprint,
+    'color': color,
+    'shape': shape,
+    'form': form,
+    'score': score,
+    'additional_markings': additionalMarkings,
+    'confidence': confidence,
+    'notes': notes,
+  };
 
   String get display {
     final mark = imprint;
     if (mark == null || mark.isEmpty) return 'Imprint not read';
-    final extras = [color, shape].whereType<String>().where((s) => s.isNotEmpty);
+    final extras = [
+      color,
+      shape,
+    ].whereType<String>().where((s) => s.isNotEmpty);
     if (extras.isEmpty) return mark;
     return '$mark · ${extras.join(' · ')}';
   }
@@ -155,6 +158,8 @@ class PillHardwareResult {
   const PillHardwareResult({
     required this.status,
     required this.spectrum,
+    this.sensorReadings = const [],
+    this.sensorSampleCount,
     this.pillType,
     required this.degraded,
     required this.confidence,
@@ -162,6 +167,8 @@ class PillHardwareResult {
 
   final String status;
   final List<double> spectrum;
+  final List<Map<String, dynamic>> sensorReadings;
+  final int? sensorSampleCount;
   final String? pillType;
   final bool degraded;
   final double confidence;
@@ -173,6 +180,11 @@ class PillHardwareResult {
         for (final value in json['spectrum'] as List? ?? const [])
           (value as num).toDouble(),
       ],
+      sensorReadings: [
+        for (final row in json['sensor_readings'] as List? ?? const [])
+          Map<String, dynamic>.from(row as Map),
+      ],
+      sensorSampleCount: json['sensor_sample_count'] as int?,
       pillType: json['pill_type'] as String?,
       degraded: json['degraded'] as bool? ?? false,
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
@@ -180,12 +192,14 @@ class PillHardwareResult {
   }
 
   Map<String, dynamic> toJson() => {
-        'status': status,
-        'spectrum': spectrum,
-        'pill_type': pillType,
-        'degraded': degraded,
-        'confidence': confidence,
-      };
+    'status': status,
+    'spectrum': spectrum,
+    if (sensorReadings.isNotEmpty) 'sensor_readings': sensorReadings,
+    if (sensorSampleCount != null) 'sensor_sample_count': sensorSampleCount,
+    'pill_type': pillType,
+    'degraded': degraded,
+    'confidence': confidence,
+  };
 }
 
 class PillHardwareAnalysis {
@@ -196,7 +210,7 @@ class PillHardwareAnalysis {
 
   factory PillHardwareAnalysis.fromJson(Map<String, dynamic> json) {
     return PillHardwareAnalysis(
-      model: json['model'] as String? ?? 'mock-spectrometry',
+      model: json['model'] as String? ?? 'unknown',
       result: PillHardwareResult.fromJson(
         json['result'] as Map<String, dynamic>? ?? const {},
       ),
@@ -218,11 +232,11 @@ class PhotoRef {
   final String mediaType;
 
   Map<String, dynamic> toJson() => {
-        'target': target,
-        'sha256': sha256,
-        'bytes': bytes,
-        'media_type': mediaType,
-      };
+    'target': target,
+    'sha256': sha256,
+    'bytes': bytes,
+    'media_type': mediaType,
+  };
 }
 
 class SourceRef {
@@ -482,12 +496,7 @@ class DeepgramSession {
 }
 
 class PurchaseLocation {
-  const PurchaseLocation({
-    this.label,
-    this.city,
-    this.region,
-    this.country,
-  });
+  const PurchaseLocation({this.label, this.city, this.region, this.country});
 
   final String? label;
   final String? city;
@@ -504,11 +513,11 @@ class PurchaseLocation {
   }
 
   Map<String, dynamic> toJson() => {
-        if (label != null) 'label': label,
-        if (city != null) 'city': city,
-        if (region != null) 'region': region,
-        if (country != null) 'country': country,
-      };
+    if (label != null) 'label': label,
+    if (city != null) 'city': city,
+    if (region != null) 'region': region,
+    if (country != null) 'country': country,
+  };
 
   bool get isEmpty =>
       (label == null || label!.isEmpty) &&
@@ -517,9 +526,12 @@ class PurchaseLocation {
       (country == null || country!.isEmpty);
 
   String get display {
-    final parts = [label, city, region, country]
-        .whereType<String>()
-        .where((part) => part.isNotEmpty);
+    final parts = [
+      label,
+      city,
+      region,
+      country,
+    ].whereType<String>().where((part) => part.isNotEmpty);
     return parts.join(' · ');
   }
 }
@@ -538,18 +550,18 @@ class ReportDraft {
       purchaseLocation: location is Map<String, dynamic>
           ? PurchaseLocation.fromJson(location)
           : location is String && location.trim().isNotEmpty
-              ? PurchaseLocation(label: location.trim())
-              : null,
+          ? PurchaseLocation(label: location.trim())
+          : null,
       seller: json['seller'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        if (purchasedOn != null) 'purchased_on': purchasedOn,
-        if (purchaseLocation != null && !purchaseLocation!.isEmpty)
-          'purchase_location': purchaseLocation!.toJson(),
-        if (seller != null) 'seller': seller,
-      };
+    if (purchasedOn != null) 'purchased_on': purchasedOn,
+    if (purchaseLocation != null && !purchaseLocation!.isEmpty)
+      'purchase_location': purchaseLocation!.toJson(),
+    if (seller != null) 'seller': seller,
+  };
 
   ReportDraft copyWith({
     String? purchasedOn,

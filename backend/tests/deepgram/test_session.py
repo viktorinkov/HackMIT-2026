@@ -20,9 +20,9 @@ from backend.deepgram.session import (
 from tests.deepgram.conftest import complete_scan
 
 THREE_SOURCES = [
-    "Bottle: the label says acetaminophen 500 mg.",
-    "Imprint: the marking lookup returned ibuprofen 200 mg.",
-    "Pill: the hardware analysis reports the contents as ibuprofen.",
+    "The bottle says acetaminophen 500 mg.",
+    "The imprint says ibuprofen 200 mg.",
+    "The hardware analysis reports the contents as ibuprofen.",
 ]
 
 
@@ -33,12 +33,12 @@ def test_intro_is_only_the_intro() -> None:
     assert intro_from_scan(complete_scan(demo=False)) == "Hi, I'm Peel."
 
 
-def test_greeting_is_the_intro_plus_the_three_sources_and_the_offer() -> None:
-    # One greeting the user can interrupt, instead of three injected messages.
+def test_greeting_is_the_intro_plus_the_verdict_and_the_offer() -> None:
+    # The headline expresses this scan's mismatch without repeating raw sources.
     assert greeting_from_scan(complete_scan()) == " ".join(
         [
             "Hi, I'm Peel. These findings are a simulated demo.",
-            *THREE_SOURCES,
+            "The label and the reference records do not agree.",
             OFFER_DISAGREE,
         ]
     )
@@ -73,7 +73,7 @@ def test_greeting_uses_the_light_offer_when_there_is_no_concern() -> None:
     )
     assert scan_has_concern(doc) is False
     greeting = greeting_from_scan(doc)
-    assert "Pill: the hardware result is unknown." in greeting
+    assert "The pill's contents have not been identified." in greeting
     assert greeting.endswith(OFFER_LIGHT)
     assert OFFER_DISAGREE not in greeting
 
@@ -119,7 +119,7 @@ def test_opening_messages_are_exactly_the_three_sources() -> None:
 
 def test_opening_uses_observed_imprint_when_there_is_no_candidate() -> None:
     messages = opening_messages_from_scan(complete_scan(evidence={"pill_candidates": []}))
-    assert messages[1] == "Imprint: the marking is L484, with no drug name yet."
+    assert messages[1] == "The imprint says L484, with no drug name yet."
 
 
 def test_opening_does_not_include_the_headline_or_a_fake_line() -> None:

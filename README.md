@@ -46,7 +46,7 @@ Peel keeps three observations separate, then looks them up:
 | --- | --- |
 | **Bottle** | GPT-4o vision reads a photo of the container (name, strength, NDC, lot, manufacturer). |
 | **Imprint** | GPT-4o vision reads a photo of the tablet (characters, color, shape). |
-| **Pill** | A phone-attached instrument measures the physical tablet. The API still mocks this (`POST /pill` → `mock-spectrometry`). |
+| **Pill** | The phone sends water and pill color sweeps to `POST /pill`. It sends the classification and aligned sensor readings to research. |
 
 The rest of this README is the system that sits behind those three inputs.
 
@@ -148,7 +148,12 @@ The API is meant to run as a long-lived process on [Runpod](https://www.runpod.i
 
 Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
+`POST /pill` runs the measured TruePill classifier on separate water and dissolved pill captures.
+The instrument streams JSON over USB to `mobile/`.
+The scan retains timestamped sensor readings and channel statistics alongside the classification.
+The library contains Advil and Pepto references.
+Canned pill responses, simulated scan creation, and graph sample-data fallbacks are disabled.
+See [the capture workflow and limitations](backend/pill-hardware.md).
 
 ### Elasticsearch
 
@@ -284,7 +289,7 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | --- | --- | --- |
 | `POST` | `/photo-identification/bottle` | Vision → bottle observation |
 | `POST` | `/photo-identification/imprint` | Vision → imprint observation |
-| `POST` | `/pill` | Mock hardware observation |
+| `POST` | `/pill` | Classify measured water and pill color sweeps |
 | `POST` | `/scans` | Create scan, start pipeline (`202`) |
 | `GET` | `/scans/{id}` | Poll envelope (`pending` / `partial` / `complete`) |
 | `GET` | `/scans/{id}/context` | `scan_context` for the voice agent (`?as_string=true`) |

@@ -20,6 +20,9 @@ import json
 import re
 from collections.abc import Sequence
 from typing import Any
+
+from backend.sensor_data import sensor_evidence, measurement_sentence
+from backend.reference_match import match_sentence
 from urllib.parse import quote
 
 from backend.knowledge import normalize
@@ -198,7 +201,7 @@ def _hardware(scan_doc: dict[str, Any]) -> dict[str, Any] | None:
     if not hardware:
         return None
     model = hardware.get("model")
-    simulated = model == HARDWARE_MODEL or bool(hardware.get("limitations"))
+    simulated = model == HARDWARE_MODEL
     return {
         "status": hardware.get("status"),
         "pill_type": hardware.get("pill_type"),
@@ -206,6 +209,7 @@ def _hardware(scan_doc: dict[str, Any]) -> dict[str, Any] | None:
         "confidence": hardware.get("confidence"),
         "model": model,
         "simulated": simulated,
+        **sensor_evidence(hardware),
         "limitations": hardware.get("limitations")
         or (MOCK_LIMITATION if simulated else None),
     }
@@ -877,7 +881,12 @@ def _web_statement(entry: dict[str, Any], lot: str | None) -> str:
 
 def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
     status = hardware.get("status")
+    measurements = hardware.get("measurements")
     if not status or status == "unknown":
+        if measurements:
+            statement = (match_sentence(hardware.get("reference_match") or {}) + " " + measurement_sentence(measurements)).strip()
+            return Finding(statement=statement, evidence_type="hardware_result",
+                           source_ids=[], severity="info", country_scope=None)
         return None
     kind = hardware.get("pill_type")
     statement = f'The hardware step reported status "{status}"'
@@ -885,7 +894,11 @@ def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
     if hardware.get("simulated"):
         # Never let this read as a measurement of what is in the tablet.
         statement += f" {hardware.get('limitations') or MOCK_LIMITATION}"
+    elif hardware.get("limitations"):
+        statement += f" {hardware['limitations']}"
     statement += " It reports no potency figure and does not identify a contaminant."
+    if measurements:
+        statement += " " + (match_sentence(hardware.get("reference_match") or {}) + " " + measurement_sentence(measurements)).strip()
     return Finding(
         statement=statement,
         evidence_type="hardware_result",
@@ -954,6 +967,8 @@ def _headline(
         noun = "point" if mismatches == 1 else "points"
         return f"The label and the reference records disagree on {mismatches} {noun}."
     if verdict == "insufficient_evidence":
+        if (evidence.get("hardware") or {}).get("measurements"):
+            return "Sensor readings recorded; the medicine's identity is not established."
         return "There was not enough readable detail on the label or the pill to check this."
     return "No matching recall or safety alert was found in the records searched."
 
@@ -1237,6 +1252,13 @@ def enforce_guardrails(
         data["next_steps"] = list(
             _RECALL_NEXT_STEPS if data["verdict"] == "recall_match" else _SAFE_NEXT_STEPS
         )
+    measured = (evidence.get("hardware") or {}).get("measurements")
+    if measured:
+        fact = _hardware_finding(evidence["hardware"])
+        if fact and not any(item.get("statement") == fact.statement for item in data["findings"]):
+            data["findings"].append(fact.model_dump())
+        if data["verdict"] == "insufficient_evidence":
+            data["headline"] = "Sensor readings recorded; the medicine's identity is not established."
     return ResearchReport.model_validate(data)
 
 

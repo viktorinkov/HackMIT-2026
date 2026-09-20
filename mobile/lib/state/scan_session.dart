@@ -5,15 +5,48 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/api_models.dart';
-import '../data/mock_data.dart';
+import '../data/scan_step.dart';
 import '../services/peel_api.dart';
+import '../device/signals.dart';
 
-export '../data/mock_data.dart' show ScanStep;
+export '../data/scan_step.dart' show ScanStep;
 
 const _deviceIdKey = 'peel_user_uuid';
 
 /// Single in-memory session shared by the scan screens.
 class ScanSession extends ChangeNotifier {
+  int generation = 0;
+  bool hardwareSkipped = false;
+
+  void skipHardware() {
+    hardwareSkipped = true;
+    hardware = null;
+    runReadings = const [];
+    blankReadings = const [];
+    sampleReadings = const [];
+    runLogPath = null;
+    notifyListeners();
+  }
+
+  List<Reading> runReadings = const [];
+  List<Reading> blankReadings = const [];
+  List<Reading> sampleReadings = const [];
+  String? runLogPath;
+
+  void finishRun(
+    List<Reading> readings,
+    String? logPath, {
+    List<Reading> blank = const [],
+    List<Reading> sample = const [],
+  }) {
+    hardwareSkipped = false;
+    runReadings = List.unmodifiable(readings);
+    blankReadings = List.unmodifiable(blank);
+    sampleReadings = List.unmodifiable(sample);
+    runLogPath = logPath;
+    notifyListeners();
+  }
+
   File? bottlePhoto;
   File? imprintPhoto;
   BottlePhotoResult? bottleResult;
@@ -60,16 +93,16 @@ class ScanSession extends ChangeNotifier {
   }
 
   File? photoFor(ScanStep step) => switch (step) {
-        ScanStep.bottle => bottlePhoto,
-        ScanStep.imprint => imprintPhoto,
-        ScanStep.pill => null,
-      };
+    ScanStep.bottle => bottlePhoto,
+    ScanStep.imprint => imprintPhoto,
+    ScanStep.pill => null,
+  };
 
   bool hasVision(ScanStep step) => switch (step) {
-        ScanStep.bottle => bottleResult != null,
-        ScanStep.imprint => imprintResult != null,
-        ScanStep.pill => false,
-      };
+    ScanStep.bottle => bottleResult != null,
+    ScanStep.imprint => imprintResult != null,
+    ScanStep.pill => false,
+  };
 
   Future<void> identifyPhoto(ScanStep step, File photo) async {
     switch (step) {
@@ -107,6 +140,12 @@ class ScanSession extends ChangeNotifier {
   }
 
   void reset() {
+    generation++;
+    hardwareSkipped = false;
+    runReadings = const [];
+    blankReadings = const [];
+    sampleReadings = const [];
+    runLogPath = null;
     bottlePhoto = null;
     imprintPhoto = null;
     bottleResult = null;

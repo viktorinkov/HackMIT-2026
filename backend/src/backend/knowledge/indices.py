@@ -281,6 +281,9 @@ def _scans() -> dict[str, Any]:
         "model": KW,
         # Plain floats round-trip exactly; dense_vector would be stored as bfloat16.
         "spectrum": {"type": "float", "index": False, "doc_values": False},
+        "sensor_readings": {"type": "object", "enabled": False},
+        "sensor_sample_count": {"type": "integer"},
+        "reference_match": {"type": "object", "enabled": False},
         "limitations": STORED_TEXT,
     }
     research = {
@@ -368,6 +371,13 @@ async def ensure_indices(
     created: list[str] = []
     for name in names:
         if await client.indices.exists(index=name):
+            if name == SCANS_INDEX:
+                # Additive migration: retain existing scans and strict mappings.
+                await client.indices.put_mapping(index=name, properties={"hardware": {"properties": {
+                    "sensor_readings": {"type": "object", "enabled": False},
+                    "sensor_sample_count": {"type": "integer"},
+                    "reference_match": {"type": "object", "enabled": False},
+                }}})
             continue
         await client.indices.create(index=name, mappings=mappings_for(name))
         created.append(name)

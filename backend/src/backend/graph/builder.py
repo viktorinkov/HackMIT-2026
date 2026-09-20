@@ -378,7 +378,7 @@ def _add_scan_node(graph: _Graph, doc: dict[str, Any], norm: dict[str, Any]) -> 
         attrs["hardware"] = {
             "status": hardware.get("status"),
             "degraded": hardware.get("degraded"),
-            "simulated": bool(hardware.get("limitations")) or model == "mock-spectrometry",
+            "simulated": model == "mock-spectrometry",
             "model": model,
             "confidence": hardware.get("confidence"),
             "pill_type": hardware.get("pill_type"),

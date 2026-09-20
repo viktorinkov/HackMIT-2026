@@ -18,7 +18,11 @@ dependencies = [
     "python-dateutil>=2.9.0",
     "rich>=15.0.0",
     "typer>=0.27.2",
+    "truepill",
 ]
+
+[tool.uv.sources]
+truepill = { path = "../truepill" }
 
 [project.scripts]
 backend = "backend:main"

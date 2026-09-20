@@ -168,15 +168,6 @@ export function mountChrome({ store, scene, api }) {
 
   if (isEmbed()) mountBridge({ store, scene, api, search, note });
 
-  async function runPresenterHotkey() {
-    try {
-      const { scan_id: scanId } = await api.postDemoScan();
-      toast(t('toast.demo_scan_posted', { scan_id: scanId || '—' }));
-    } catch {
-      toast(t('toast.demo_scan_failed'));
-    }
-  }
-
   document.addEventListener('keydown', (event) => {
     const targetTag = event.target && event.target.tagName;
     const isTyping =
@@ -199,11 +190,6 @@ export function mountChrome({ store, scene, api }) {
     }
     if ((event.key === 'g' || event.key === 'G') && !isTyping) {
       rail.toggle();
-      return;
-    }
-    if (event.shiftKey && (event.key === 'N' || event.key === 'n') && !isTyping) {
-      event.preventDefault();
-      runPresenterHotkey();
       return;
     }
     if (event.key === 'Escape') {

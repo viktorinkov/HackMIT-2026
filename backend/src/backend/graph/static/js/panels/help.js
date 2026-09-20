@@ -11,7 +11,6 @@ const SHORTCUTS = [
   { keys: 'H', copyKey: 'help.hide_chrome' },
   { keys: '1 – 4', copyKey: 'help.presenter_stops' },
   { keys: 'G', copyKey: 'help.rail' },
-  { keys: 'Shift N', copyKey: 'help.presenter' },
   { keys: '?', copyKey: 'help.help' },
 ];
 

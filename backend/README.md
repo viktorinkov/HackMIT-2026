@@ -2,8 +2,8 @@
 
 Peel checks whether a medicine may be counterfeit, substandard or subject to a recall. A user
 photographs the **bottle** label and the pill **imprint** (read by GPT-4o vision), a
-phone-attached spectrometer analyses the **pill** itself (mocked in this build — see
-[`mock-hardware-analysis.md`](mock-hardware-analysis.md)), and this backend's **evidence layer**
+phone-attached instrument supplies color sweeps for the **pill** (see
+[`pill-hardware.md`](pill-hardware.md)), and this backend's **evidence layer**
 turns those three observations plus live web research into a sourced, guardrailed report. This
 document covers only that evidence layer: Elasticsearch, the seed corpus, retrieval, the Elastic
 Agent Builder research agent, and the scan pipeline that ties them together.
@@ -37,7 +37,7 @@ Three capabilities make up the layer:
 ```
  photo(bottle) ──▶ POST /photo-identification/bottle  (GPT-4o vision)
  photo(imprint) ─▶ POST /photo-identification/imprint (GPT-4o vision)
- spectrometer ───▶ POST /pill                         (mock-spectrometry)
+ spectrometer ───▶ POST /pill                         (truepill-snapshot)
                               │
                               ▼
                        POST /scans  (ScanCreate)
@@ -978,9 +978,9 @@ curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
 - **Tier-2 regulators (EMA, TGA, CDSCO, SAHPRA, PMDA, …) are not seeded** — they appear only as
   domain-tier hints for live Firecrawl fetches (`research/web.py: _REGULATOR`), never as
   pre-seeded `peel-regulatory` records.
-- **Hardware is mocked** (`HARDWARE_MODEL = "mock-spectrometry"`); a future `peel-spectra` index
-  with real kNN spectral matching is out of scope here, and `hardware.spectrum` is stored
-  `index: false, doc_values: false` — write-only today.
+- Hardware classification uses two measured reference products through `truepill-snapshot`.
+  The thresholds remain experimental. See [the capture contract and limits](pill-hardware.md).
+  Historical scans retain the `mock-spectrometry` label.
 - **Agent Builder latency: ~25 s for conclusive scans, 40-60 s for ambiguous ones** (see "Latency
   protocol"). A measured end-to-end run with a warm web cache: 0.3 s normalize + 0.2 s
   deterministic (`partial`) + 1.3 s web + 27 s agent + 10 s coerce = 41 s to `complete`.
@@ -1032,9 +1032,13 @@ but nothing reads it any more; only `scripts/deepgram-chat.py` uses it locally.)
 next pod start. Editing the pod env replaces the container, so keep the app on the
 network volume.
 
-The deployed API currently has no client authentication. `/pill` still returns
-mock spectrometry. External service calls require valid OpenAI, Firecrawl,
-and Elasticsearch credentials.
+The API has no client authentication.
+This branch requires real captures at `/pill`.
+The old mock request is rejected. Graph demo requests return HTTP 410.
+New simulated scans are rejected. Historical simulated records remain labeled.
+Deploy the full repository because the backend installs the sibling `truepill/` package.
+Build the matching phone app before you use the new endpoint.
+External service calls require valid OpenAI, Firecrawl, and Elasticsearch credentials.
 
 Check the running API from your computer:
 
@@ -1043,9 +1047,7 @@ curl --fail https://<pod-id>-8000.proxy.runpod.net/health
 ```
 
 ```bash
-curl --fail https://<pod-id>-8000.proxy.runpod.net/pill \
-  -H 'Content-Type: application/json' \
-  -d '{"status":"unknown"}'
+curl --fail https://<pod-id>-8000.proxy.runpod.net/docs
 ```
 
 Open the existing pod's SSH terminal:
@@ -1067,3 +1069,37 @@ The pod is left running so the API stays available. Terminating it deletes its
 container disk; the network volume remains and continues billing. For complete
 cleanup, terminate the pod first, then delete `peel-fastapi-data` from the Runpod
 Storage page. Deleting that volume permanently deletes the deployed files.
+
+## Real hardware evidence
+
+`POST /scans` accepts `hardware.sensor_readings` (up to 256 aligned samples),
+`sensor_sample_count`, and the existing absorbance trace. Each sample carries
+time, transmission/scattering mV, absorbance, temperature, stir percentage and
+nullable colour sweep channels. Startup adds these fields to the existing scan
+index without deleting data. Research and voice share bounded raw samples and
+computed ranges/changes; unknown identity does not suppress the measurements.
+The voice context uses `status: measured` when real readings exist without an
+identified candidate. Missing/skipped hardware is never replaced by a mock.
+
+Deploy the backend with the updated APK: older servers ignore the new sensor
+fields and do not expose them to the AI. Existing stored mock scans remain
+explicitly labelled as simulated. No model is asked to invent drug identity or
+potency from an uncalibrated optical trace.
+
+### Synthetic reference matching
+
+Real scan absorbance passes through `reference_match.py` before research or voice.
+It baseline-subtracts the non-sweep transmission absorbance series, resamples to 32
+run-progress points, and ranks four generated curves using RMSE in absorbance units.
+The generated B12, acetaminophen, vitamin C and caffeine labels are demonstration
+fixtures, not measured chemical references or a trained spectrometer model. The
+result says `Closest match:` with separate synthetic-library provenance. Rankings
+do not use bottle names or user labels. No probabilities, potency or authenticity
+claims are produced. Fewer than eight valid samples, >20% missing readings, or a
+flat trace produce no match. Close rankings and out-of-library readings are marked.
+Changing concentration, illumination, or run duration may change the match; this
+version compares normalized run progress, not wavelengths or dissolution rates.
+
+Voice leads with the verdict and report headline. It states the closest synthetic match when no measured classifier identity is available.
+Raw telemetry and long hardware findings stay out of the voice prompt. Research retains the bounded evidence.
+Synthetic reference matching does not generate or replace the mobile sensor readings.

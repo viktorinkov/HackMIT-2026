@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from backend.sensor_data import sensor_evidence
+
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 
@@ -66,9 +68,9 @@ REG_QUERY_TAIL = "recall falsified substandard"
 
 # The label fields that must never reach a third-party model.
 _SENSITIVE_BOTTLE_KEYS = ("rx_number", "pharmacy", "directions", "other_label_text")
-# The raw spectrum is an unbounded float array a model can do nothing with, and
-# a non-conforming client can make it megabytes long.
-_BULKY_HARDWARE_KEYS = ("spectrum",)
+# Replace raw arrays with bounded aligned samples and numeric channel summaries
+# so both AI stages can interpret measurements within their context budgets.
+_BULKY_HARDWARE_KEYS = ("spectrum", "sensor_readings")
 
 COERCE_INSTRUCTIONS = """\
 You convert an already-completed medicine investigation into one structured report. You do not \
@@ -126,7 +128,8 @@ as ndc-<product_ndc>.
 label's lot, then regulator-tier pages flagged recall/falsified/counterfeit/substandard. Cite each \
 by its "web-..." id, give its age or freshness, and note when date_precision is "fetched" (the page \
 carried no publication date).
-7. evidence.hardware: state the reported status, and when simulated is true say plainly that it is \
+7. If evidence.hardware.reference_match is present, preserve its computed closest_match, distance, synthetic reference_source, and any ambiguous/outside_library status. The LLM must not choose a different match or treat this as validated chemical identification.
+7. evidence.hardware: when measurements exist, analyze the actual sensor_readings, absorbance_trace and channel statistics. Describe measured transmission/scattering changes, time span and missing or unstable channels with numbers. Unknown classification does not mean no measurement: do not reduce a recorded run to a generic inconclusive answer. Optical response alone does not establish chemical identity, authenticity, potency or degradation without a validated reference. State what was measured separately from what cannot be identified. State the reported status, and when simulated is true say plainly that it is \
 a simulated result and not a measurement. Never turn it into a potency or purity figure. When the \
 hardware status is substandard or fake AND a recall names this product, you may say two independent \
 signals point the same way — and that this is not proof.
@@ -778,10 +781,10 @@ def _safe_bottle(bottle: dict[str, Any] | None) -> dict[str, Any] | None:
 
 
 def _trimmed_hardware(hardware: dict[str, Any] | None) -> dict[str, Any] | None:
-    """The reading without its raw spectrum: floats a model cannot use anyway."""
+    """Supply bounded numeric measurements alongside classification metadata."""
     if not hardware:
         return None
-    return {key: value for key, value in hardware.items() if key not in _BULKY_HARDWARE_KEYS}
+    return {**{key: value for key, value in hardware.items() if key not in _BULKY_HARDWARE_KEYS}, **sensor_evidence(hardware)}
 
 
 def _index_date(hits: list[Any]) -> str:
