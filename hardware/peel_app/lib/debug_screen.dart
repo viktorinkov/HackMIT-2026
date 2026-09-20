@@ -170,8 +170,11 @@ class _DebugScreenState extends State<DebugScreen> {
         _row('noise', 'trans ${d.noiseTransMv}, scat ${d.noiseScatMv}'),
         _row('diode', '${d.diodeMv}'),
         _row('probe', '${d.probePresent} x${d.probeCount} ${d.probeAddress}'),
-        _row('radio',
-            'ch ${d.radioChannel}, fail ${d.radioSendFailures}, drift ${d.radioDriftCorrections}'),
+        _row(
+            'radio',
+            'ch ${d.radioChannel}, fail ${d.radioSendFailures}, '
+                'drift ${d.radioDriftCorrections}, '
+                'face heard ${d.radioHeardMs == null ? 'never' : '${d.radioHeardMs} ms ago'}'),
         _row('motor', 'shift trans ${d.motorTransShiftMv}, scat ${d.motorScatShiftMv}'),
       ],
     );

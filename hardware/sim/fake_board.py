@@ -327,7 +327,7 @@ class Board:
                          f"tC {'--' if temp is None else f'{temp:.2f}'}")
             return
         if self.has("RADIO_DOWN"):
-            # esp_now_send() keeps returning an error: the face is not hearing this board.
+            # esp_now_send() keeps returning an error: the packets never leave this board.
             self.radio_fail += 5
         if self.has("RADIO_DRIFT") and self.radio_drift == 0:
             self.radio_drift = 1
@@ -397,7 +397,14 @@ class Board:
                 "count": 1 if self.have_probe else 0,
                 "addr": "28FF641E8C1A03C7" if self.have_probe else None,
             },
-            "radio": {"ch": 1, "fail": self.radio_fail, "drift": self.radio_drift},
+            "radio": {
+                "ch": 1,
+                "fail": self.radio_fail,
+                "drift": self.radio_drift,
+                # Broadcasts are unacknowledged, so the only proof the face is alive is the
+                # face talking back. It never does while the radio is down.
+                "heard": None if self.has("RADIO_DOWN") else 1200,
+            },
             "motor": {
                 "stir": STIR_PCT if self.stirring else 0,
                 "transBefore": None if self.motor_before is None else self.motor_before["trans"],

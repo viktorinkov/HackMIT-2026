@@ -76,7 +76,7 @@ waiting in the buffer, so send one command at a time.
 | `a` | Toggle auto t = 0. **On at boot.** Fires when transmission falls more than 6 % (`DROP_FRACTION`) between two **unswept** reports, and only after a blank. |
 | `s` | Stop the run: `t` goes back to `-1`. |
 | `m` | Toggle the stirrer. **Running at boot.** |
-| `d` | Print one diagnostics line, after the next data line. Costs about a second of the fast channel: the LEDs go off and are released to measure their forward drops. |
+| `d` | Print one diagnostics line, after the next data line. Costs about two seconds of the fast channel: twelve 100 ms noise windows, then the LEDs go off and are released to measure their forward drops. |
 
 ### Diagnostics line: only after `d`
 
@@ -87,7 +87,7 @@ waiting in the buffer, so send one command at a time.
  "diode":{"ir":246,"red":547,"yellow":624,"green":1208,"blue":1510,"violet":1763},
  "noise":{"trans":44,"scat":44},
  "probe":{"present":true,"count":1,"addr":"28FF641E8C1A03C7"},
- "radio":{"ch":1,"fail":0,"drift":0},
+ "radio":{"ch":1,"fail":0,"drift":0,"heard":1200},
  "motor":{"stir":100,"transBefore":2460,"transAfter":2455,"scatBefore":180,"scatAfter":181}}}
 ```
 
@@ -103,7 +103,7 @@ waiting in the buffer, so send one command at a time.
 | `diode` | Forward drop at each LED pin, mV, measured through the internal pull-up. ~3300 mV means nothing is in the holes; a few tens of mV means backwards or shorted. Healthy values are in `BASELINES.md`. |
 | `noise` | Peak-to-peak spread of twelve 100 ms means on each sensor, mV. |
 | `probe` | DS18B20 presence, count, and ROM address (`null` when absent). |
-| `radio` | ESP-NOW channel, failed sends since boot, and how many times the channel had drifted and was pulled back. |
+| `radio` | ESP-NOW channel, failed sends since boot, how many times the channel had drifted and was pulled back, and `heard`: milliseconds since the BOX-3 face last sent anything, or null if it never has. A successful send only means the packet was queued — broadcasts are unacknowledged — so `heard` is the only evidence the far end exists. |
 | `motor` | Stirrer percent and both sensors either side of the last stirrer toggle. Both channels moving together means the motor is coupling into the measurement. `null` until the stirrer has been toggled once. |
 
 ## State a host has to track itself

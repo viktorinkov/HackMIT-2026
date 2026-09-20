@@ -33,17 +33,24 @@ class SessionLog {
   /// Opens `peel-<timestamp>.jsonl` in [directory], creating it if needed. On Android
   /// [Directory.systemTemp] is the app's own cache directory, which `adb pull` can reach
   /// without any storage permission; see `hardware/docs/PLUG_IN_DAY.md`.
-  static Future<SessionLog> open({Directory? directory, DateTime? now}) async {
+  ///
+  /// Synchronous on purpose: the caller opens the log and the port in the same breath, and
+  /// anything awaited here is a window in which the first lines of the run go unrecorded.
+  /// The writes themselves are still buffered and asynchronous.
+  static SessionLog open({Directory? directory, DateTime? now}) {
     final at = now ?? DateTime.now();
     final dir = directory ?? Directory('${Directory.systemTemp.path}/peel');
-    await dir.create(recursive: true);
+    dir.createSync(recursive: true);
     // Milliseconds, and a counter after them, because two connections a second apart
     // sharing a file would put two sessions in one log.
     final stamp = at.toIso8601String().replaceAll(':', '-');
+    // Created here rather than left to openWrite, whose buffering means the file can still
+    // be absent when the next connection looks for a free name.
     var file = File('${dir.path}/peel-$stamp.jsonl');
     for (var n = 2; file.existsSync(); n++) {
       file = File('${dir.path}/peel-$stamp-$n.jsonl');
     }
+    file.createSync();
     final sink = file.openWrite();
     final log = SessionLog._(file, sink, at);
     log._write({'kind': 'session', 'app': 'peel_app', 'logVersion': 1}, at);
@@ -92,6 +99,7 @@ class SessionLog {
             'ch': diag.radioChannel,
             'fail': diag.radioSendFailures,
             'drift': diag.radioDriftCorrections,
+            'heard': diag.radioHeardMs,
           },
           'motor': {
             'stir': diag.motorStirPct,

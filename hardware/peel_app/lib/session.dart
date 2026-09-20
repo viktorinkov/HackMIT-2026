@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:usb_serial/usb_serial.dart';
@@ -19,6 +20,7 @@ class Session extends ChangeNotifier {
   Session({
     this.watchUsb = true,
     this.logging = true,
+    this.logDirectory,
     this.tick = const Duration(milliseconds: 500),
   });
 
@@ -27,6 +29,9 @@ class Session extends ChangeNotifier {
 
   /// False in tests that must not touch the filesystem.
   final bool logging;
+
+  /// Where the session logs go. Null means the app's own cache directory.
+  final Directory? logDirectory;
 
   final Duration tick;
 
@@ -148,17 +153,15 @@ class Session extends ChangeNotifier {
     history.clear();
     history.connectedAt = DateTime.now();
     faults = const [];
+    log = null;
     if (logging) {
-      log = null;
-      SessionLog.open().then((opened) {
-        log = opened;
-        opened.event('connected', {'device': link.label}, DateTime.now());
-        if (!_disposed) notifyListeners();
-      }).catchError((Object e) {
+      try {
+        log = SessionLog.open(directory: logDirectory)
+          ..event('connected', {'device': link.label}, DateTime.now());
+      } catch (e) {
         // A log we cannot write is not a reason to lose the run.
         error = 'Session log unavailable: $e';
-        return null;
-      });
+      }
     }
     _lineSub = link.lines.listen(
       _onLine,

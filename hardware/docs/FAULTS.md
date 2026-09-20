@@ -20,11 +20,12 @@ provoked.
 | `PROBE_MISSING` | DS18B20 unplugged, or the 5.1 kΩ pull-up missing | `tC` null; boot banner says `absent` | `tC` null for 3 lines | derived from firmware behaviour |
 | `PROBE_ERROR` | bad read | `tC` = −127.0 or 85.0 | exact match | library sentinels |
 | `TEMP_JITTER` | supply or radio noise on the OneWire line | consecutive `tC` differ by more than a liquid can change | > 0.5 °C between consecutive lines | **seen**: up to ±1.5 °C with the radio on |
-| `BROWNOUT_RESET` | supply sagged, usually the motor starting on USB power | boot banner reappears mid-session; `t` returns to −1; blank lost (`absT` null again) | banner seen after the first one | derived; `esp_reset_reason()` would confirm it from inside |
+| `BROWNOUT_RESET` | supply sagged, usually the motor starting on USB power | boot banner reappears mid-session; `t` returns to −1; blank lost (`absT` null again) | banner seen after the first one, and `diag.reset` is `BROWNOUT`, `POWERON` or not yet known | derived; `esp_reset_reason()` confirms it from inside |
+| `BOARD_RESET` | the firmware restarted itself | boot banner reappears and `diag.reset` names a software cause: `SW`, `PANIC`, `TASK_WDT`, `INT_WDT` | any such reset outside a run | derived from `esp_reset_reason()` |
 | `BOARD_RESET_MIDRUN` | any reset during a run | as above while `t ≥ 0` was live | | derived |
 | `STREAM_STALE` | board hung, cable out, or port lost | no line for > 3 s | normal period is 1.0 s; the longest healthy gap seen is 2.18 s | **seen** as the healthy bound |
 | `LINE_GAP` | something blocked the loop | period > 1.5 s | the stirrer's start ramp causes one 2.2 s gap | **seen** |
-| `RADIO_DOWN` | BOX-3 out of range, unpowered, or off channel | face reports `link down`; no `PeelPacket` for 5 s | 5 s | **seen** before the channel was pinned |
+| `RADIO_DOWN` | the board cannot get packets onto the air | `diag.radio.fail` climbing. The phone cannot see the far end: ESP-NOW broadcasts are unacknowledged, so a successful send only means the packet was queued. `diag.radio.heard` says when the face last talked back, and the face itself shows `link down` after 5 s without a `PeelPacket` | >= 20 failed sends | **seen** before the channel was pinned |
 | `RADIO_DRIFT` | a radio left channel 1 | note `# radio had drifted to channel N, pulled back` | any occurrence | detector is in both firmwares; has not fired since |
 | `FALSE_START` | auto t = 0 fired with no tablet | `# t = 0 detected` immediately after a swept line | guarded in firmware: swept lines neither trigger nor seed the detector | **seen**, fixed; `session_full_cycle` shows 26 s and two sweeps after a blank with no trigger |
 | `WRONG_FIRMWARE` | a different sketch is on the board | no `# 17_stream ready` banner; lines are not JSON (`18_selftest` prints `trans  144 mV   scat  121 mV   tC 23.81`) | banner missing within 5 s of connect | **seen**: `selftest_*.log` |
