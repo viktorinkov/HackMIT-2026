@@ -6,7 +6,7 @@
 
 ## Check the bottle, the imprint, and the pill — then read the evidence.
 
-Peel is an open-source medicine check for places where a tablet and its packaging may not match. Photograph the **bottle**, read the **imprint**, measure the **pill**, and get a sourced report. Peel never says a medicine is safe, genuine, or authentic.
+Peel is an open-source medicine check for places where a tablet and its packaging may not match. Photograph the **bottle**, read the **imprint**, measure the **pill**, and get a sourced report.
 
 [![Hardware CI](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml/badge.svg)](https://github.com/viktorinkov/HackMIT-2026/actions/workflows/hardware.yml)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
@@ -16,10 +16,16 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
-  <img src="assets/leo-motion.jpg" alt="Leo in eight motion states: ready, thirsty, sleeping, mixing, tablet spotted, all done, too hot, and too cold" width="720">
+  <img src="assets/hardware-placeholder.svg" alt="Placeholder for a photo of the Peel hardware" width="720">
+  <br>
+  <em>Hardware photo — coming soon</em>
 </p>
 
-> **Not a medical device. Not clinical advice.** Peel is a HackMIT 2026 research prototype. A pharmacist or prescriber is the authority on whether a medicine should be taken. A scan with no adverse findings is not confirmation that a tablet is genuine or safe.
+<p align="center">
+  <img src="assets/app-demo-placeholder.svg" alt="Placeholder for a video of the Peel app" width="720">
+  <br>
+  <em>App demo — coming soon</em>
+</p>
 
 ## Table of contents
 
@@ -34,7 +40,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 - [HTTP API](#http-api)
 - [Verification](#verification)
 - [Troubleshooting](#troubleshooting)
-- [Safety and privacy](#safety-and-privacy)
+- [Privacy](#privacy)
 - [Project layout](#project-layout)
 - [Contributing](#contributing)
 - [License](#license)
@@ -44,15 +50,15 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 
 People often cannot tell whether the tablet in their hand is the medicine on the label. Counterfeit and substandard medicines are a documented public-health problem, especially where supply chains are long and local regulators are stretched. Packaging can be copied. Imprints can be faked. The contents are the part you cannot see.
 
-Peel keeps three observations separate on purpose:
+Peel keeps three observations separate:
 
-| Observation | What it is | What it is not |
-| --- | --- | --- |
-| **Bottle** | Text and markings read from a photo of the container | Proof of what is inside |
-| **Imprint** | Characters, color, and shape read from a photo of the tablet | A certified identity |
-| **Pill** | A hardware reading of the physical tablet | A purity, potency, or safety score |
+| Observation | Source |
+| --- | --- |
+| **Bottle** | Text and markings read from a photo of the container |
+| **Imprint** | Characters, color, and shape read from a photo of the tablet |
+| **Pill** | A hardware reading of the physical tablet |
 
-The backend then searches a seeded regulatory corpus (FDA, WHO, Health Canada, MHRA, NAFDAC, NLM Pillbox, openFDA NDC) plus a budgeted live web pass, and returns a **guardrailed** report: every citation is resolved back to stored evidence, and banned wording such as “safe” or “genuine” is stripped.
+The backend then searches a seeded regulatory corpus (FDA, WHO, Health Canada, MHRA, NAFDAC, NLM Pillbox, openFDA NDC) plus a budgeted live web pass, and returns a sourced report. Every citation is resolved back to stored evidence.
 
 ## How a check works
 
@@ -74,7 +80,7 @@ Research is staged so the client can render early:
 | `complete` | Agent + structured report finished | Full sourced report |
 | `error` | Elasticsearch was unreachable at load | Retry |
 
-Verdicts are only `no_adverse_findings`, `mismatch_found`, `recall_match`, or `insufficient_evidence`. There is no positive-assurance value.
+Verdicts are `no_adverse_findings`, `mismatch_found`, `recall_match`, or `insufficient_evidence`.
 
 ## What's in this repository
 
@@ -103,7 +109,7 @@ Deeper backend notes: [`backend/README.md`](backend/README.md). Hardware flash a
 - **Pill identification ladder** — imprint first, then shape family, then a looser fallback. Shape or color alone never identifies a tablet.
 - **Budgeted live web research** — Firecrawl searches are capped per scan and per process, cached by source tier, and indexed back into Elasticsearch.
 - **Graceful degradation** — if Agent Builder, Firecrawl, or OpenAI is down, the deterministic report still stands.
-- **Voice with a scan context** — Deepgram is handed a string `scan_context`, not a backend URL and not a license to invent drug facts.
+- **Voice with a scan context** — Deepgram is handed a string `scan_context`, not a backend URL.
 - **Privacy defaults** — Rx numbers, pharmacy names, and directions are dropped unless `SCANS_STORE_SENSITIVE=true`. Image bytes are never stored.
 
 ## Architecture
@@ -314,7 +320,7 @@ curl -s "localhost:8000/knowledge/pill?imprint=5892V&shape=capsule"
 curl -s "localhost:8000/knowledge/stats"
 ```
 
-More demo scripts, including a clean/unknown bottle that must carry the no-findings disclaimer: [`backend/README.md#demo-script`](backend/README.md#demo-script).
+More demo scripts, including a clean/unknown bottle: [`backend/README.md#demo-script`](backend/README.md#demo-script).
 
 ## HTTP API
 
@@ -336,7 +342,7 @@ More demo scripts, including a clean/unknown bottle that must carry the no-findi
 | `GET` | `/knowledge/search` | Hybrid regulatory or web search |
 | `GET` | `/health` | Liveness |
 
-Field-level contracts, guardrails, and index mappings live in [`backend/README.md`](backend/README.md).
+Field-level contracts and index mappings live in [`backend/README.md`](backend/README.md).
 
 ## Verification
 
@@ -369,9 +375,8 @@ CI today covers the instrument (`hardware.yml`): simulator, Flutter analyze/test
 | Phone never sees the board | Charge-only USB-C cable, or the USB permission dialog was denied. Use a data cable and replug. |
 | `BROWNOUT_RESET` when the stirrer starts | Motor load on the phone's USB port. Power the motor separately. |
 
-## Safety and privacy
+## Privacy
 
-- Peel **does not** certify medicines. Guardrails rewrite banned clauses, not just keywords, and every `no_adverse_findings` report must carry the mandated disclaimer.
 - Only corroborated exact-lot or all-lots-for-this-product hits become `recall_match`. Sibling-strength NDC matches and lot-string collisions stay at caution.
 - Citations are rebuilt from the evidence pack. The model may choose which stored id to cite; it cannot invent a source.
 - Mock hardware is labelled in the scan (`hardware.limitations`) whenever the model is `mock-spectrometry`.
@@ -387,7 +392,7 @@ HackMIT-2026/
 │   ├── scripts/             smoke tests, Runpod entrypoint
 │   └── README.md            evidence-layer deep dive
 ├── hardware/                firmware, debug Flutter app, simulator, tools
-├── assets/             README images
+├── assets/                  README images and demo placeholders
 ├── photos-for-testing/      sample bottle and imprint photos
 ├── ASSUMPTIONS.md
 └── LICENSE
@@ -399,7 +404,7 @@ This is a HackMIT 2026 project under active construction. Issues and pull reques
 
 1. Open an issue for anything that could change a verdict, a citation, or a privacy default.
 2. Keep bottle / imprint / pill wording consistent.
-3. Do not add a positive-assurance verdict, and do not store image bytes or Rx/pharmacy fields by default.
+3. Do not store image bytes or Rx/pharmacy fields by default.
 4. Run `uv run pytest` in `backend/` before you open a PR. If you touch `hardware/`, the hardware workflow must stay green.
 
 Please do not file issues that include photographs of real prescriptions, patient names, or other personal data. Use the fixtures in `photos-for-testing/` and the demo payloads above.
