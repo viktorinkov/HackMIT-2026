@@ -24,7 +24,6 @@ try:
 except ImportError:
     sys.exit("From backend/: uv run --with websockets python scripts/deepgram-chat.py")
 
-RUNPOD_API = "https://m2cw0a06ep8e5g-8000.proxy.runpod.net"
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 # 80 ms of linear16 / 24 kHz / mono — never a zero-length frame.
 FRAME_MS = 80
@@ -61,11 +60,9 @@ def _load_dotenv() -> None:
 
 
 def _peel_api() -> str:
-    api = (
-        os.environ.get("API")
-        or os.environ.get("PUBLIC_API_BASE_URL")
-        or RUNPOD_API
-    ).rstrip("/")
+    api = (os.environ.get("API") or os.environ.get("PUBLIC_API_BASE_URL") or "").rstrip("/")
+    if not api:
+        sys.exit("Set API or PUBLIC_API_BASE_URL.")
     if "127.0.0.1" in api or "localhost" in api:
         sys.exit(f"Refusing {api}. The Flutter client talks to Runpod.")
     return api

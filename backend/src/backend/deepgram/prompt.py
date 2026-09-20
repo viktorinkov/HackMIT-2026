@@ -4,7 +4,7 @@ from pathlib import Path
 from backend.scans.assembler import compact_scan_context
 from backend.scans.models import PlaygroundPrompt, ScanReport
 
-SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "data" / "system-prompt.txt"
+SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "system-prompt.txt"
 PROMPT_LIMIT = 25_000
 
 

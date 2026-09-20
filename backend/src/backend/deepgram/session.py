@@ -3,7 +3,7 @@ from typing import Any
 from backend.config import Settings
 from backend.scans.compare import pair_mismatches
 from backend.scans.models import ScanReport
-from backend.scans.prompt import build_playground_prompt
+from backend.deepgram.prompt import build_playground_prompt
 
 
 def _named(name: str | None, strength: str | None) -> str | None:

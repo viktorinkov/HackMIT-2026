@@ -1,0 +1,111 @@
+{
+  "pending": {
+    "scan_id": "demo-pending",
+    "revision": 1,
+    "demo": true,
+    "status": "pending",
+    "bottle": null,
+    "imprint": null,
+    "hardware": null,
+    "drug_facts": [],
+    "sources": []
+  },
+  "mismatch": {
+    "scan_id": "demo-mismatch",
+    "revision": 1,
+    "demo": true,
+    "status": "complete",
+    "bottle": {
+      "status": "read",
+      "generic_name": "acetaminophen",
+      "strength": "500 mg",
+      "form": "tablet"
+    },
+    "imprint": {
+      "status": "candidate_found",
+      "observed_text": "DEMO-B (synthetic test marking)",
+      "candidates": [
+        {
+          "generic_name": "ibuprofen",
+          "strength": "200 mg",
+          "form": "tablet",
+          "source_id": "demo-reference"
+        }
+      ]
+    },
+    "hardware": {
+      "status": "candidate_found",
+      "candidate": {
+        "generic_name": "ibuprofen",
+        "strength": null,
+        "form": "tablet"
+      },
+      "degradation": {
+        "status": "not_assessed"
+      },
+      "limitations": [
+        "Synthetic demo result; no physical measurement was performed.",
+        "Strength and purity are not measured."
+      ]
+    },
+    "drug_facts": [],
+    "sources": [
+      {
+        "id": "demo-reference",
+        "title": "Synthetic test fixture, not a real imprint reference",
+        "url": null
+      }
+    ]
+  },
+  "suspected_degradation": {
+    "scan_id": "demo-degradation",
+    "revision": 1,
+    "demo": true,
+    "status": "complete",
+    "bottle": {
+      "status": "read",
+      "generic_name": "acetaminophen",
+      "strength": "500 mg",
+      "form": "tablet"
+    },
+    "imprint": {
+      "status": "candidate_found",
+      "observed_text": "DEMO-A (synthetic test marking)",
+      "candidates": [
+        {
+          "generic_name": "acetaminophen",
+          "strength": "500 mg",
+          "form": "tablet",
+          "source_id": "demo-reference"
+        }
+      ]
+    },
+    "hardware": {
+      "status": "candidate_found",
+      "candidate": {
+        "generic_name": "acetaminophen",
+        "strength": null,
+        "form": "tablet"
+      },
+      "degradation": {
+        "status": "suspected",
+        "evidence": [
+          "Synthetic quality-anomaly flag"
+        ],
+        "remaining_potency": null
+      },
+      "limitations": [
+        "Synthetic demo result; no physical measurement was performed.",
+        "This flag does not establish degradation, toxicity, or potency."
+      ]
+    },
+    "drug_facts": [],
+    "sources": [
+      {
+        "id": "demo-reference",
+        "title": "Synthetic test fixture, not a real imprint reference",
+        "url": null
+      }
+    ]
+  }
+}
