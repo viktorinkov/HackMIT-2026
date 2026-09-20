@@ -24,6 +24,7 @@ class PeelVoiceWaveform extends StatefulWidget {
 class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   static const _tick = Duration(milliseconds: 70);
   static const _height = 132.0;
+  static const _barSpace = 8.0;
 
   final _random = Random();
   final _amplitudes = StreamController<Amplitude>.broadcast();
@@ -33,9 +34,28 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   @override
   void initState() {
     super.initState();
+    _flatten();
     _timer = Timer.periodic(_tick, (_) {
       _frame++;
       _amplitudes.add(Amplitude(current: _level * 100, max: 100));
+    });
+  }
+
+  @override
+  void didUpdateWidget(PeelVoiceWaveform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) _flatten();
+  }
+
+  /// Fills the band with baseline bars so the wave starts flat across the
+  /// whole width and rises in place, rather than scrolling in from the right.
+  void _flatten() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final bars = (MediaQuery.of(context).size.width / _barSpace).ceil();
+      for (var i = 0; i < bars; i++) {
+        _amplitudes.add(Amplitude(current: 0, max: 100));
+      }
     });
   }
 
