@@ -595,25 +595,32 @@ def serve_tcp(runner: Runner, port: int, control_port: int | None, run_for: floa
                 conn.setblocking(False)
                 control = conn
                 sel.register(conn, selectors.EVENT_READ, "control")
-            elif key.data == "client":
-                data = key.fileobj.recv(4096)  # type: ignore[union-attr]
+            elif key.data in ("client", "control"):
+                # A peer that walks away resets the connection rather than closing it
+                # politely, and a reply to a socket nobody is reading breaks the pipe.
+                # Neither is a reason for the board to die under a test.
+                try:
+                    data = key.fileobj.recv(4096)  # type: ignore[union-attr]
+                except OSError:
+                    data = b""
+                if data:
+                    if key.data == "client":
+                        runner.on_bytes(data)
+                    else:
+                        for line in data.decode("utf-8", "replace").splitlines():
+                            reply = runner.control(line.strip())
+                            try:
+                                key.fileobj.sendall((reply + "\n").encode())  # type: ignore[union-attr]
+                            except OSError:
+                                data = b""
+                                break
                 if not data:
                     sel.unregister(key.fileobj)
                     key.fileobj.close()  # type: ignore[union-attr]
-                    client = None
-                else:
-                    runner.on_bytes(data)
-            elif key.data == "control":
-                data = key.fileobj.recv(4096)  # type: ignore[union-attr]
-                if not data:
-                    sel.unregister(key.fileobj)
-                    key.fileobj.close()  # type: ignore[union-attr]
-                    control = None
-                else:
-                    for line in data.decode("utf-8", "replace").splitlines():
-                        reply = runner.control(line.strip())
-                        if control is not None:
-                            control.sendall((reply + "\n").encode())
+                    if key.data == "client":
+                        client = None
+                    else:
+                        control = None
 
         out = runner.pending()
         if out and client is not None:
