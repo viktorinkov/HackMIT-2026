@@ -43,7 +43,7 @@ class Protocol(unittest.TestCase):
         self.assertIn("# 17_stream ready.", lines)
         self.assertIn("# commands: b blank, z mark t=0", lines)
         self.assertIn("# esp-now up on channel 1", lines)
-        self.assertIn("# commands: b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer\r\n",
+        self.assertIn("# commands: b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer, d diagnostics\r\n",
                       lines)
 
     def test_one_data_line_a_second_with_every_field(self):

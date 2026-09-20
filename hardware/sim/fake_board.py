@@ -156,7 +156,7 @@ class Board:
         self._printf(
             f"# 17_stream ready. Fast channel = green LED. Stirrer {STIR_PCT}%. "
             f"Temperature probe: {'found' if self.have_probe else 'absent, reporting null'}")
-        self._println("# commands: b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer")
+        self._println("# commands: b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer, d diagnostics")
         self._printf(f"# esp-now up on channel 1, this board is {MAC}")
 
     # ---------------------------------------------------------------- the signal

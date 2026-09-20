@@ -12,7 +12,9 @@ Everything the instrument produces, where it comes from, and whether it is on th
 | `absT` | `log10(blankT / trans)` | absorbance | null until a blank | null if either value ≤ 1 mV |
 | `absS` | `log10(blankS / scat)` | absorbance | null until a blank | goes **negative** as turbidity rises; the app shows `−absS` |
 | `tC` | DS18B20, 12-bit, non-blocking | °C, 2 dp | null if no probe | sentinels −127.0 and 85.0 are errors |
-| `sweep.red` … `sweep.blue` | transmission under each LED minus dark | mV | negative with no optical path | every 10 s; null before the first |
+| `sweep.ir` … `sweep.violet` | transmission under each of the six LEDs minus dark | mV | negative with no optical path | every 10 s; null before the first |
+| `sweepS.ir` … `sweepS.violet` | scatter under each LED minus dark | mV | a few percent of `sweep` when clear | same sweep, second sensor |
+| `dark.trans`, `dark.scat` | both sensors, all LEDs off | mV | 91–150 lid shut, 300–830 lid open | measured at the start of every sweep |
 | `stir` | firmware state | % | 0 or 100 | PWM duty, 20 kHz |
 | `swept` | firmware state | bool | | true on the line a sweep ran in. **That line's `trans`/`scat` are disturbed** |
 
@@ -22,20 +24,17 @@ channel drift. See `PROTOCOL.md`.
 
 ## Produced by the hardware but not on the wire yet
 
+Everything below is now in the `{"diag":{…}}` line, printed once per `d` (see `PROTOCOL.md`):
+LED forward drops ×6, sensor noise, dark readings, reset reason, uptime, heap, DS18B20
+presence and address, radio channel / failures / drift, worst loop time, firmware identity,
+and both sensors either side of the last stirrer toggle.
+
+Still not on the wire:
+
 | signal | how to get it | reference implementation |
 |---|---|---|
-| IR and violet sweep values | pulse GPIO1 / GPIO2 like the other four | `18_selftest` drives all six |
-| scatter under each LED | read GPIO9 during the sweep as well as GPIO8 | – |
-| dark reading, both sensors | all LEDs off, read both; the sweep already does this for transmission and discards it | `17_stream` `doSweep()` |
-| LED forward-drop voltages ×6 | pin to `INPUT_PULLUP`, read its own ADC channel | `18_selftest` command `d` |
 | lock-in LED response | N on/off pairs, mean of differences | `18_selftest` `lockin()` |
-| sensor noise | spread of consecutive 100 ms means | `18_selftest` `spread()` |
-| reset reason | `esp_reset_reason()` | – |
-| uptime, free heap, minimum free heap | `millis()`, `ESP.getFreeHeap()`, `ESP.getMinFreeHeap()` | – |
-| DS18B20 presence, ROM address, device count | `DallasTemperature` | `18_selftest` |
-| radio: channel, send failures, drift corrections | `esp_wifi_get_channel()`, `esp_now_send()` return, send callback | channel check is in `17_stream` `holdChannel()` |
-| loop timing | time between reports; worst case | – |
-| firmware identity | a version string and build date | – |
+| sampling with the motor gated off | stop the PWM, wait, sample, restart | – (`diag.gated` is reserved for it and reads `false`) |
 
 ## Commands (one ASCII byte, over USB or ESP-NOW)
 
@@ -46,9 +45,11 @@ channel drift. See `PROTOCOL.md`.
 | `a` | toggle automatic t = 0 (on at boot; 6 % drop in `trans` between two unswept lines, only after a blank) | `# auto t=0 on/off` |
 | `s` | stop the run, `t` back to −1 | `# run stopped` |
 | `m` | toggle the stirrer (on at boot) | `# stirrer on/off` |
+| `d` | print one diagnostics line after the next data line | – (the line itself is the answer) |
 
 ## ESP-NOW packet (XIAO → BOX-3, once a second)
 
 36 bytes, packed: `magic 'P'`, `version 1`, six floats `t trans scat absT absS tC` (NaN = null),
-`uint16 sweep[4]` (0xFFFF = none; negative values wrap, so treat ≥ 0x8000 as invalid),
+`uint16 sweep[4]` — red, yellow, green, blue only, the four the version-1 packet has room for
+(0xFFFF = none or negative, so treat ≥ 0x8000 as invalid) —
 `uint8 stir`, `uint8 flags` (1 swept, 2 blank stored, 4 auto t = 0, 8 stirring).
