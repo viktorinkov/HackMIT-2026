@@ -79,3 +79,10 @@ over whichever `PeelRiveSlot` is on screen (`lib/rive/peel_rive_widgets.dart`),
 so it never restarts between screens. Stage mapping: bottle 0, pill 1,
 connect 2, submerged 3, checking 4, complete 5, research 6, clear 7. It
 hides while a dialog or sheet is up.
+
+### Optional hardware display
+
+The normal Peel app mirrors workflow stages through the Seeed USB connection to
+the BOX-3 over radio when compatible firmware is connected. Use **Skip hardware**
+on the device screen to continue without a hardware run. Skipping creates no
+synthetic readings. See [firmware setup](../hardware/firmware/23_phone_display/README.md).

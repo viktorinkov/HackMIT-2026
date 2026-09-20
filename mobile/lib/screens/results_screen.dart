@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../data/mock_data.dart';
+import '../rive/peel_rive_stage.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/field_card.dart';
@@ -19,6 +20,12 @@ class ResultsScreen extends StatefulWidget {
 }
 
 class _ResultsScreenState extends State<ResultsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    peelRiveStage.show(PeelStage.clear);
+  }
+
   @override
   Widget build(BuildContext context) {
     final result = scanSession.result;
@@ -57,11 +64,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             _EvidencePhoto(photo: scanSession.photoFor(row.step)!),
             const SizedBox(height: PeelSpace.x8),
           ],
-          PeelFieldCard(
-            label: row.label,
-            value: row.value,
-            detail: row.detail,
-          ),
+          PeelFieldCard(label: row.label, value: row.value, detail: row.detail),
           const SizedBox(height: PeelSpace.x8),
         ],
         const SizedBox(height: PeelSpace.x4),
@@ -69,9 +72,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           title: 'Drug facts',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final fact in result.facts) _Bullet(text: fact),
-            ],
+            children: [for (final fact in result.facts) _Bullet(text: fact)],
           ),
         ),
         const SizedBox(height: PeelSpace.x12),
@@ -88,9 +89,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
       actions: [
         PeelButton(
           label: 'Chat about results',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const ChatScreen())),
         ),
         if (result.canReport)
           PeelButton(
@@ -110,21 +111,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
 ({Color background, Color foreground}) _toneFor(ScanVerdict verdict) {
   return switch (verdict) {
     ScanVerdict.match => (
-        background: PeelColors.successSoft,
-        foreground: PeelColors.success
-      ),
+      background: PeelColors.successSoft,
+      foreground: PeelColors.success,
+    ),
     ScanVerdict.mismatch => (
-        background: PeelColors.errorSoft,
-        foreground: PeelColors.error
-      ),
+      background: PeelColors.errorSoft,
+      foreground: PeelColors.error,
+    ),
     ScanVerdict.unconfirmed => (
-        background: PeelColors.soft,
-        foreground: PeelColors.deep
-      ),
+      background: PeelColors.soft,
+      foreground: PeelColors.deep,
+    ),
     ScanVerdict.degradation => (
-        background: PeelColors.soft,
-        foreground: PeelColors.deep
-      ),
+      background: PeelColors.soft,
+      foreground: PeelColors.deep,
+    ),
   };
 }
 

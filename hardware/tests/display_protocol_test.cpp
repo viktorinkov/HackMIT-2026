@@ -24,4 +24,12 @@ int main() {
   feed("bzsm\r\nHELLO\n");
   assert(instrument == "bzsm");
   assert(scenes.back() == 0);
+  for (int n = 0; n < 8; n++) {
+    feed("PHASE" + std::to_string(n) + "\n");
+    assert(scenes.back() == n + 2);
+  }
+  size_t count = scenes.size();
+  feed("PHASE9zm\nPHASE4z\n");
+  assert(scenes.size() == count);
+  assert(instrument == "bzsm");
 }

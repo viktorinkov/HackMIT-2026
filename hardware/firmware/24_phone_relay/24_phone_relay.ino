@@ -99,8 +99,7 @@ void serviceDisplay() {
     if (!displayWaiting || reply.sequence != displayRequest.sequence ||
         reply.scene != displayRequest.scene) continue;
     displayWaiting = false;
-    Serial.printf("{\"display\":\"peel\",\"text\":\"%s\",\"version\":1,\"via\":\"seeed-radio\"}\n",
-                  reply.scene ? "Peel" : "Hello!");
+    Serial.printf("{\"display\":\"peel\",\"scene\":%u,\"version\":1,\"via\":\"seeed-radio\"}\n", reply.scene);
   }
   if (!displayWaiting) return;
   if (displayAttempts && millis() - displaySentAt < 400) return;
@@ -254,7 +253,7 @@ void nowSendReading(float elapsed, float t, float s, float aT, float aS, float t
 volatile char pendingCmd = 0;
 void onNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len == sizeof(DisplayPacket) && data[0] == 'A' && data[1] == 1 &&
-      data[2] <= 1 && !memcmp(info->src_addr, DISPLAY_MAC, 6)) {
+      data[2] <= 9 && !memcmp(info->src_addr, DISPLAY_MAC, 6)) {
     DisplayPacket reply;
     memcpy(&reply, data, sizeof(reply));
     xQueueSend(displayReplies, &reply, 0);
@@ -424,7 +423,7 @@ void loop() {
 
   float elapsed = tZero ? (millis() - tZero) / 1000.0f : -1.0f;
 
-  Serial.print("{");
+  Serial.print("{\"displayRelay\":2,");
   Serial.printf("\"t\":%.1f,\"trans\":%.0f,\"scat\":%.0f", elapsed, t, s);
   if (haveBlank) {
     Serial.print(",\"absT\":"); printNum(absorbance(blankT, t), 4);

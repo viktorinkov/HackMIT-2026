@@ -16,21 +16,26 @@ import 'results_screen.dart';
 
 /// Device connect + pill check, driven by the instrument.
 class DeviceScreen extends StatefulWidget {
-  const DeviceScreen({super.key});
+  const DeviceScreen({super.key, this.controller});
+
+  final DeviceRun? controller;
 
   @override
   State<DeviceScreen> createState() => _DeviceScreenState();
 }
 
 class _DeviceScreenState extends State<DeviceScreen> {
-  DevicePhase get _phase => deviceRun.phase;
+  DeviceRun get run => widget.controller ?? deviceRun;
+  DevicePhase get _phase => run.phase;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    deviceRun.addListener(_changed);
-    if (!deviceRun.session.connected) deviceRun.session.connectUsb();
+    run.addListener(_changed);
+    if (!run.session.connected && run.session.watchUsb) {
+      run.session.connectUsb();
+    }
     _changed();
   }
 
@@ -55,7 +60,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   @override
   void dispose() {
-    deviceRun.removeListener(_changed);
+    run.removeListener(_changed);
     _timer?.cancel();
     super.dispose();
   }
@@ -74,7 +79,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     DevicePhase.connecting => (
       title: 'Check pill',
       body:
-          deviceRun.session.error ??
+          run.session.error ??
           'Connect Peel with a USB cable. Waiting for readings.',
       placeholder: 'Device blinks while the phone looks for it',
     ),
@@ -86,12 +91,12 @@ class _DeviceScreenState extends State<DeviceScreen> {
     DevicePhase.temperature => (
       title: 'Water temperature',
       body:
-          'Water is too ${deviceRun.temperature! < 35.5 ? 'cold' : 'hot'} (${deviceRun.temperature} °C). Aim for 37 °C.',
+          'Water is too ${run.temperature! < 35.5 ? 'cold' : 'hot'} (${run.temperature} °C). Aim for 37 °C.',
       placeholder: 'Water temperature',
     ),
     DevicePhase.ready => (
       title: 'Check pill',
-      body: deviceRun.temperature == null
+      body: run.temperature == null
           ? 'Probe not connected. Drop the pill in; you can still run.'
           : 'Ready. Drop the pill in and close it.',
       placeholder: 'Pill drops into the open device tray',
@@ -99,7 +104,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     DevicePhase.checking => (
       title: 'Checking pill',
       body:
-          'Reading the pill: ${deviceRun.session.latest?.t} s. Stirrer ${deviceRun.session.latest?.stirPct}%.',
+          'Reading the pill: ${run.session.latest?.t} s. Stirrer ${run.session.latest?.stirPct}%.',
       placeholder: 'Light sweeps over the pill inside the device',
     ),
     DevicePhase.complete => (
@@ -122,7 +127,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
             MaterialPageRoute<void>(
               builder: (_) => Theme(
                 data: ThemeData(),
-                child: DebugScreen(session: deviceRun.session),
+                child: DebugScreen(session: run.session),
               ),
             ),
           ),
@@ -151,7 +156,21 @@ class _DeviceScreenState extends State<DeviceScreen> {
               DevicePhase.ready => 'Check pill',
               _ => 'Stop',
             },
-            onPressed: deviceRun.act,
+            onPressed: run.act,
+          ),
+        if (_phase != DevicePhase.checking && _phase != DevicePhase.complete)
+          PeelButton(
+            label: 'Skip hardware',
+            variant: PeelButtonVariant.text,
+            onPressed: () {
+              run.scan.skipHardware();
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ResultsScreen(),
+                  settings: const RouteSettings(name: 'results'),
+                ),
+              );
+            },
           ),
         if (_phase != DevicePhase.complete)
           PeelButton(

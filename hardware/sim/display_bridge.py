@@ -51,17 +51,21 @@ async def main():
         task = asyncio.create_task(telemetry())
         try:
             if not port:
-                writer.write(b'{"displayReady":1}\n' + state())
+                writer.write(b'{"displayRelay":2,"t":-1,"trans":200,"scat":40,"tC":null}\n')
                 await writer.drain()
             while raw := await reader.readline():
                 command = raw.strip()
-                if command not in (b'HELLO', b'PEEL'):
+                phase = len(command) == 6 and command[:5] == b'PHASE' and command[5:6] in b'01234567'
+                if command not in (b'HELLO', b'PEEL') and not phase:
                     writer.write(b'{"error":"Unknown display command"}\n')
                 elif port:
                     await asyncio.to_thread(port.write, command + b'\n')
                 else:
                     print('mock display:', command.decode(), flush=True)
-                    writer.write(state(command == b'HELLO'))
+                    if phase:
+                        writer.write((json.dumps({'display':'peel','scene':2+int(command[-1:]),'version':1,'via':'seeed-radio'})+'\n').encode())
+                    else:
+                        writer.write(state(command == b'HELLO'))
                 await writer.drain()
         except (ConnectionError, ValueError):
             pass

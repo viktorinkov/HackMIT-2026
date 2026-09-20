@@ -16,7 +16,7 @@ const uint16_t ORANGE = 0xFC23;
 char command[32];
 size_t commandLength = 0;
 bool overflow = false;
-bool greeting = true;
+uint8_t currentScene = 0;
 int lastFrame = -1;
 const uint8_t SEEED_MAC[6] = {0x68, 0xEE, 0x8F, 0x50, 0x27, 0xE8};
 QueueHandle_t displayCommands;
@@ -24,7 +24,7 @@ bool radioReady = false;
 
 void onDisplayRequest(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   if (len != sizeof(DisplayPacket) || data[0] != 'D' || data[1] != 1 ||
-      data[2] > 1 || memcmp(info->src_addr, SEEED_MAC, 6)) return;
+      data[2] > 9 || memcmp(info->src_addr, SEEED_MAC, 6)) return;
   DisplayPacket request;
   memcpy(&request, data, sizeof(request));
   xQueueSend(displayCommands, &request, 0);
@@ -53,7 +53,7 @@ void serviceRadio() {
   if (!radioReady) return;
   DisplayPacket request;
   while (xQueueReceive(displayCommands, &request, 0) == pdTRUE) {
-    greeting = request.scene == 0;
+    currentScene = request.scene;
     render((millis() / PEEL_FRAME_MS) & 1);
     // Only acknowledge after the panel has received the frame.
     request.magic = 'A';
@@ -79,18 +79,29 @@ void spans(const uint16_t *p) {
 
 void render(int frame) {
   memset(pixels, 0, WIDTH * HEIGHT * 2);
-  spans(PEEL_ready_chr_right);
-  spans(frame ? PEEL_ready_fx_right_1 : PEEL_ready_fx_right_0);
-  const char *label = greeting ? "Hello!" : "Peel";
+  // Existing artwork follows the phone; no autonomous instrument workflow.
+  static const uint8_t artwork[] = {0, 0, 0, 3, 1, 3, 0, 4, 0, 4};
+  const PeelState &peel = PEEL_STATES[artwork[currentScene]];
+  spans(peel.chr[0]);
+  spans(peel.fx[0][frame]);
+  const char *label = displayLabel();
   canvas->setTextColor(ORANGE);
-  canvas->setTextSize(3);
-  canvas->setCursor((WIDTH - strlen(label) * 18) / 2, 10);
+  int size = strlen(label) > 11 ? 2 : 3;
+  canvas->setTextSize(size);
+  canvas->setCursor((WIDTH - strlen(label) * 6 * size) / 2, 10);
   canvas->print(label);
   canvas->flush();
+  analogWrite(47, currentScene == 6 ? 40 : 255); // dim while the instrument checks
+}
+
+const char *displayLabel() {
+  static const char *labels[] = {"Hello!", "Peel", "Scan bottle", "Scan pill", "Connect Peel",
+    "Drop pill", "Checking...", "All done!", "Working...", "Results"};
+  return labels[currentScene];
 }
 
 void report() {
-  Serial.printf("{\"display\":\"peel\",\"text\":\"%s\",\"version\":1}\n", greeting ? "Hello!" : "Peel");
+  Serial.printf("{\"display\":\"peel\",\"scene\":%u,\"text\":\"%s\",\"version\":1}\n", currentScene, displayLabel());
 }
 
 void receiveCommands() {
@@ -101,7 +112,7 @@ void receiveCommands() {
     if (c == '\n') {
       command[commandLength] = 0;
       if (!overflow && (!strcmp(command, "HELLO") || !strcmp(command, "PEEL"))) {
-        greeting = !strcmp(command, "HELLO");
+        currentScene = !strcmp(command, "HELLO") ? 0 : 1;
         render((millis() / PEEL_FRAME_MS) & 1);
         report();
       } else if (commandLength || overflow) {

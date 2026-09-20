@@ -109,9 +109,12 @@ class PeelRiveStage extends ChangeNotifier {
     }
   }
 
+  final workflowStage = ValueNotifier<int?>(null);
+
   void show(PeelStage stage) {
     if (_shown == stage) return;
     _shown = stage;
+    workflowStage.value = stage.index;
     _stage?.value = stage.value;
   }
 
@@ -144,6 +147,7 @@ class PeelRiveStage extends ChangeNotifier {
 
   @override
   void dispose() {
+    workflowStage.dispose();
     _controller?.dispose();
     _file?.dispose();
     super.dispose();

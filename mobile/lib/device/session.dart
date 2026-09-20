@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:usb_serial/usb_serial.dart';
@@ -60,6 +61,7 @@ class Session extends ChangeNotifier {
   bool _initialDiagSent = false;
   bool _startPending = false;
   int resetCount = 0;
+  bool supportsWorkflowDisplay = false;
 
   // ------------------------------------------------------------------ streams
   final _readings = StreamController<Reading>.broadcast();
@@ -153,6 +155,7 @@ class Session extends ChangeNotifier {
     deviceLabel = link.label;
     state = LinkState.connected;
     _lineCount = 0;
+    supportsWorkflowDisplay = false;
     autoZero = null;
     _initialDiagSent = false;
     _startPending = false;
@@ -196,31 +199,32 @@ class Session extends ChangeNotifier {
 
   Future<void> _close({required bool deliberate}) async {
     _stopDiag();
-    state = LinkState.idle;
-    notifyListeners();
-    await _lineSub?.cancel();
-    _lineSub = null;
+    // Detach ownership before awaiting I/O: an old unplug must never close a
+    // newly attached link while its own cancellation is still finishing.
+    final lines = _lineSub;
     final link = _link;
-    _link = null;
-    if (link != null) {
-      try {
-        await link.close();
-      } catch (_) {}
-    }
-    // The log outlives the connection: closed, but still readable, so the run can be
-    // exported after the board has gone away. _attach replaces it on the next connect.
     final open = log;
-    if (open != null && !open.isClosed) {
-      open.event('disconnected', {'lines': _lineCount}, DateTime.now());
-      unawaited(open.close());
-    }
+    final lineCount = _lineCount;
+    _lineSub = null;
+    _link = null;
+    state = LinkState.idle;
+    supportsWorkflowDisplay = false;
     if (deliberate) {
       _clock?.cancel();
       _clock = null;
       faults = const [];
     }
-    if (state != LinkState.connecting) state = LinkState.idle;
-    if (!_disposed) notifyListeners();
+    notifyListeners();
+    await lines?.cancel();
+    if (link != null) {
+      try {
+        await link.close();
+      } catch (_) {}
+    }
+    if (open != null && !open.isClosed) {
+      open.event('disconnected', {'lines': lineCount}, DateTime.now());
+      unawaited(open.close());
+    }
   }
 
   /// The connection going away on its own. The clock keeps running, so the board that
@@ -256,6 +260,15 @@ class Session extends ChangeNotifier {
     if (!_rawLines.isClosed) _rawLines.add(raw);
     log?.raw(raw, at);
 
+    // Capability gating keeps display commands away from older instrument builds.
+    if (raw.contains('"displayRelay"')) {
+      try {
+        final value = jsonDecode(raw);
+        if (value is Map) supportsWorkflowDisplay = value['displayRelay'] == 2;
+      } on FormatException {
+        /* The regular parser handles malformed input. */
+      }
+    }
     final parsed = parseLine(raw);
     if (parsed == null) return;
     log?.line(parsed, at);
@@ -273,6 +286,7 @@ class Session extends ChangeNotifier {
         if (text.startsWith('auto t=0')) autoZero = text.endsWith('on');
         if (text.startsWith('17_stream ready')) {
           resetCount++;
+          supportsWorkflowDisplay = false;
           history.samples.clear();
           history.diag = null;
           autoZero = null;

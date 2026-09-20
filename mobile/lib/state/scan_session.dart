@@ -11,10 +11,20 @@ export '../data/mock_data.dart' show ScanStep;
 /// Single in-memory session shared by the demo screens.
 class ScanSession extends ChangeNotifier {
   int generation = 0;
+  bool hardwareSkipped = false;
+
+  void skipHardware() {
+    hardwareSkipped = true;
+    runReadings = const [];
+    runLogPath = null;
+    notifyListeners();
+  }
+
   List<Reading> runReadings = const [];
   String? runLogPath;
 
   void finishRun(List<Reading> readings, String? logPath) {
+    hardwareSkipped = false;
     runReadings = List.unmodifiable(readings);
     runLogPath = logPath;
     notifyListeners();
@@ -78,6 +88,7 @@ class ScanSession extends ChangeNotifier {
 
   void reset() {
     generation++;
+    hardwareSkipped = false;
     runReadings = const [];
     runLogPath = null;
     bottlePhoto = null;

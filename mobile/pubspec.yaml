@@ -28,7 +28,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/display/
     - assets/images/
     - assets/rive/
 
