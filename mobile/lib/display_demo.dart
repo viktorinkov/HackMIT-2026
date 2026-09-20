@@ -8,7 +8,7 @@ void main() {
   runApp(const DisplayDemo());
 }
 
-/// Separate entry point for bringing up the phone-controlled BOX-3 display.
+/// Separate entry point for bringing up the Seeed-to-BOX-3 radio display.
 class DisplayDemo extends StatefulWidget {
   const DisplayDemo({super.key});
   @override
@@ -47,7 +47,9 @@ class _DisplayDemoState extends State<DisplayDemo> {
             child: Column(
               children: [
                 Text(
-                  host.isEmpty ? 'BOX-3 display' : 'Display simulator',
+                  host.isEmpty
+                      ? 'Seeed → Peel display'
+                      : 'Seeed relay simulator',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 24),
@@ -89,8 +91,8 @@ class _DisplayDemoState extends State<DisplayDemo> {
                 Text(
                   session.error ??
                       (session.ready
-                          ? 'Display connected'
-                          : 'Connecting to display…'),
+                          ? 'Display connected through Seeed'
+                          : 'Connecting through Seeed…'),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),

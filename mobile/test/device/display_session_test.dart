@@ -15,18 +15,25 @@ void main() {
         time.flushMicrotasks();
         expect(link.sent, ['HELLO\n']);
         expect(display.ready, isFalse);
+        link.say('{"display":"peel","text":"Hello!","version":1}');
+        time.flushMicrotasks();
+        expect(display.ready, isFalse);
         link.say('{"t":-1,"trans":100,"scat":10}');
         link.say('ESP-ROM startup');
         time.flushMicrotasks();
         expect(display.ready, isFalse);
-        link.say('{"display":"peel","text":"Hello!","version":1}');
+        link.say(
+          '{"display":"peel","text":"Hello!","version":1,"via":"seeed-radio"}',
+        );
         time.flushMicrotasks();
         expect(display.ready, isTrue);
         display.showPeel();
         time.flushMicrotasks();
         expect(display.text, 'Hello!');
         expect(link.sent.last, 'PEEL\n');
-        link.say('{"display":"peel","text":"Peel","version":1}');
+        link.say(
+          '{"display":"peel","text":"Peel","version":1,"via":"seeed-radio"}',
+        );
         time.flushMicrotasks();
         expect(display.text, 'Peel');
         expect(link.sent, ['HELLO\n', 'PEEL\n']);

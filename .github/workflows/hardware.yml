@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: display command framing
+        run: |
+          c++ -std=c++11 hardware/tests/display_protocol_test.cpp -o /tmp/display-protocol-test
+          /tmp/display-protocol-test
       - name: fake board
         working-directory: hardware
         run: python3 sim/test_fake_board.py
@@ -76,3 +80,9 @@ jobs:
       - name: 21_box3_face (ESP32-S3-BOX-3)
         working-directory: hardware
         run: arduino-cli compile --fqbn esp32:esp32:esp32s3box firmware/21_box3_face
+      - name: 23_phone_display (BOX-3 radio display)
+        working-directory: hardware
+        run: arduino-cli compile --fqbn esp32:esp32:esp32s3box firmware/23_phone_display
+      - name: 24_phone_relay (Seeed phone bridge)
+        working-directory: hardware
+        run: arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32S3 firmware/24_phone_relay

@@ -1,7 +1,7 @@
-"""BOX-3 display mock or explicit USB-to-TCP development bridge.
+"""Seeed-to-BOX-3 display mock or explicit USB-to-TCP development bridge.
 
 python3 hardware/sim/display_bridge.py --mock
-python3 hardware/sim/display_bridge.py --serial /dev/cu.usbmodem2101
+python3 hardware/sim/display_bridge.py --serial /dev/cu.usbmodem101
 Emulator endpoint: 10.0.2.2:9001. Binds localhost; never sends motor commands.
 """
 import argparse
@@ -11,7 +11,7 @@ import json
 
 def state(hello=True):
     return (json.dumps({'display': 'peel', 'text': 'Hello!' if hello else 'Peel',
-                        'version': 1}) + '\n').encode()
+                        'version': 1, 'via': 'seeed-radio'}) + '\n').encode()
 
 
 async def main():
@@ -24,6 +24,10 @@ async def main():
     port = None
     if args.serial:
         import serial
+        from serial.tools import list_ports
+        device = next((p for p in list_ports.comports() if p.device == args.serial), None)
+        if not device or (device.serial_number or '').upper() != '68:EE:8F:50:27:E8':
+            raise SystemExit('Use the Seeed USB port (68:EE:8F:50:27:E8), not the BOX-3.')
         port = serial.Serial(args.serial, 115200, timeout=0.2)
     active = False
 

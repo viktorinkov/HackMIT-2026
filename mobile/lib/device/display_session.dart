@@ -43,12 +43,16 @@ class DisplaySession extends ChangeNotifier {
       } else {
         final devices = await UsbLink.devices();
         final displays = devices
-            .where((d) => d.serial?.toUpperCase() == '80:45:6B:64:89:18')
+            .where((d) => d.serial?.toUpperCase() == '68:EE:8F:50:27:E8')
             .toList();
-        final candidates = displays.isNotEmpty ? displays : devices;
+        final candidates = displays.isNotEmpty
+            ? displays
+            : devices
+                  .where((d) => d.serial == null || d.serial!.isEmpty)
+                  .toList();
         if (candidates.length != 1) {
           throw StateError(
-            'Connect only the BOX-3 display to the phone with a USB data cable.',
+            'Connect the Seeed to the phone with a USB data cable. The BOX-3 connects by radio.',
           );
         }
         link = await UsbLink.open(candidates.single);
@@ -76,21 +80,24 @@ class DisplaySession extends ChangeNotifier {
       onDone: () =>
           disconnect('Display disconnected. Reconnect its USB cable.'),
     );
-    _timeout = Timer(const Duration(seconds: 5), () {
-      connecting = false;
-      error =
-          'No display response. Check the BOX-3 display firmware and cable.';
-      _notify();
-    });
     await showHello();
   }
 
   void _receive(String line) {
     try {
       final value = jsonDecode(line);
+      if (value is Map && value['displayError'] is String) {
+        _timeout?.cancel();
+        connecting = false;
+        ready = false;
+        error = value['displayError'] as String;
+        _notify();
+        return;
+      }
       if (value is! Map ||
           value['display'] != 'peel' ||
           value['version'] != 1 ||
+          value['via'] != 'seeed-radio' ||
           !['Hello!', 'Peel'].contains(value['text'])) {
         return;
       }
@@ -108,6 +115,17 @@ class DisplaySession extends ChangeNotifier {
   Future<void> showHello() => _send('HELLO\n');
   Future<void> showPeel() => _send('PEEL\n');
   Future<void> _send(String command) async {
+    if (_link == null) return;
+    ready = false;
+    connecting = true;
+    error = null;
+    _timeout?.cancel();
+    _timeout = Timer(const Duration(seconds: 6), () {
+      connecting = false;
+      error = 'No display response through Seeed. Check BOX-3 power and the radio firmware.';
+      _notify();
+    });
+    _notify();
     try {
       await _link?.send(command);
     } catch (e) {
