@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from backend.deepgram.lead import FAKE_LEAD, RECALL_LEAD
 from backend.deepgram.session import (
     build_voice_agent_settings,
     draft_report_function,
@@ -32,16 +31,17 @@ def test_opening_uses_observed_imprint_when_there_is_no_candidate() -> None:
     assert messages[1] == "Imprint: the marking is L484, with no drug name yet."
 
 
-def test_opening_does_not_include_the_headline_or_fake_lead() -> None:
+def test_opening_does_not_include_the_headline_or_a_fake_line() -> None:
+    # The prompt leads with fake/recall/headline; the opening is only the three sources.
     doc = complete_scan()
     doc["hardware"] = {**doc["hardware"], "status": "fake"}
     messages = opening_messages_from_scan(doc)
     assert len(messages) == 3
-    assert FAKE_LEAD not in messages
+    assert not any("fake" in message.lower() for message in messages)
     assert "The label and the reference records do not agree." not in messages
 
 
-def test_opening_does_not_include_the_recall_lead() -> None:
+def test_opening_does_not_include_a_recall_line() -> None:
     messages = opening_messages_from_scan(
         complete_scan(
             research={
@@ -52,7 +52,7 @@ def test_opening_does_not_include_the_recall_lead() -> None:
         )
     )
     assert len(messages) == 3
-    assert RECALL_LEAD not in messages
+    assert not any("recall" in message.lower() for message in messages)
 
 
 def test_keyterms_include_names_and_the_imprint_marking() -> None:
