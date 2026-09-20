@@ -1,0 +1,26 @@
+{
+  "rig": "peel-bench-17_stream",
+  "recorded": "2026-09-10",
+  "units": "absorbance (AU) per channel against a same-session water blank; concentrations are relative (1.0 = the reference tablet as measured)",
+  "note": "Two entries measured on the rig. Re-record on the rig as it stands before relying on them: light levels have changed since.",
+  "library": {
+    "advil": {
+      "absorbance": {
+        "red": 0.8577,
+        "yellow": 0.9941,
+        "green": 0.6472
+      },
+      "reference_concentration": 1.0,
+      "expected_concentration": 1.0
+    },
+    "pepto": {
+      "absorbance": {
+        "red": 1.0567,
+        "yellow": 1.16,
+        "green": 0.8725
+      },
+      "reference_concentration": 1.0,
+      "expected_concentration": 1.0
+    }
+  }
+}
