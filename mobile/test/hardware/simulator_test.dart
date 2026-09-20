@@ -5,9 +5,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/faults.dart';
-import 'package:peel_app/session.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/hardware/faults.dart';
+import 'package:peel_mobile/hardware/instrument_session.dart';
+import 'package:peel_mobile/hardware/signals.dart';
 
 /// The whole stack against a board that is not there: `sim/fake_board.py` over TCP, the
 /// real [TcpLink], the real parser, the real fault engine.
@@ -24,7 +24,7 @@ class Sim {
   static Future<Sim> start(List<String> args, {bool control = false}) async {
     final process = await Process.start(
       'python3',
-      ['../sim/fake_board.py', '--tcp', '0', if (control) ...['--control', '0'], ...args],
+      ['../hardware/sim/fake_board.py', '--tcp', '0', if (control) ...['--control', '0'], ...args],
       workingDirectory: Directory.current.path,
     );
     final banner = process.stdout
@@ -55,7 +55,7 @@ class Sim {
 }
 
 /// Polls the session the way the screen does, rather than reaching into the engine.
-Future<Fault> waitForFault(Session session, String id,
+Future<Fault> waitForFault(InstrumentSession session, String id,
     {Duration timeout = const Duration(seconds: 20)}) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
@@ -79,11 +79,11 @@ Future<T> waitFor<T>(T? Function() get, {Duration timeout = const Duration(secon
 
 void main() {
   late Sim sim;
-  late Session session;
+  late InstrumentSession session;
 
   Future<void> connect(List<String> args, {bool control = false}) async {
     sim = await Sim.start(args, control: control);
-    session = Session(
+    session = InstrumentSession(
       watchUsb: false,
       logging: false,
       tick: const Duration(milliseconds: 100),
@@ -221,7 +221,7 @@ void main() {
   });
 
   test('replaying the real capture produces the same readings the rig did', () async {
-    await connect(['--replay', '../data/session_full_cycle.jsonl', '--speed', '20']);
+    await connect(['--replay', '../hardware/data/session_full_cycle.jsonl', '--speed', '20']);
     await waitFor(() => session.history.samples.length >= 20 ? true : null);
     final first = session.history.samples.first.reading;
     expect(first.transMv, greaterThan(0));

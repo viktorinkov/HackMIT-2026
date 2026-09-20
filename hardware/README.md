@@ -9,7 +9,6 @@ firmware/17_stream/      XIAO firmware. The source of truth for the protocol.
 firmware/18_selftest/    Bench diagnostic: lock-in LED test, diode check, noise.
 firmware/21_box3_face/   The BOX-3's face: eyes, moods, one-button blank / start / stop.
 firmware/19_box3_link/, 22_box3_probe/    Bring-up tools.
-peel_app/                Flutter Android app: USB serial → parser → faults → session log.
 sim/                     fake_board.py: the XIAO in software, breakable on purpose.
 tools/                   Desktop serial clients: peel_monitor.py, capture.py, flash_when_ready.py.
 data/                    Real captures from this hardware.
@@ -26,17 +25,15 @@ arduino-cli compile --upload -p /dev/cu.usbmodemXXXX --fqbn esp32:esp32:XIAO_ESP
 arduino-cli compile --upload -p /dev/cu.usbmodemYYYY --fqbn esp32:esp32:esp32s3box   firmware/21_box3_face
 ```
 
-## Run the app
+## The app
 
-```bash
-cd peel_app
-flutter build apk --debug
-adb install -r build/app/outputs/flutter-apk/app-debug.apk
-```
+The phone side lives in the product app, `../mobile` (`lib/hardware/`: USB serial → parser →
+faults → session log). The device step connects to the board over USB on its own; the bench
+screen is a long press on that step's header, or `flutter run --dart-define=PEEL_START=debug`.
 
-With no board plugged in, run the simulator and press **Simulator** in the app, with
-`host:port` in the field beside it:
+With no board plugged in, run the simulator and point the app at it:
 
 ```bash
 python3 sim/fake_board.py --tcp 9000
+(cd ../mobile && flutter run --dart-define=PEEL_SIM=10.0.2.2:9000)   # emulator → host
 ```

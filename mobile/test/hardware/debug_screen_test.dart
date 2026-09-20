@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/debug_screen.dart';
-import 'package:peel_app/link.dart';
-import 'package:peel_app/session.dart';
+import 'package:peel_mobile/hardware/debug_screen.dart';
+import 'package:peel_mobile/hardware/link.dart';
+import 'package:peel_mobile/hardware/instrument_session.dart';
 
 class FakeLink implements Link {
   @override
@@ -29,7 +29,7 @@ class FakeLink implements Link {
 void main() {
   testWidgets('the screen shows what the board said, and sends what is tapped',
       (tester) async {
-    final session = Session(watchUsb: false, logging: false);
+    final session = InstrumentSession(watchUsb: false, logging: false);
     final link = FakeLink();
 
     await tester.pumpWidget(MaterialApp(home: DebugScreen(session: session)));
@@ -70,7 +70,7 @@ void main() {
   });
 
   testWidgets('a swept line is an observation, not a fault', (tester) async {
-    final session = Session(watchUsb: false, logging: false);
+    final session = InstrumentSession(watchUsb: false, logging: false);
     final link = FakeLink();
     await tester.pumpWidget(MaterialApp(home: DebugScreen(session: session)));
     await session.connectTo(link);

@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'hardware/debug_screen.dart';
 import 'rive/peel_rive_stage.dart';
 import 'rive/peel_rive_widgets.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/voice_screen.dart';
 import 'services/peel_api.dart';
+import 'state/instrument.dart';
 import 'state/scan_session.dart';
 import 'theme/peel_theme.dart';
 import 'widgets/peel_scaffold.dart';
@@ -18,6 +22,7 @@ const _voiceScanId = String.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await scanSession.loadDeviceId();
+  unawaited(instrument.init());
   runApp(const PeelApp());
 }
 
@@ -30,16 +35,19 @@ class PeelApp extends StatelessWidget {
       title: 'Peel',
       debugShowCheckedModeBanner: false,
       theme: buildPeelTheme(),
-      home: _peelStart == 'voice'
-          ? const _VoiceTestHome()
-          : const OnboardingScreen(),
+      home: switch (_peelStart) {
+        'voice' => const _VoiceTestHome(),
+        'debug' => DebugScreen(session: instrument),
+        _ => const OnboardingScreen(),
+      },
       navigatorObservers: [PeelRiveNavigatorObserver()],
       builder: (context, child) => PeelRiveHost(child: child ?? const SizedBox()),
     );
   }
 }
 
-/// Dev-only: `--dart-define=PEEL_START=voice` skips onboarding and opens Talk to Peel.
+/// Dev-only: `--dart-define=PEEL_START=voice` skips onboarding and opens Talk to Peel;
+/// `PEEL_START=debug` opens the instrument's bench screen instead of the product.
 class _VoiceTestHome extends StatefulWidget {
   const _VoiceTestHome();
 

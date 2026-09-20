@@ -1,14 +1,18 @@
 name: mobile
 
-# Only the Flutter app. Nothing here runs for a change to the rest of the repository.
+# The Flutter app, including the instrument side; its simulator tests spawn hardware/sim.
 on:
   push:
     paths:
       - 'mobile/**'
+      - 'hardware/sim/**'
+      - 'hardware/data/**'
       - '.github/workflows/mobile.yml'
   pull_request:
     paths:
       - 'mobile/**'
+      - 'hardware/sim/**'
+      - 'hardware/data/**'
       - '.github/workflows/mobile.yml'
 
 jobs:
@@ -17,6 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'          # the simulator tests spawn hardware/sim/fake_board.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

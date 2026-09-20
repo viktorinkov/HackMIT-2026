@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/hardware/signals.dart';
 
 const _full = '{"t":12.0,"trans":2166,"scat":231,"absT":0.0552,"absS":-0.1072,"tC":22.19,'
     '"sweep":{"ir":820,"red":897,"yellow":1301,"green":2463,"blue":1700,"violet":1096},'
@@ -114,7 +114,7 @@ void main() {
   });
 
   test('every line of the real capture parses', () {
-    final file = File('../data/session_full_cycle.jsonl');
+    final file = File('../hardware/data/session_full_cycle.jsonl');
     final xiao = file
         .readAsLinesSync()
         .map((l) => jsonDecode(l) as Map<String, dynamic>)

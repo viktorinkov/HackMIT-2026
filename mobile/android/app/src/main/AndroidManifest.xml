@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- The phone acts as USB host for the board. Not required, so the app still installs
+         (and runs without the instrument) on a phone without it. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false"/>
     <application
         android:label="Peel"
         android:name="${applicationName}"
@@ -30,6 +33,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Plugging the board in offers to open Peel, and "always" pre-grants USB access. -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

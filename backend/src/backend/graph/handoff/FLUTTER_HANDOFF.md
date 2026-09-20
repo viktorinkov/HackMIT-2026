@@ -1,6 +1,6 @@
 # Flutter hand-off: embedding Peel Atlas in a WebView
 
-This is written for whoever owns `hardware/peel_app` (`origin/hardware-component`).
+This is written for whoever owns the instrument side of the Flutter app, `mobile/lib/hardware` (formerly `hardware/peel_app`).
 Nothing here has been run on this machine — there is no Flutter SDK in this
 worktree — so treat every step as unverified until you've done it once
 yourself. The companion file is `backend/src/backend/graph/handoff/graph_screen.dart`; copy it into

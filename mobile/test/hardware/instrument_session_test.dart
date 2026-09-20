@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/link.dart';
-import 'package:peel_app/session.dart';
-import 'package:peel_app/session_log.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/hardware/link.dart';
+import 'package:peel_mobile/hardware/instrument_session.dart';
+import 'package:peel_mobile/hardware/session_log.dart';
+import 'package:peel_mobile/hardware/signals.dart';
 
 /// A board under the test's control: no USB, no sockets.
 class FakeLink implements Link {
@@ -45,11 +45,11 @@ Future<void> settle([int ms = 30]) =>
     Future<void>.delayed(Duration(milliseconds: ms));
 
 void main() {
-  late Session session;
+  late InstrumentSession session;
   late FakeLink link;
 
   setUp(() {
-    session = Session(watchUsb: false, logging: false, tick: const Duration(milliseconds: 50));
+    session = InstrumentSession(watchUsb: false, logging: false, tick: const Duration(milliseconds: 50));
     link = FakeLink();
   });
 
@@ -202,7 +202,7 @@ void main() {
     test('the log survives the disconnect that closed it, so the run can be read back',
         () async {
       final log = await SessionLog.open(directory: dir);
-      final logged = Session(watchUsb: false, logging: false);
+      final logged = InstrumentSession(watchUsb: false, logging: false);
       addTearDown(logged.dispose);
       await logged.connectTo(link);
       logged.log = log;
@@ -219,7 +219,7 @@ void main() {
     test('a log that opens after its connection has gone is closed, not adopted', () async {
       // The file is ready when the test says so, which is later than the app would like.
       final opening = <Completer<SessionLog>>[];
-      final logged = Session(
+      final logged = InstrumentSession(
         watchUsb: false,
         openLog: () {
           opening.add(Completer<SessionLog>());
@@ -251,7 +251,7 @@ void main() {
 
     test('faults are written when they are raised and again when they clear', () async {
       final log = await SessionLog.open(directory: dir);
-      final logged = Session(
+      final logged = InstrumentSession(
         watchUsb: false,
         logging: false,
         tick: const Duration(milliseconds: 50),

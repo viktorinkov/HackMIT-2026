@@ -150,7 +150,7 @@ The API is meant to run as a long-lived process on [Runpod](https://www.runpod.i
 
 Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
+The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to the Flutter app (`mobile/lib/hardware`).
 
 ### Elasticsearch
 

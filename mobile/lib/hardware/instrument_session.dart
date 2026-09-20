@@ -15,8 +15,8 @@ enum LinkState { idle, connecting, connected }
 ///
 /// It owns: the link, the parse, the history the fault engine reads, the session log, and
 /// the clock that lets time-based faults fire when nothing is arriving.
-class Session extends ChangeNotifier {
-  Session({
+class InstrumentSession extends ChangeNotifier {
+  InstrumentSession({
     this.watchUsb = true,
     this.logging = true,
     this.tick = const Duration(milliseconds: 500),
@@ -52,6 +52,7 @@ class Session extends ChangeNotifier {
   Reading? get latest => history.latest;
   Diag? get diag => history.diag;
   bool get connected => state == LinkState.connected;
+  bool get connecting => state == LinkState.connecting;
   int get lineCount => _lineCount;
 
   /// 17_stream boots with auto t=0 on and announces every change.
@@ -167,7 +168,7 @@ class Session extends ChangeNotifier {
         notifyListeners();
       }).catchError((Object e) {
         // A log we cannot write is not a reason to lose the run.
-        error = 'Session log unavailable: $e';
+        error = 'InstrumentSession log unavailable: $e';
         return null;
       });
     }

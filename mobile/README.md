@@ -26,7 +26,7 @@ handled in the picker sheet.
 - Recognition and the verdict (`lib/data/mock_data.dart`). The results screen
   starts on the mismatch story so the report flow is reachable; tap the finding
   card to cycle match / mismatch / could not confirm / degradation.
-- Device connection, pill check and report submission are timed placeholders.
+- Report submission is a timed placeholder.
 - Chat replies are canned.
 - Voice chat cycles listening → thinking → speaking over a `waveform_flutter`
   bar waveform (`lib/widgets/voice_waveform.dart`), which gives each state its
@@ -34,6 +34,25 @@ handled in the picker sheet.
   a teal swell while Peel answers. Voice is mocked; the planned integration
   is the backend's `POST /deepgram/session` (Deepgram Voice Agent) — no key
   ships in the app.
+
+## Instrument
+
+`lib/hardware/` is the phone side of `../hardware`: USB serial (a local `usb_serial` fork in
+`packages/`, Gradle 9) or TCP to the simulator, the line protocol parser, fault engine,
+diagnostics and JSONL session logs. `lib/state/instrument.dart` holds the one
+`InstrumentSession` the app shares. The device step connects over USB on its own, runs
+blank → t=0 → stream → stop (`PillRun`, `PEEL_RUN_SECONDS`, default 20) and sends the raw
+absorbance trace to the backend as the scan's `hardware` payload. "Continue without device"
+falls back to `POST /pill`.
+
+```bash
+python3 ../hardware/sim/fake_board.py --tcp 9000
+flutter run --dart-define=PEEL_SIM=10.0.2.2:9000    # emulator → host simulator
+flutter run --dart-define=PEEL_START=debug          # open the bench screen directly
+```
+
+The bench screen is also a long press on the device step's header. The simulator-tagged tests
+spawn `python3 ../hardware/sim/fake_board.py`.
 
 ## Backend
 

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:peel_app/faults.dart';
-import 'package:peel_app/signals.dart';
+import 'package:peel_mobile/hardware/faults.dart';
+import 'package:peel_mobile/hardware/signals.dart';
 
 /// Builds a history the way the session does: one line at a time, a second apart.
 class Board {

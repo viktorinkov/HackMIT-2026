@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../rive/peel_rive_stage.dart';
 import '../data/api_models.dart';
+import '../hardware/debug_screen.dart';
+import '../hardware/pill_run.dart';
+import '../rive/peel_rive_stage.dart';
 import '../services/peel_api.dart';
+import '../state/instrument.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
@@ -14,7 +17,9 @@ import 'results_screen.dart';
 
 enum DevicePhase { connecting, connected, checking, complete, research }
 
-/// Device connect, mocked hardware, then wait for the research result.
+/// Device connect over USB (or the simulator), a pill run on the instrument, then wait
+/// for the research result. "Continue without device" falls back to the backend's mock
+/// `/pill` so the flow still runs with no board on the cable.
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
 
@@ -24,42 +29,91 @@ class DeviceScreen extends StatefulWidget {
 
 class _DeviceScreenState extends State<DeviceScreen> {
   DevicePhase _phase = DevicePhase.connecting;
-  Timer? _timer;
   String? _error;
   bool _busy = false;
+
+  /// Seconds into the run, for the caption while checking. Null when not on the board.
+  int? _runSeconds;
 
   @override
   void initState() {
     super.initState();
-    _schedule(const Duration(seconds: 2), DevicePhase.connected);
+    instrument.addListener(_onInstrument);
+    if (instrument.connected) {
+      _phase = DevicePhase.connected;
+    } else if (peelSimulator.isNotEmpty) {
+      unawaited(_connectSimulator());
+    } else if (!instrument.connecting) {
+      unawaited(instrument.connectUsb());
+    }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    instrument.removeListener(_onInstrument);
     super.dispose();
   }
 
-  void _schedule(Duration delay, DevicePhase next) {
-    _timer?.cancel();
-    _timer = Timer(delay, () {
-      if (!mounted) return;
-      setState(() => _phase = next);
-    });
+  /// The connection is the instrument's to report; this screen only follows it while it
+  /// is waiting for one. A drop mid-run is PillRun's to raise.
+  void _onInstrument() {
+    if (!mounted) return;
+    if (_phase == DevicePhase.connecting && instrument.connected) {
+      setState(() {
+        _phase = DevicePhase.connected;
+        _error = null;
+      });
+    } else if (_phase == DevicePhase.connected && !instrument.connected) {
+      setState(() {
+        _phase = DevicePhase.connecting;
+        _error = instrument.error;
+      });
+    } else if (_phase == DevicePhase.connecting) {
+      setState(() => _error = instrument.error);
+    }
   }
 
-  Future<void> _startCheck() async {
+  Future<void> _connectSimulator() async {
+    final parts = peelSimulator.split(':');
+    final port = parts.length > 1 ? int.tryParse(parts[1]) ?? 9000 : 9000;
+    await instrument.connectSim(parts.first, port);
+  }
+
+  String? get _pillType =>
+      scanSession.bottleResult?.genericName ?? scanSession.bottleResult?.brandName;
+
+  /// The real thing: blank, t = 0, stream for [peelRunSeconds], stop.
+  Future<void> _startCheck() => _check(() async {
+        final run = await PillRun.measure(
+          instrument,
+          duration: Duration(seconds: peelRunSeconds),
+          pillType: _pillType,
+          onReading: (_, elapsed) {
+            if (mounted) setState(() => _runSeconds = elapsed.inSeconds);
+          },
+        );
+        if (run.severeFaults.isNotEmpty && mounted) {
+          final ids = run.severeFaults.map((f) => f.id).join(', ');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Instrument faults during the run: $ids')),
+          );
+        }
+        return run.analysis;
+      });
+
+  /// No board: the backend's mock reading, as before the instrument existed.
+  Future<void> _skipDevice() => _check(() => peelApi.analyzePill(pillType: _pillType));
+
+  Future<void> _check(Future<PillHardwareAnalysis> Function() measure) async {
     setState(() {
       _phase = DevicePhase.checking;
       _error = null;
       _busy = true;
+      _runSeconds = null;
     });
     final started = DateTime.now();
     try {
-      final pillType = scanSession.bottleResult?.genericName ??
-          scanSession.bottleResult?.brandName;
-      final analysis = await peelApi.analyzePill(pillType: pillType);
-      scanSession.hardware = analysis;
+      scanSession.hardware = await measure();
       final elapsed = DateTime.now().difference(started);
       const floor = Duration(milliseconds: 2400);
       if (elapsed < floor) {
@@ -71,6 +125,12 @@ class _DeviceScreenState extends State<DeviceScreen> {
       if (!mounted) return;
       await _startResearch();
     } on PeelApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.message;
+      });
+    } on StateError catch (error) {
       if (!mounted) return;
       setState(() {
         _busy = false;
@@ -163,16 +223,30 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   Widget get _primaryAction {
     if (_phase == DevicePhase.connecting) {
-      return const PeelButton(label: 'Connecting…');
+      return instrument.connecting
+          ? const PeelButton(label: 'Connecting…')
+          : PeelButton(
+              label: 'Connect device',
+              onPressed: peelSimulator.isNotEmpty
+                  ? _connectSimulator
+                  : instrument.connectUsb,
+            );
     }
     if (_phase == DevicePhase.connected) {
       return PeelButton(label: 'Check pill', onPressed: _startCheck);
     }
     if (_phase == DevicePhase.checking && _error == null) {
-      return const PeelButton(label: 'Checking…');
+      return PeelButton(
+        label: _runSeconds == null
+            ? 'Checking…'
+            : 'Checking… ${_runSeconds}s / ${peelRunSeconds}s',
+      );
     }
     if (_phase == DevicePhase.checking && _error != null) {
-      return PeelButton(label: 'Retry', onPressed: _startCheck);
+      return PeelButton(
+        label: 'Retry',
+        onPressed: instrument.connected ? _startCheck : _skipDevice,
+      );
     }
     if (_phase == DevicePhase.research && _error == null) {
       return const PeelButton(label: 'Researching…');
@@ -191,7 +265,15 @@ class _DeviceScreenState extends State<DeviceScreen> {
         (_phase == DevicePhase.checking && !_busy);
 
     return PeelStageScaffold(
-      header: PeelStageHeader(title: _title),
+      // Long-press the title for the instrument's bench screen: raw values, faults, log.
+      header: GestureDetector(
+        onLongPress: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DebugScreen(session: instrument),
+          ),
+        ),
+        child: PeelStageHeader(title: _title),
+      ),
       stage: _stage,
       bottom: Column(
         mainAxisSize: MainAxisSize.min,
@@ -205,18 +287,33 @@ class _DeviceScreenState extends State<DeviceScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: PeelSpace.x16),
+          ] else if (_phase == DevicePhase.connected) ...[
+            Text(
+              'Connected to ${instrument.deviceLabel ?? 'the instrument'}. '
+              'Drop the pill in, then check.',
+              style: PeelText.body.copyWith(color: PeelColors.muted),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: PeelSpace.x16),
           ],
           const ScanSteps(current: ScanStep.pill),
         ],
       ),
       primaryAction: _primaryAction,
-      secondaryAction: showBack
+      secondaryAction: _phase == DevicePhase.connecting
           ? PeelButton(
-              label: 'Back',
-              variant: PeelButtonVariant.secondary,
-              onPressed: () => Navigator.of(context).pop(),
+              label: 'Continue without device',
+              variant: PeelButtonVariant.text,
+              onPressed: _skipDevice,
             )
-          : null,
+          : showBack
+              ? PeelButton(
+                  label: 'Back',
+                  variant: PeelButtonVariant.secondary,
+                  onPressed: () => Navigator.of(context).pop(),
+                )
+              : null,
     );
   }
 }

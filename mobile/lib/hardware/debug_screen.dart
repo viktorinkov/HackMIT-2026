@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../state/instrument.dart';
 import 'faults.dart';
-import 'session.dart';
+import 'instrument_session.dart';
 import 'signals.dart';
 
 /// The whole UI: values, faults, commands, raw lines. Material defaults, one screen, no
@@ -10,14 +11,15 @@ import 'signals.dart';
 /// the product UI is someone else's file.
 class DebugScreen extends StatefulWidget {
   const DebugScreen({super.key, required this.session});
-  final Session session;
+  final InstrumentSession session;
 
   @override
   State<DebugScreen> createState() => _DebugScreenState();
 }
 
 class _DebugScreenState extends State<DebugScreen> {
-  final _host = TextEditingController(text: '10.0.2.2:9000');
+  final _host = TextEditingController(
+      text: peelSimulator.isEmpty ? '10.0.2.2:9000' : peelSimulator);
 
   @override
   void dispose() {
@@ -70,7 +72,7 @@ class _DebugScreenState extends State<DebugScreen> {
     );
   }
 
-  Widget _connection(Session session) => Column(
+  Widget _connection(InstrumentSession session) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${session.state.name}'
@@ -99,7 +101,7 @@ class _DebugScreenState extends State<DebugScreen> {
         ],
       );
 
-  Widget _commands(Session session) => Wrap(spacing: 8, runSpacing: 8, children: [
+  Widget _commands(InstrumentSession session) => Wrap(spacing: 8, runSpacing: 8, children: [
         for (final entry in const {
           'b': 'blank',
           'z': 't=0',
@@ -177,7 +179,7 @@ class _DebugScreenState extends State<DebugScreen> {
     );
   }
 
-  Widget _notes(Session session) {
+  Widget _notes(InstrumentSession session) {
     final notes = session.history.notes.reversed.take(15).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
