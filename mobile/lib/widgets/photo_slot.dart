@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -39,13 +40,24 @@ class PhotoSlot extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AspectRatio(
-          aspectRatio: 364 / 416,
-          child: ClipRRect(
-            borderRadius: PeelRadii.r16,
-            child: Container(
-              color: PeelColors.camera,
-              child: Image.file(photo!, fit: BoxFit.contain),
+        LayoutBuilder(
+          builder: (context, constraints) => SizedBox(
+            // Leaves room for the step row under taller headings.
+            height: math.min(
+              constraints.maxWidth * 416 / 364,
+              MediaQuery.sizeOf(context).height * 0.45,
+            ),
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: 364 / 416,
+                child: ClipRRect(
+                  borderRadius: PeelRadii.r16,
+                  child: Container(
+                    color: PeelColors.camera,
+                    child: Image.file(photo!, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
