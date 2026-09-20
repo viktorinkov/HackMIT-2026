@@ -1,0 +1,76 @@
+name: hardware
+
+# Only the instrument. Nothing here runs for a change to the rest of the repository.
+on:
+  push:
+    paths:
+      - 'hardware/**'
+      - '.github/workflows/hardware.yml'
+  pull_request:
+    paths:
+      - 'hardware/**'
+      - '.github/workflows/hardware.yml'
+
+jobs:
+  simulator:
+    name: simulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: fake board
+        working-directory: hardware
+        run: python3 sim/test_fake_board.py
+
+  app:
+    name: flutter app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'          # the integration tests spawn sim/fake_board.py
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.5
+          cache: true
+      - name: pub get
+        working-directory: hardware/peel_app
+        run: flutter pub get
+      - name: analyze
+        working-directory: hardware/peel_app
+        run: flutter analyze
+      - name: test
+        working-directory: hardware/peel_app
+        run: flutter test
+      - name: build apk
+        working-directory: hardware/peel_app
+        run: flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: peel-app-debug-apk
+          path: hardware/peel_app/build/app/outputs/flutter-apk/app-debug.apk
+
+  firmware:
+    name: firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: esp32 core and libraries
+        run: |
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli lib install OneWire DallasTemperature "GFX Library for Arduino"
+      - name: 17_stream (XIAO ESP32-S3)
+        working-directory: hardware
+        run: arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32S3 firmware/17_stream
+      - name: 21_box3_face (ESP32-S3-BOX-3)
+        working-directory: hardware
+        run: arduino-cli compile --fqbn esp32:esp32:esp32s3box firmware/21_box3_face

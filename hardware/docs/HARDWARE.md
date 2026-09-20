@@ -25,6 +25,7 @@ Peel measures a tablet dissolving in a stirred vial by shining LEDs through it. 
 | `BASELINES.md` | measured electrical behaviour: floors, noise, diode drops, timing |
 | `FAULTS.md` | what each fault looks like in the data, with thresholds |
 | `PROTOCOL.md` | the USB line protocol and the ESP-NOW packet |
+| `PLUG_IN_DAY.md` | first contact: flashing, cable, Android permission, wireless adb, what to expect |
 | `SYSTEM_SETTINGS.md` | toolchain versions, build targets, firmware constants, radio and display settings |
 | `BOX3.md` | the BOX-3: display bring-up, reset polarity, touch, audio, buttons |
 | `ENCLOSURE.md` | the printed enclosure: datums and where each part sits |
