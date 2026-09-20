@@ -77,17 +77,17 @@ class _DeviceScreenState extends State<DeviceScreen> {
           ),
         DevicePhase.connected => (
             title: 'Check pill',
-            body: 'Device connected. Put the pill in the tray and close it.',
+            body: 'Connected. Put the pill in and close it.',
             placeholder: 'Pill drops into the open device tray',
           ),
         DevicePhase.checking => (
             title: 'Checking pill',
-            body: 'The device is reading the pill. This takes a few seconds.',
+            body: 'Reading the pill. This takes a few seconds.',
             placeholder: 'Light sweeps over the pill inside the device',
           ),
         DevicePhase.complete => (
             title: 'Scan complete',
-            body: 'All three steps are done. Opening your results.',
+            body: 'All three steps done. Opening results.',
             placeholder: 'Orange closes around the pill',
           ),
       };
@@ -111,7 +111,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
           child: Text(
             copy.body,
             style: PeelText.body,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
