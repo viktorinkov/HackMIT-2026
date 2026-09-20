@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.deepgram.prompt import build_playground_prompt
-from backend.research.contract import to_scan_context
+from backend.deepgram.prompt import build_playground_prompt, voice_context
+from backend.reference_match import match_sentence
 
 
 def _named(name: str | None, strength: str | None) -> str | None:
@@ -73,10 +73,11 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
     else:
         imprint_line = "There is no imprint result yet."
 
+    match = (hardware or {}).get("reference_match") or {}
     if pill:
         pill_line = f"The hardware analysis reports the contents as {pill}."
-    elif hardware and hardware.get("measurements"):
-        pill_line = "The hardware recorded measurements, but the medicine's identity is unknown."
+    elif match.get("closest_match"):
+        pill_line = match_sentence(match, include_distance=False)
     elif hardware:
         if hardware.get("reported_status") == "unknown":
             pill_line = "The hardware result is unknown."
@@ -89,7 +90,7 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
 
 
 def intro_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     lines = ["Hi, I'm Peel."]
     if context.get("demo"):
         lines.append("These findings are a simulated demo.")
@@ -108,7 +109,7 @@ def greeting_from_scan(doc: dict[str, Any]) -> str:
 
 
 def verdict_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     report = context.get("research") or {}
     hardware = context.get("hardware") or {}
     if report.get("verdict") == "recall_match":
@@ -123,15 +124,18 @@ def verdict_from_scan(doc: dict[str, Any]) -> str:
     pill = _pill_name(hardware)
     if status == "real" and pill:
         return f"The hardware analysis reports a match to {pill}."
+    match = hardware.get("reference_match") or {}
+    if match.get("closest_match"):
+        return match_sentence(match, include_distance=False)
     return "The pill's contents have not been identified."
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
-    return _source_lines(to_scan_context(doc))
+    return _source_lines(voice_context(doc))
 
 
 def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     terms: list[str] = []
 
     def add(value: str | None) -> None:
@@ -151,6 +155,7 @@ def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
     hardware = context.get("hardware") or {}
     candidate = hardware.get("candidate") or {}
     add(candidate.get("generic_name"))
+    add((hardware.get("reference_match") or {}).get("closest_match"))
     return terms
 
 

@@ -154,7 +154,7 @@ Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets c
 The instrument streams JSON over USB to `mobile/`.
 The scan retains timestamped sensor readings and channel statistics alongside the classification.
 The library contains Advil and Pepto references.
-Mock classification, simulated scan creation, and graph sample-data fallbacks are disabled.
+Canned pill responses, simulated scan creation, and graph sample-data fallbacks are disabled.
 See [the capture workflow and limitations](backend/pill-hardware.md).
 
 ### Elasticsearch

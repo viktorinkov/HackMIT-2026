@@ -254,6 +254,16 @@ String _hardwareLine(Map<String, dynamic>? hardware) {
   if (status != 'unknown' && pillType != null && pillType.isNotEmpty) {
     return 'Hardware: $status · $pillType';
   }
+  final match = hardware['reference_match'] as Map<String, dynamic>?;
+  if (match != null && match['closest_match'] != null) {
+    final distance = (match['distance'] as num).toStringAsFixed(3);
+    final qualifier = match['status'] == 'outside_library'
+        ? '\nOutside reference range'
+        : match['status'] == 'ambiguous'
+        ? '\nSimilar matches; low separation'
+        : '';
+    return 'Closest match: ${match['closest_match']}\nSynthetic reference library · distance $distance$qualifier';
+  }
   final count = hardware['sensor_sample_count'] as int?;
   if (count != null && count > 0) return '$count sensor readings recorded';
   final trace = hardware['spectrum'] as List? ?? const [];

@@ -283,6 +283,7 @@ def _scans() -> dict[str, Any]:
         "spectrum": {"type": "float", "index": False, "doc_values": False},
         "sensor_readings": {"type": "object", "enabled": False},
         "sensor_sample_count": {"type": "integer"},
+        "reference_match": {"type": "object", "enabled": False},
         "limitations": STORED_TEXT,
     }
     research = {
@@ -375,6 +376,7 @@ async def ensure_indices(
                 await client.indices.put_mapping(index=name, properties={"hardware": {"properties": {
                     "sensor_readings": {"type": "object", "enabled": False},
                     "sensor_sample_count": {"type": "integer"},
+                    "reference_match": {"type": "object", "enabled": False},
                 }}})
             continue
         await client.indices.create(index=name, mappings=mappings_for(name))

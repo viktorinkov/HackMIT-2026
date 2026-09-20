@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from backend.reference_match import match_readings
 from typing import Any
 
 CHANNELS = {"trans": "mV", "scat": "mV", "absT": "absorbance", "absS": "absorbance", "tC": "°C", "stir": "%", "darkTrans": "mV", "darkScat": "mV"}
@@ -63,7 +64,7 @@ def sensor_evidence(hardware: dict[str, Any] | None) -> dict[str, Any]:
             if values:
                 channels[f"{key}.{color}"] = _stats(values, "mV")
     times = [r["t"] for r in rows if _number(r["t"]) and r["t"] >= 0]
-    return {"measurements": {
+    return {"reference_match": match_readings(hardware), "measurements": {
         "status": "recorded", "sample_count": hardware.get("sensor_sample_count") or len(rows) or len(trace),
         "stored_sensor_samples": len(rows), "duration_seconds": max(times) - min(times) if times else None,
         "channels": channels, "sensor_readings": _sample(rows), "absorbance_trace": _sample(trace),

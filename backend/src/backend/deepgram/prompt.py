@@ -7,6 +7,22 @@ from typing import Any
 from backend.deepgram.models import PlaygroundPrompt
 from backend.research.contract import to_scan_context
 
+
+def voice_context(doc: dict[str, Any]) -> dict[str, Any]:
+    """Keep Viktor's concise handoff: classification, not a raw telemetry dump."""
+    context = to_scan_context(doc)
+    hardware = context.get("hardware")
+    if hardware:
+        hardware.pop("measurements", None)
+    research = context.get("research")
+    if research:
+        research["findings"] = [
+            finding for finding in research.get("findings", [])
+            if finding.get("evidence_type") != "hardware_result"
+        ]
+    return context
+
+
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "system-prompt.txt"
 PROMPT_LIMIT = 25_000
 
@@ -16,7 +32,7 @@ def load_system_prompt() -> str:
 
 
 def build_playground_prompt(doc: dict[str, Any]) -> PlaygroundPrompt:
-    context = to_scan_context(doc)
+    context = voice_context(doc)
     template = load_system_prompt()
 
     def render() -> str:
@@ -43,15 +59,6 @@ def build_playground_prompt(doc: dict[str, Any]) -> PlaygroundPrompt:
         )
         context["sources"] = [item for item in context["sources"] if item["id"] in cited]
         prompt = render()
-    if len(prompt) > PROMPT_LIMIT:
-        measurements = (context.get("hardware") or {}).get("measurements")
-        if measurements:
-            for key, limit in (("sensor_readings", 8), ("absorbance_trace", 16)):
-                values = measurements.get(key) or []
-                if len(values) > limit:
-                    measurements[key] = [values[round(i * (len(values) - 1) / (limit - 1))] for i in range(limit)]
-            measurements["voice_samples_reduced"] = True
-            prompt = render()
     if len(prompt) > PROMPT_LIMIT:
         raise ValueError(
             f"Playground prompt is {len(prompt)} characters; managed Deepgram prompts cap at {PROMPT_LIMIT}."

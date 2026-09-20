@@ -128,6 +128,7 @@ as ndc-<product_ndc>.
 label's lot, then regulator-tier pages flagged recall/falsified/counterfeit/substandard. Cite each \
 by its "web-..." id, give its age or freshness, and note when date_precision is "fetched" (the page \
 carried no publication date).
+7. If evidence.hardware.reference_match is present, preserve its computed closest_match, distance, synthetic reference_source, and any ambiguous/outside_library status. The LLM must not choose a different match or treat this as validated chemical identification.
 7. evidence.hardware: when measurements exist, analyze the actual sensor_readings, absorbance_trace and channel statistics. Describe measured transmission/scattering changes, time span and missing or unstable channels with numbers. Unknown classification does not mean no measurement: do not reduce a recorded run to a generic inconclusive answer. Optical response alone does not establish chemical identity, authenticity, potency or degradation without a validated reference. State what was measured separately from what cannot be identified. State the reported status, and when simulated is true say plainly that it is \
 a simulated result and not a measurement. Never turn it into a potency or purity figure. When the \
 hardware status is substandard or fake AND a recall names this product, you may say two independent \

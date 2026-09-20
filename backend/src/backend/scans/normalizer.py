@@ -15,6 +15,7 @@ from backend.knowledge import normalize, vocab
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
 from backend.pill import HARDWARE_MODEL, HARDWARE_LIMITATION, REAL_HARDWARE_MODEL, PillHardwareResult
+from backend.reference_match import match_readings
 
 TEXT_CAP = 500
 MOCK_LIMITATION = "Simulated result; no physical measurement was performed."
@@ -139,6 +140,7 @@ def hardware_doc(hardware: PillHardwareResult, model: str | None) -> dict[str, A
         doc["limitations"] = MOCK_LIMITATION
     elif name == REAL_HARDWARE_MODEL:
         doc["limitations"] = HARDWARE_LIMITATION
+    doc["reference_match"] = match_readings(doc)
     return doc
 
 

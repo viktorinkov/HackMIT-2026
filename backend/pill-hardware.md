@@ -56,6 +56,8 @@ It also sends up to 256 aligned sensor samples across the full run, plus the ori
 Research and voice receive bounded measurements alongside the classification.
 The three-color spectrum is not treated as a time trace.
 Peel states the verdict first and explains the report without sensor numbers unless asked.
+The research pipeline also compares the recorded time trace with synthetic reference curves.
+These comparisons remain separate from the measured three-color classifier and do not establish chemical identity.
 
 ## Local setup
 

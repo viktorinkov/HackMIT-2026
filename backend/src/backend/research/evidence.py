@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from backend.sensor_data import sensor_evidence, measurement_sentence
+from backend.reference_match import match_sentence
 from urllib.parse import quote
 
 from backend.knowledge import normalize
@@ -883,7 +884,8 @@ def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
     measurements = hardware.get("measurements")
     if not status or status == "unknown":
         if measurements:
-            return Finding(statement=measurement_sentence(measurements), evidence_type="hardware_result",
+            statement = (match_sentence(hardware.get("reference_match") or {}) + " " + measurement_sentence(measurements)).strip()
+            return Finding(statement=statement, evidence_type="hardware_result",
                            source_ids=[], severity="info", country_scope=None)
         return None
     kind = hardware.get("pill_type")
@@ -896,7 +898,7 @@ def _hardware_finding(hardware: dict[str, Any]) -> Finding | None:
         statement += f" {hardware['limitations']}"
     statement += " It reports no potency figure and does not identify a contaminant."
     if measurements:
-        statement += " " + measurement_sentence(measurements)
+        statement += " " + (match_sentence(hardware.get("reference_match") or {}) + " " + measurement_sentence(measurements)).strip()
     return Finding(
         statement=statement,
         evidence_type="hardware_result",
