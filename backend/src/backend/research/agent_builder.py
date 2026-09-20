@@ -7,6 +7,8 @@ research request, never at startup, so a Kibana outage cannot break the API.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -16,8 +18,15 @@ from backend.config import Settings
 from backend.research.tools import agent_spec, tool_specs
 
 _API = "/api/agent_builder"
+_SPEC_LABEL_PREFIX = "spec-"
 # Read-only fields Kibana returns that it refuses on create/update.
 _RESPONSE_ONLY = ("readonly", "experimental", "confirmation", "schema", "type_label")
+
+
+def spec_fingerprint(tools: list[dict[str, Any]], agent: dict[str, Any]) -> str:
+    """Short, stable hash of everything we register, stored as a label on the agent."""
+    payload = json.dumps({"tools": tools, "agent": agent}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
 class AgentBuilderUnavailable(Exception):
@@ -116,6 +125,18 @@ class AgentBuilderClient:
         body = {key: value for key, value in spec.items() if key not in ("id", "type", *_RESPONSE_ONLY)}
         await self._request("PUT", f"/{kind}/{spec['id']}", json=body)
 
+    def _specs(self) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
+        tools = tool_specs(self._settings.semantic_score_threshold)
+        connector = self._settings.agent_builder_firecrawl_connector_id
+        agent = agent_spec(
+            self._settings.agent_builder_agent_id,
+            [spec["id"] for spec in tools],
+            [connector] if connector else None,
+        )
+        fingerprint = spec_fingerprint(tools, agent)
+        agent["labels"] = [*agent["labels"], f"{_SPEC_LABEL_PREFIX}{fingerprint}"]
+        return tools, agent, fingerprint
+
     async def bootstrap(self, *, force: bool = False) -> list[str]:
         """Create or update the Peel tools and agent. Indices must already exist:
         ES|QL tools are validated against real mappings."""
@@ -124,22 +145,32 @@ class AgentBuilderClient:
         async with self._lock:
             if self._bootstrapped and not force:
                 return []
-            specs = tool_specs(self._settings.semantic_score_threshold)
-            for spec in specs:
+            tools, agent, _ = self._specs()
+            for spec in tools:
                 await self._upsert("tools", spec)
-            tool_ids = [spec["id"] for spec in specs]
-            connector = self._settings.agent_builder_firecrawl_connector_id
-            await self._upsert(
-                "agents",
-                agent_spec(
-                    self._settings.agent_builder_agent_id,
-                    tool_ids,
-                    [connector] if connector else None,
-                ),
-            )
+            await self._upsert("agents", agent)
             self._bootstrapped = True
             self._unavailable_reason = None
-            return tool_ids
+            return [spec["id"] for spec in tools]
+
+    async def ensure_current(self) -> bool:
+        """Re-assert this process's tool and agent definitions when the stored ones
+        differ. The agent id is shared: another backend instance running different
+        code re-registers it on its own first run, silently changing our agent's
+        instructions and tools. One GET per converse keeps us self-healing.
+        Returns True when a re-registration was needed."""
+        if not self._settings.agent_builder_enabled:
+            raise AgentBuilderUnavailable("AGENT_BUILDER_ENABLED is false")
+        _, _, fingerprint = self._specs()
+        stored = await self._request(
+            "GET", f"/agents/{self._settings.agent_builder_agent_id}", allow_404=True
+        )
+        labels = (stored or {}).get("labels") or []
+        if f"{_SPEC_LABEL_PREFIX}{fingerprint}" in labels:
+            self._bootstrapped = True
+            return False
+        await self.bootstrap(force=True)
+        return True
 
     async def execute_tool(self, tool_id: str, params: dict[str, Any]) -> list[dict[str, Any]]:
         data = await self._request(
@@ -148,7 +179,7 @@ class AgentBuilderClient:
         return list((data or {}).get("results") or [])
 
     async def converse(self, prompt: str, *, conversation_id: str | None = None) -> ConverseResult:
-        await self.bootstrap()
+        await self.ensure_current()
         body: dict[str, Any] = {"input": prompt, "agent_id": self._settings.agent_builder_agent_id}
         if conversation_id:
             body["conversation_id"] = conversation_id

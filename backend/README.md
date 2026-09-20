@@ -442,6 +442,32 @@ and the agent itself go through `GET /{kind}/{id}` → `POST` if missing, `PUT` 
 exists. Bootstrap must run **after** the Elasticsearch indices exist, because ES|QL tools are
 validated against the real mappings when they're created.
 
+**Self-healing registration.** The agent id and tool ids are shared by every backend instance
+pointed at the same Kibana, and each instance registers its own definitions on its first research
+run — so an instance running older code silently overwrites the agent's instructions and tools
+(observed live: a second dev server reverted the agent mid-benchmark). `_specs()` therefore hashes
+the full tool + agent spec (`spec_fingerprint`) into a `spec-<hash>` label on the agent, and
+`converse()` calls `ensure_current()` first: one `GET /agents/{id}` (~0.1 s); if the stored label
+differs from this process's fingerprint, tools and agent are re-registered before the round. Last
+writer still wins between rounds, so for parallel development give each developer their own
+`AGENT_BUILDER_AGENT_ID`.
+
+**Latency protocol.** Tool execution is milliseconds; a round's time is LLM output tokens
+(including hidden reasoning) at ~35-55 tok/s plus prefill of ~18k input tokens (mostly Agent
+Builder's own scaffolding). The instructions are written for that: the evidence pack is declared to
+be *already-executed tool results* (each key mapped to the tool it corresponds to), re-running a
+lookup "to verify" is forbidden, tools are for real gaps only and must be issued in one step, and
+the output is a terse <=130-word line format — the agent's text is an intermediate artifact that
+stage 5 turns into the user-facing report. Measured on the same prompts, same connector:
+
+| Scan | Before | After |
+|---|---|---|
+| conclusive (exact lot recall in the pack) | 35-88 s, 1-2 LLM calls, up to 3.1k output tokens | **~25 s**, 1 LLM call, 0 tool calls, ~1k output tokens |
+| ambiguous (no lot/NDC; imprint only) | 55-100 s | 40-60 s, still runs follow-up tools (`ndc_lookup`, `regulatory_search_text`) |
+
+The other managed connectors on the project (GLM-5.3, Qwen-3.8) were slower on the same prompt
+(30-40 s): they emit 3-5k reasoning tokens.
+
 | Tool id | Purpose | Params |
 |---|---|---|
 | `peel.recalls_by_lot` | Exact lot/batch match in `peel-regulatory`, never decayed. | `lot` |
@@ -647,7 +673,7 @@ become citable evidence.
 ## Testing and verification
 
 ```bash
-uv run pytest                    # 922 passed, 14 skipped; live-cluster tests auto-skipped
+uv run pytest                    # 930 passed, 14 skipped; live-cluster tests auto-skipped
 PEEL_LIVE=1 uv run pytest -m live   # also run the live-cluster suite
 uv run python scripts/smoke.py      # read-only smoke test against the real cluster (17/17 checks)
 uv run python scripts/smoke.py --e2e   # + one full scan (<=10 Firecrawl credits, OpenAI tokens)
@@ -744,10 +770,15 @@ curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
 - **Hardware is mocked** (`HARDWARE_MODEL = "mock-spectrometry"`); a future `peel-spectra` index
   with real kNN spectral matching is out of scope here, and `hardware.spectrum` is stored
   `index: false, doc_values: false` — write-only today.
-- **Agent Builder latency is real, usually 60-100 s:** one measured end-to-end run took 30 s
-  (web) + 77 s (agent) + 7 s (coerce). `AGENT_BUILDER_TIMEOUT_S` (120 s) + a 5 s margin is the
-  stage's own ceiling, so a client must render the stage-2 `partial` report while stage 4 is still
-  running rather than block on `complete`.
+- **Agent Builder latency: ~25 s for conclusive scans, 40-60 s for ambiguous ones** (see "Latency
+  protocol"). A measured end-to-end run with a warm web cache: 0.3 s normalize + 0.2 s
+  deterministic (`partial`) + 1.3 s web + 27 s agent + 10 s coerce = 41 s to `complete`.
+  `AGENT_BUILDER_TIMEOUT_S` (120 s) + a 5 s margin is the stage's ceiling, so a client must render
+  the stage-2 `partial` report rather than block on `complete`.
+- **Scan writes do not wait for an index refresh.** On Serverless `refresh="wait_for"` cost 3-5 s
+  per write (~28 s per scan across its eight updates, plus seconds on the `POST /scans` response).
+  `GET /scans/{id}` is a realtime GET and is unaffected; `GET /scans` (history) and the
+  `prior_scans` signal are eventually consistent by a few seconds.
 - **The daily Firecrawl credit cap is per process, not durable.** `_daily_used`
   (`research/web.py`) lives in memory and resets on a UTC date rollover *or* a process restart, so
   redeploying or crash-looping resets the counter early — it is a soft guard against runaway spend
