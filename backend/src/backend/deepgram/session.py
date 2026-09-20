@@ -36,10 +36,29 @@ def _pill_name(hardware: dict[str, Any] | None) -> str | None:
     return _named(candidate.get("generic_name"), None)
 
 
+OFFER_DISAGREE = (
+    "These results do not agree, so I can help you report this medicine. "
+    "It takes three short questions. Do you want to?"
+)
+OFFER_LIGHT = "If anything about this medicine seems wrong, I can help you report it."
+
+
+def scan_has_concern(doc: dict[str, Any]) -> bool:
+    """True when the results disagree. Hardware `unknown` is not a concern."""
+    research = doc.get("research") or {}
+    if research.get("verdict") in {"mismatch_found", "recall_match"}:
+        return True
+    if research.get("mismatches"):
+        return True
+    hardware = doc.get("hardware") or {}
+    return hardware.get("status") in {"fake", "substandard"}
+
+
 def _source_lines(context: dict[str, Any]) -> list[str]:
     bottle = _bottle_name(context.get("bottle"))
     imprint = _imprint_name(context.get("imprint"))
-    pill = _pill_name(context.get("hardware"))
+    hardware = context.get("hardware")
+    pill = _pill_name(hardware)
     observed = (context.get("imprint") or {}).get("observed_text") if context.get("imprint") else None
 
     if bottle:
@@ -56,6 +75,11 @@ def _source_lines(context: dict[str, Any]) -> list[str]:
 
     if pill:
         pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
+    elif hardware:
+        if hardware.get("reported_status") == "unknown":
+            pill_line = "Pill: the hardware result is unknown."
+        else:
+            pill_line = "Pill: the hardware analysis did not identify the contents."
     else:
         pill_line = "Pill: no hardware analysis yet."
 
@@ -71,12 +95,13 @@ def intro_from_scan(doc: dict[str, Any]) -> str:
 
 
 def greeting_from_scan(doc: dict[str, Any]) -> str:
-    """The intro plus the three source lines, as one utterance.
+    """The intro, three source lines, and the report offer, as one utterance.
 
     One greeting instead of three injected messages: the user can interrupt it
     at any point, and there is no InjectionRefused race while it plays.
     """
-    return " ".join([intro_from_scan(doc), *opening_messages_from_scan(doc)])
+    offer = OFFER_DISAGREE if scan_has_concern(doc) else OFFER_LIGHT
+    return " ".join([intro_from_scan(doc), *opening_messages_from_scan(doc), offer])
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:

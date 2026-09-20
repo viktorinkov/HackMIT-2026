@@ -12,6 +12,9 @@ def test_prompt_embeds_the_scan_context() -> None:
     # The greeting carries the three sources now; the prompt must say so and
     # must tell Peel how to behave when the user interrupts.
     assert "Your greeting already introduced you" in prompt.prompt
+    assert "offered the user report" in prompt.prompt
+    assert "Answer questions from the scan context in one or two sentences" in prompt.prompt
+    assert "Report button is in the app" in prompt.prompt
     assert "Do not add an opening line" in prompt.prompt
     assert "The user can interrupt you at any time" in prompt.prompt
     assert "Do not restart or finish the summary" in prompt.prompt

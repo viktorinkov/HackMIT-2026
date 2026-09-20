@@ -6,6 +6,8 @@ from backend.deepgram.session import (
     EOT_THRESHOLD,
     EOT_TIMEOUT_MS,
     INPUT_SAMPLE_RATE,
+    OFFER_DISAGREE,
+    OFFER_LIGHT,
     OUTPUT_SAMPLE_RATE,
     build_voice_agent_settings,
     draft_report_function,
@@ -13,6 +15,7 @@ from backend.deepgram.session import (
     intro_from_scan,
     keyterms_from_scan,
     opening_messages_from_scan,
+    scan_has_concern,
 )
 from tests.deepgram.conftest import complete_scan
 
@@ -30,11 +33,84 @@ def test_intro_is_only_the_intro() -> None:
     assert intro_from_scan(complete_scan(demo=False)) == "Hi, I'm Peel."
 
 
-def test_greeting_is_the_intro_plus_the_three_sources_in_one_utterance() -> None:
+def test_greeting_is_the_intro_plus_the_three_sources_and_the_offer() -> None:
     # One greeting the user can interrupt, instead of three injected messages.
     assert greeting_from_scan(complete_scan()) == " ".join(
-        ["Hi, I'm Peel. These findings are a simulated demo.", *THREE_SOURCES]
+        [
+            "Hi, I'm Peel. These findings are a simulated demo.",
+            *THREE_SOURCES,
+            OFFER_DISAGREE,
+        ]
     )
+
+
+def test_greeting_offers_the_user_report_when_the_results_disagree() -> None:
+    assert scan_has_concern(complete_scan()) is True
+    greeting = greeting_from_scan(complete_scan())
+    assert greeting.endswith(OFFER_DISAGREE)
+    assert OFFER_LIGHT not in greeting
+
+
+def test_greeting_uses_the_light_offer_when_there_is_no_concern() -> None:
+    doc = complete_scan(
+        hardware={
+            "status": "unknown",
+            "pill_type": None,
+            "degraded": False,
+            "confidence": 0.2,
+            "model": "mock-spectrometry",
+        },
+        research={
+            "verdict": "no_adverse_findings",
+            "risk_level": "low",
+            "headline": "No adverse findings in the records we searched.",
+            "findings": [],
+            "mismatches": [],
+            "gaps": [],
+            "next_steps": [],
+            "sources": [],
+        },
+    )
+    assert scan_has_concern(doc) is False
+    greeting = greeting_from_scan(doc)
+    assert "Pill: the hardware result is unknown." in greeting
+    assert greeting.endswith(OFFER_LIGHT)
+    assert OFFER_DISAGREE not in greeting
+
+
+def test_unknown_hardware_is_not_a_concern() -> None:
+    doc = complete_scan(
+        hardware={"status": "unknown", "degraded": False, "confidence": 0.2},
+        research={
+            "verdict": "insufficient_evidence",
+            "risk_level": "low",
+            "headline": "Not enough was read to compare this medicine.",
+            "findings": [],
+            "mismatches": [],
+            "gaps": [],
+            "next_steps": [],
+            "sources": [],
+        },
+    )
+    assert scan_has_concern(doc) is False
+
+
+def test_fake_or_substandard_hardware_is_a_concern() -> None:
+    for status in ("fake", "substandard"):
+        doc = complete_scan(
+            hardware={**complete_scan()["hardware"], "status": status},
+            research={
+                "verdict": "no_adverse_findings",
+                "risk_level": "low",
+                "headline": "No adverse findings in the records we searched.",
+                "findings": [],
+                "mismatches": [],
+                "gaps": [],
+                "next_steps": [],
+                "sources": [],
+            },
+        )
+        assert scan_has_concern(doc) is True
 
 
 def test_opening_messages_are_exactly_the_three_sources() -> None:
