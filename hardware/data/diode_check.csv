@@ -1,0 +1,10 @@
+# 18_selftest command 'd', 2026-09-19. Each LED pin released to INPUT_PULLUP (about 45 kOhm to 3V3),
+# then read with its own ADC channel, mean of 20. The node settles at the LED's forward drop at
+# roughly 70 uA. Series resistor in circuit. ~3300 = open or reversed, < ~50 = shorted.
+led,xiao_pin,gpio,series_ohm,node_mV,verdict
+ir940,D0,1,100,246,diode present
+red,D2,3,220,547,diode present
+yellow,D3,4,220,624,diode present
+green,D4,5,220,1208,diode present
+blue,D5,6,220,1510,diode present
+violet,D1,2,100,1763,diode present

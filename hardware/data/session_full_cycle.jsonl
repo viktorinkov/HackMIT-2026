@@ -1,0 +1,108 @@
+{"t_host": 0.104, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 361 ms ago"}
+{"t_host": 0.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":434,\"scat\":61,\"absT\":null,\"absS\":null,\"tC\":23.69,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 1.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":411,\"scat\":71,\"absT\":null,\"absS\":null,\"tC\":22.88,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 2.012, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 1407 ms ago"}
+{"t_host": 2.637, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":387,\"scat\":75,\"absT\":null,\"absS\":null,\"tC\":23.38,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 3.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":362,\"scat\":83,\"absT\":null,\"absS\":null,\"tC\":23.19,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 4.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":338,\"scat\":88,\"absT\":null,\"absS\":null,\"tC\":22.19,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 5.025, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 1429 ms ago"}
+{"t_host": 5.65, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":309,\"scat\":91,\"absT\":null,\"absS\":null,\"tC\":22.44,\"sweep\":{\"red\":240,\"yellow\":-359,\"green\":-120,\"blue\":-444},\"stir\":0,\"swept\":false}"}
+{"t_host": 6.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":55,\"scat\":293,\"absT\":null,\"absS\":null,\"tC\":22.75,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":true}"}
+{"t_host": 7.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":263,\"scat\":99,\"absT\":null,\"absS\":null,\"tC\":21.62,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 8.059, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 4462 ms ago"}
+{"t_host": 8.681, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":241,\"scat\":96,\"absT\":null,\"absS\":null,\"tC\":22.31,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 9.625, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":225,\"scat\":99,\"absT\":null,\"absS\":null,\"tC\":22.12,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 10.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":208,\"scat\":96,\"absT\":null,\"absS\":null,\"tC\":22.56,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 11.068, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 1470 ms ago"}
+{"t_host": 11.688, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":199,\"scat\":94,\"absT\":null,\"absS\":null,\"tC\":22.00,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 12.003, "src": "host", "dir": "tx", "line": "b"}
+{"t_host": 12.062, "src": "xiao", "dir": "rx", "line": "# blank stored: transmission 230 mV, scatter 47 mV"}
+{"t_host": 12.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":191,\"scat\":91,\"absT\":0.0807,\"absS\":-0.2869,\"tC\":21.62,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 13.597, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":184,\"scat\":89,\"absT\":0.0969,\"absS\":-0.2773,\"tC\":22.81,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 14.1, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 502 ms ago"}
+{"t_host": 14.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":179,\"scat\":83,\"absT\":0.1089,\"absS\":-0.2470,\"tC\":21.69,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 15.601, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":176,\"scat\":79,\"absT\":0.1162,\"absS\":-0.2255,\"tC\":21.75,\"sweep\":{\"red\":-194,\"yellow\":-189,\"green\":-182,\"blue\":-177},\"stir\":0,\"swept\":false}"}
+{"t_host": 16.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":8,\"scat\":257,\"absT\":1.4586,\"absS\":-0.7378,\"tC\":22.00,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":true}"}
+{"t_host": 17.11, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 512 ms ago"}
+{"t_host": 17.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":175,\"scat\":71,\"absT\":0.1187,\"absS\":-0.1792,\"tC\":21.94,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 18.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":177,\"scat\":68,\"absT\":0.1138,\"absS\":-0.1604,\"tC\":22.25,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 19.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":183,\"scat\":60,\"absT\":0.0993,\"absS\":-0.1061,\"tC\":21.88,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 20.226, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 537 ms ago"}
+{"t_host": 20.64, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":192,\"scat\":57,\"absT\":0.0784,\"absS\":-0.0838,\"tC\":21.38,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 21.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":201,\"scat\":52,\"absT\":0.0585,\"absS\":-0.0439,\"tC\":21.50,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 22.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":205,\"scat\":48,\"absT\":0.0500,\"absS\":-0.0091,\"tC\":21.88,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 23.22, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 557 ms ago"}
+{"t_host": 23.641, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":219,\"scat\":43,\"absT\":0.0213,\"absS\":0.0386,\"tC\":21.00,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 24.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":231,\"scat\":41,\"absT\":-0.0019,\"absS\":0.0593,\"tC\":21.56,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 25.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":246,\"scat\":38,\"absT\":-0.0292,\"absS\":0.0923,\"tC\":21.81,\"sweep\":{\"red\":-193,\"yellow\":-192,\"green\":-192,\"blue\":-190},\"stir\":0,\"swept\":false}"}
+{"t_host": 26.223, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 3576 ms ago"}
+{"t_host": 26.643, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":0,\"scat\":202,\"absT\":null,\"absS\":-0.6333,\"tC\":22.50,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":true}"}
+{"t_host": 27.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":277,\"scat\":31,\"absT\":-0.0808,\"absS\":0.1807,\"tC\":22.12,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 28.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":296,\"scat\":28,\"absT\":-0.1096,\"absS\":0.2249,\"tC\":22.19,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 29.217, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 596 ms ago"}
+{"t_host": 29.64, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":315,\"scat\":27,\"absT\":-0.1366,\"absS\":0.2407,\"tC\":21.31,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 30.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":334,\"scat\":25,\"absT\":-0.1620,\"absS\":0.2742,\"tC\":22.06,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 31.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":354,\"scat\":23,\"absT\":-0.1873,\"absS\":0.3104,\"tC\":21.50,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 32.217, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 3615 ms ago"}
+{"t_host": 32.64, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":375,\"scat\":21,\"absT\":-0.2123,\"absS\":0.3499,\"tC\":21.75,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 33.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":392,\"scat\":22,\"absT\":-0.2316,\"absS\":0.3297,\"tC\":21.12,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 34.596, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":409,\"scat\":22,\"absT\":-0.2500,\"absS\":0.3297,\"tC\":21.88,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 35.231, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 1634 ms ago"}
+{"t_host": 35.648, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":425,\"scat\":21,\"absT\":-0.2667,\"absS\":0.3499,\"tC\":20.94,\"sweep\":{\"red\":-339,\"yellow\":-341,\"green\":-343,\"blue\":-345},\"stir\":0,\"swept\":false}"}
+{"t_host": 36.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":43,\"scat\":197,\"absT\":0.7283,\"absS\":-0.6224,\"tC\":20.75,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":true}"}
+{"t_host": 37.595, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":451,\"scat\":24,\"absT\":-0.2924,\"absS\":0.2919,\"tC\":21.25,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 38.113, "src": "host", "dir": "tx", "line": "z"}
+{"t_host": 38.113, "src": "xiao", "dir": "rx", "line": "# t = 0 marked"}
+{"t_host": 38.322, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 2653 ms ago"}
+{"t_host": 38.595, "src": "xiao", "dir": "rx", "line": "{\"t\":0.5,\"trans\":455,\"scat\":25,\"absT\":-0.2963,\"absS\":0.2742,\"tC\":21.81,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 39.595, "src": "xiao", "dir": "rx", "line": "{\"t\":1.5,\"trans\":458,\"scat\":29,\"absT\":-0.2991,\"absS\":0.2097,\"tC\":21.81,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 40.595, "src": "xiao", "dir": "rx", "line": "{\"t\":2.5,\"trans\":452,\"scat\":37,\"absT\":-0.2934,\"absS\":0.1039,\"tC\":21.75,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 41.263, "src": "box3", "dir": "rx", "line": "# 20 fps, link down, last packet 5666 ms ago"}
+{"t_host": 41.679, "src": "xiao", "dir": "rx", "line": "{\"t\":3.5,\"trans\":441,\"scat\":42,\"absT\":-0.2827,\"absS\":0.0488,\"tC\":21.56,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 42.616, "src": "xiao", "dir": "rx", "line": "{\"t\":4.5,\"trans\":430,\"scat\":49,\"absT\":-0.2717,\"absS\":-0.0181,\"tC\":21.88,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 43.595, "src": "xiao", "dir": "rx", "line": "{\"t\":5.5,\"trans\":410,\"scat\":56,\"absT\":-0.2511,\"absS\":-0.0761,\"tC\":21.88,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 44.288, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 2691 ms ago"}
+{"t_host": 44.595, "src": "xiao", "dir": "rx", "line": "{\"t\":6.5,\"trans\":388,\"scat\":62,\"absT\":-0.2271,\"absS\":-0.1203,\"tC\":22.00,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 45.595, "src": "xiao", "dir": "rx", "line": "{\"t\":7.5,\"trans\":365,\"scat\":69,\"absT\":-0.2006,\"absS\":-0.1668,\"tC\":22.00,\"sweep\":{\"red\":-388,\"yellow\":-396,\"green\":-403,\"blue\":-409},\"stir\":0,\"swept\":false}"}
+{"t_host": 46.595, "src": "xiao", "dir": "rx", "line": "{\"t\":8.5,\"trans\":72,\"scat\":253,\"absT\":0.5044,\"absS\":-0.7310,\"tC\":22.12,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":true}"}
+{"t_host": 47.429, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 2729 ms ago"}
+{"t_host": 47.637, "src": "xiao", "dir": "rx", "line": "{\"t\":9.5,\"trans\":321,\"scat\":82,\"absT\":-0.1448,\"absS\":-0.2417,\"tC\":22.25,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":false}"}
+{"t_host": 48.595, "src": "xiao", "dir": "rx", "line": "{\"t\":10.5,\"trans\":297,\"scat\":86,\"absT\":-0.1110,\"absS\":-0.2624,\"tC\":22.38,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":false}"}
+{"t_host": 49.595, "src": "xiao", "dir": "rx", "line": "{\"t\":11.5,\"trans\":275,\"scat\":91,\"absT\":-0.0776,\"absS\":-0.2869,\"tC\":22.56,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":false}"}
+{"t_host": 50.429, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 770 ms ago"}
+{"t_host": 50.637, "src": "xiao", "dir": "rx", "line": "{\"t\":12.5,\"trans\":257,\"scat\":93,\"absT\":-0.0482,\"absS\":-0.2964,\"tC\":22.06,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":false}"}
+{"t_host": 51.595, "src": "xiao", "dir": "rx", "line": "{\"t\":13.5,\"trans\":240,\"scat\":95,\"absT\":-0.0185,\"absS\":-0.3056,\"tC\":22.38,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":0,\"swept\":false}"}
+{"t_host": 52.114, "src": "host", "dir": "tx", "line": "m"}
+{"t_host": 53.466, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 3810 ms ago"}
+{"t_host": 53.674, "src": "xiao", "dir": "rx", "line": "# stirrer on"}
+{"t_host": 53.779, "src": "xiao", "dir": "rx", "line": "{\"t\":15.6,\"trans\":501,\"scat\":166,\"absT\":-0.3381,\"absS\":-0.5480,\"tC\":22.06,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":100,\"swept\":false}"}
+{"t_host": 54.719, "src": "xiao", "dir": "rx", "line": "{\"t\":16.6,\"trans\":385,\"scat\":166,\"absT\":-0.2237,\"absS\":-0.5480,\"tC\":22.69,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":100,\"swept\":false}"}
+{"t_host": 55.705, "src": "xiao", "dir": "rx", "line": "{\"t\":17.6,\"trans\":599,\"scat\":203,\"absT\":-0.4157,\"absS\":-0.6354,\"tC\":22.69,\"sweep\":{\"red\":-220,\"yellow\":-214,\"green\":-207,\"blue\":-201},\"stir\":100,\"swept\":false}"}
+{"t_host": 56.537, "src": "box3", "dir": "rx", "line": "# 20 fps, link down, last packet 6845 ms ago"}
+{"t_host": 56.747, "src": "xiao", "dir": "rx", "line": "{\"t\":18.6,\"trans\":218,\"scat\":386,\"absT\":0.0233,\"absS\":-0.9145,\"tC\":22.62,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":100,\"swept\":true}"}
+{"t_host": 57.705, "src": "xiao", "dir": "rx", "line": "{\"t\":19.6,\"trans\":471,\"scat\":312,\"absT\":-0.3113,\"absS\":-0.8221,\"tC\":22.62,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":100,\"swept\":false}"}
+{"t_host": 58.017, "src": "host", "dir": "tx", "line": "m"}
+{"t_host": 58.017, "src": "xiao", "dir": "rx", "line": "# stirrer off"}
+{"t_host": 58.743, "src": "xiao", "dir": "rx", "line": "{\"t\":20.6,\"trans\":371,\"scat\":25,\"absT\":-0.2076,\"absS\":0.2742,\"tC\":22.75,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 59.469, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 2762 ms ago"}
+{"t_host": 59.705, "src": "xiao", "dir": "rx", "line": "{\"t\":21.6,\"trans\":384,\"scat\":21,\"absT\":-0.2226,\"absS\":0.3499,\"tC\":22.44,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 60.705, "src": "xiao", "dir": "rx", "line": "{\"t\":22.6,\"trans\":399,\"scat\":22,\"absT\":-0.2392,\"absS\":0.3297,\"tC\":22.19,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 61.705, "src": "xiao", "dir": "rx", "line": "{\"t\":23.6,\"trans\":414,\"scat\":23,\"absT\":-0.2553,\"absS\":0.3104,\"tC\":22.12,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 62.539, "src": "box3", "dir": "rx", "line": "# 20 fps, link down, last packet 5784 ms ago"}
+{"t_host": 62.747, "src": "xiao", "dir": "rx", "line": "{\"t\":24.6,\"trans\":426,\"scat\":22,\"absT\":-0.2677,\"absS\":0.3297,\"tC\":22.19,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 63.705, "src": "xiao", "dir": "rx", "line": "{\"t\":25.6,\"trans\":435,\"scat\":23,\"absT\":-0.2768,\"absS\":0.3104,\"tC\":22.25,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 64.705, "src": "xiao", "dir": "rx", "line": "{\"t\":26.6,\"trans\":445,\"scat\":27,\"absT\":-0.2866,\"absS\":0.2407,\"tC\":22.25,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 65.543, "src": "box3", "dir": "rx", "line": "# 20 fps, link down, last packet 8830 ms ago"}
+{"t_host": 65.758, "src": "xiao", "dir": "rx", "line": "{\"t\":27.6,\"trans\":446,\"scat\":26,\"absT\":-0.2876,\"absS\":0.2571,\"tC\":22.31,\"sweep\":{\"red\":-304,\"yellow\":-66,\"green\":-167,\"blue\":-286},\"stir\":0,\"swept\":false}"}
+{"t_host": 66.707, "src": "xiao", "dir": "rx", "line": "{\"t\":28.6,\"trans\":68,\"scat\":217,\"absT\":0.5292,\"absS\":-0.6644,\"tC\":22.31,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":true}"}
+{"t_host": 67.705, "src": "xiao", "dir": "rx", "line": "{\"t\":29.6,\"trans\":447,\"scat\":34,\"absT\":-0.2886,\"absS\":0.1406,\"tC\":22.25,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 68.018, "src": "host", "dir": "tx", "line": "s"}
+{"t_host": 68.019, "src": "xiao", "dir": "rx", "line": "# run stopped"}
+{"t_host": 68.641, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 2859 ms ago"}
+{"t_host": 68.705, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":439,\"scat\":41,\"absT\":-0.2807,\"absS\":0.0593,\"tC\":22.19,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 69.705, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":431,\"scat\":46,\"absT\":-0.2727,\"absS\":0.0093,\"tC\":22.44,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 70.705, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":418,\"scat\":51,\"absT\":-0.2594,\"absS\":-0.0355,\"tC\":22.44,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 71.578, "src": "box3", "dir": "rx", "line": "# 20 fps, link UP, last packet 871 ms ago"}
+{"t_host": 71.788, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":403,\"scat\":54,\"absT\":-0.2436,\"absS\":-0.0603,\"tC\":22.31,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 72.74, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":388,\"scat\":61,\"absT\":-0.2271,\"absS\":-0.1132,\"tC\":22.69,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}
+{"t_host": 73.708, "src": "xiao", "dir": "rx", "line": "{\"t\":-1.0,\"trans\":371,\"scat\":66,\"absT\":-0.2076,\"absS\":-0.1474,\"tC\":22.25,\"sweep\":{\"red\":-246,\"yellow\":-246,\"green\":-245,\"blue\":-245},\"stir\":0,\"swept\":false}"}

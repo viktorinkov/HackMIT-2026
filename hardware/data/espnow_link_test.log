@@ -1,0 +1,39 @@
+# 2026-09-19. Both boards on one Mac, two serial ports read at once. XIAO = firmware/17_stream,
+# BOX-3 = firmware/19_box3_link (serial-only receiver). ESP-NOW broadcast, channel 1.
+# BOX3 lines are what arrived by radio; XIAO lines are what it printed on USB at the same moment.
+# First the BOX-3 just listens; then the host types 'z' into the BOX-3's serial port, the BOX-3
+# broadcasts it, and the XIAO obeys it.
+
+--- BOX-3 listening ---
+BOX3 | rx 6  age 844ms  t   13.7  trans    266  scat     99  cloud   --    tC 23.88  stir 0%  auto
+BOX3 | rx 7  age 844ms  t   14.7  trans    256  scat     94  cloud   --    tC 24.00  stir 0%  auto
+BOX3 | rx 8  age 844ms  t   15.7  trans    249  scat     96  cloud   --    tC 23.88  stir 0%  auto
+BOX3 | rx 9  age 844ms  t   17.7  trans    235  scat    100  cloud   --    tC 23.88  stir 0%  auto
+BOX3 | rx 10  age 844ms  t   18.7  trans    231  scat    102  cloud   --    tC 24.00  stir 0%  auto
+BOX3 | rx 11  age 845ms  t   19.7  trans    204  scat     96  cloud   --    tC 23.81  stir 0%  auto
+
+--- command from the BOX-3: START (z) ---
+BOX3 | # sent 'z' ok
+XIAO | {"t":21.7,"trans":231,"scat":94,"absT":null,"absS":null,"tC":24.06, ...}
+XIAO | # t = 0 marked
+XIAO | {"t":0.9,"trans":24,"scat":296,"absT":null,"absS":null,"tC":23.88, ...}
+BOX3 | rx 12  age 845ms  t   21.7  trans    231  scat     94  cloud   --    tC 24.06  stir 0%  auto
+BOX3 | rx 13  age 844ms  t    0.9  trans     24  scat    296  cloud   --    tC 23.88  stir 0%  auto swept
+BOX3 | rx 14  age 844ms  t    1.9  trans    226  scat     91  cloud   --    tC 23.94  stir 0%  auto
+BOX3 | rx 15  age 845ms  t    2.9  trans    227  scat     92  cloud   --    tC 23.88  stir 0%  auto
+BOX3 | rx 16  age 845ms  t    4.9  trans    229  scat     86  cloud   --    tC 23.94  stir 0%  auto
+BOX3 | rx 17  age 845ms  t    5.9  trans    218  scat     90  cloud   --    tC 24.19  stir 0%  auto
+
+# Reading this: every radio packet matches the USB line field for field. Packet 'rx 8' was printed
+# twice with a growing age (844 -> 1844 ms): one packet was missed and the next arrived. About one
+# in ten is lost at bench range, which a 1 Hz display does not notice.
+
+--- link stability after the channel was pinned (firmware/21_box3_face heartbeat, 25 s) ---
+  2.0s  BOX3  # 20 fps, link UP, last packet 1001 ms ago
+  5.0s  BOX3  # 20 fps, link UP, last packet 27 ms ago
+  8.1s  BOX3  # 20 fps, link UP, last packet 57 ms ago
+ 11.1s  BOX3  # 20 fps, link UP, last packet 91 ms ago
+ 14.1s  BOX3  # 20 fps, link UP, last packet 124 ms ago
+ 17.2s  BOX3  # 20 fps, link UP, last packet 1154 ms ago
+ 20.2s  BOX3  # 20 fps, link UP, last packet 188 ms ago
+ 23.2s  BOX3  # 20 fps, link UP, last packet 1219 ms ago

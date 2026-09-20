@@ -1,0 +1,83 @@
+[  0.52] {"t":-1.0,"trans":434,"scat":61,"absT":null,"absS":null,"tC":23.69,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  1.53] {"t":-1.0,"trans":411,"scat":71,"absT":null,"absS":null,"tC":22.88,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  2.64] {"t":-1.0,"trans":387,"scat":75,"absT":null,"absS":null,"tC":23.38,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  3.57] {"t":-1.0,"trans":362,"scat":83,"absT":null,"absS":null,"tC":23.19,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  4.54] {"t":-1.0,"trans":338,"scat":88,"absT":null,"absS":null,"tC":22.19,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  5.65] {"t":-1.0,"trans":309,"scat":91,"absT":null,"absS":null,"tC":22.44,"sweep":{"red":240,"yellow":-359,"green":-120,"blue":-444},"stir":0,"swept":false}
+[  6.58] {"t":-1.0,"trans":55,"scat":293,"absT":null,"absS":null,"tC":22.75,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":true}
+[  7.54] {"t":-1.0,"trans":263,"scat":99,"absT":null,"absS":null,"tC":21.62,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[  8.68] {"t":-1.0,"trans":241,"scat":96,"absT":null,"absS":null,"tC":22.31,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[  9.62] {"t":-1.0,"trans":225,"scat":99,"absT":null,"absS":null,"tC":22.12,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 10.56] {"t":-1.0,"trans":208,"scat":96,"absT":null,"absS":null,"tC":22.56,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 11.69] {"t":-1.0,"trans":199,"scat":94,"absT":null,"absS":null,"tC":22.00,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 12.00] >>> b
+[ 12.00] # blank stored: transmission 230 mV, scatter 47 mV
+[ 12.58] {"t":-1.0,"trans":191,"scat":91,"absT":0.0807,"absS":-0.2869,"tC":21.62,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 13.54] {"t":-1.0,"trans":184,"scat":89,"absT":0.0969,"absS":-0.2773,"tC":22.81,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 14.52] {"t":-1.0,"trans":179,"scat":83,"absT":0.1089,"absS":-0.2470,"tC":21.69,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 15.53] {"t":-1.0,"trans":176,"scat":79,"absT":0.1162,"absS":-0.2255,"tC":21.75,"sweep":{"red":-194,"yellow":-189,"green":-182,"blue":-177},"stir":0,"swept":false}
+[ 16.54] {"t":-1.0,"trans":8,"scat":257,"absT":1.4586,"absS":-0.7378,"tC":22.00,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":true}
+[ 17.53] {"t":-1.0,"trans":175,"scat":71,"absT":0.1187,"absS":-0.1792,"tC":21.94,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 18.54] {"t":-1.0,"trans":177,"scat":68,"absT":0.1138,"absS":-0.1604,"tC":22.25,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 19.53] {"t":-1.0,"trans":183,"scat":60,"absT":0.0993,"absS":-0.1061,"tC":21.88,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 20.64] {"t":-1.0,"trans":192,"scat":57,"absT":0.0784,"absS":-0.0838,"tC":21.38,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 21.58] {"t":-1.0,"trans":201,"scat":52,"absT":0.0585,"absS":-0.0439,"tC":21.50,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 22.54] {"t":-1.0,"trans":205,"scat":48,"absT":0.0500,"absS":-0.0091,"tC":21.88,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 23.64] {"t":-1.0,"trans":219,"scat":43,"absT":0.0213,"absS":0.0386,"tC":21.00,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 24.57] {"t":-1.0,"trans":231,"scat":41,"absT":-0.0019,"absS":0.0593,"tC":21.56,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 25.53] {"t":-1.0,"trans":246,"scat":38,"absT":-0.0292,"absS":0.0923,"tC":21.81,"sweep":{"red":-193,"yellow":-192,"green":-192,"blue":-190},"stir":0,"swept":false}
+[ 26.64] {"t":-1.0,"trans":0,"scat":202,"absT":null,"absS":-0.6333,"tC":22.50,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":true}
+[ 27.58] {"t":-1.0,"trans":277,"scat":31,"absT":-0.0808,"absS":0.1807,"tC":22.12,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 28.54] {"t":-1.0,"trans":296,"scat":28,"absT":-0.1096,"absS":0.2249,"tC":22.19,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 29.64] {"t":-1.0,"trans":315,"scat":27,"absT":-0.1366,"absS":0.2407,"tC":21.31,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 30.57] {"t":-1.0,"trans":334,"scat":25,"absT":-0.1620,"absS":0.2742,"tC":22.06,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 31.54] {"t":-1.0,"trans":354,"scat":23,"absT":-0.1873,"absS":0.3104,"tC":21.50,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 32.64] {"t":-1.0,"trans":375,"scat":21,"absT":-0.2123,"absS":0.3499,"tC":21.75,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 33.58] {"t":-1.0,"trans":392,"scat":22,"absT":-0.2316,"absS":0.3297,"tC":21.12,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 34.53] {"t":-1.0,"trans":409,"scat":22,"absT":-0.2500,"absS":0.3297,"tC":21.88,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 35.65] {"t":-1.0,"trans":425,"scat":21,"absT":-0.2667,"absS":0.3499,"tC":20.94,"sweep":{"red":-339,"yellow":-341,"green":-343,"blue":-345},"stir":0,"swept":false}
+[ 36.59] {"t":-1.0,"trans":43,"scat":197,"absT":0.7283,"absS":-0.6224,"tC":20.75,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":true}
+[ 37.53] {"t":-1.0,"trans":451,"scat":24,"absT":-0.2924,"absS":0.2919,"tC":21.25,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 38.11] >>> z
+[ 38.11] # t = 0 marked
+[ 38.52] {"t":0.5,"trans":455,"scat":25,"absT":-0.2963,"absS":0.2742,"tC":21.81,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 39.52] {"t":1.5,"trans":458,"scat":29,"absT":-0.2991,"absS":0.2097,"tC":21.81,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 40.53] {"t":2.5,"trans":452,"scat":37,"absT":-0.2934,"absS":0.1039,"tC":21.75,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 41.68] {"t":3.5,"trans":441,"scat":42,"absT":-0.2827,"absS":0.0488,"tC":21.56,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 42.62] {"t":4.5,"trans":430,"scat":49,"absT":-0.2717,"absS":-0.0181,"tC":21.88,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 43.54] {"t":5.5,"trans":410,"scat":56,"absT":-0.2511,"absS":-0.0761,"tC":21.88,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 44.50] {"t":6.5,"trans":388,"scat":62,"absT":-0.2271,"absS":-0.1203,"tC":22.00,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 45.53] {"t":7.5,"trans":365,"scat":69,"absT":-0.2006,"absS":-0.1668,"tC":22.00,"sweep":{"red":-388,"yellow":-396,"green":-403,"blue":-409},"stir":0,"swept":false}
+[ 46.53] {"t":8.5,"trans":72,"scat":253,"absT":0.5044,"absS":-0.7310,"tC":22.12,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":true}
+[ 47.64] {"t":9.5,"trans":321,"scat":82,"absT":-0.1448,"absS":-0.2417,"tC":22.25,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":false}
+[ 48.57] {"t":10.5,"trans":297,"scat":86,"absT":-0.1110,"absS":-0.2624,"tC":22.38,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":false}
+[ 49.54] {"t":11.5,"trans":275,"scat":91,"absT":-0.0776,"absS":-0.2869,"tC":22.56,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":false}
+[ 50.64] {"t":12.5,"trans":257,"scat":93,"absT":-0.0482,"absS":-0.2964,"tC":22.06,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":false}
+[ 51.57] {"t":13.5,"trans":240,"scat":95,"absT":-0.0185,"absS":-0.3056,"tC":22.38,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":0,"swept":false}
+[ 52.11] >>> m
+[ 53.67] # stirrer on
+[ 53.78] {"t":15.6,"trans":501,"scat":166,"absT":-0.3381,"absS":-0.5480,"tC":22.06,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":100,"swept":false}
+[ 54.72] {"t":16.6,"trans":385,"scat":166,"absT":-0.2237,"absS":-0.5480,"tC":22.69,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":100,"swept":false}
+[ 55.65] {"t":17.6,"trans":599,"scat":203,"absT":-0.4157,"absS":-0.6354,"tC":22.69,"sweep":{"red":-220,"yellow":-214,"green":-207,"blue":-201},"stir":100,"swept":false}
+[ 56.75] {"t":18.6,"trans":218,"scat":386,"absT":0.0233,"absS":-0.9145,"tC":22.62,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":100,"swept":true}
+[ 57.69] {"t":19.6,"trans":471,"scat":312,"absT":-0.3113,"absS":-0.8221,"tC":22.62,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":100,"swept":false}
+[ 58.02] >>> m
+[ 58.02] # stirrer off
+[ 58.74] {"t":20.6,"trans":371,"scat":25,"absT":-0.2076,"absS":0.2742,"tC":22.75,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 59.68] {"t":21.6,"trans":384,"scat":21,"absT":-0.2226,"absS":0.3499,"tC":22.44,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 60.63] {"t":22.6,"trans":399,"scat":22,"absT":-0.2392,"absS":0.3297,"tC":22.19,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 61.64] {"t":23.6,"trans":414,"scat":23,"absT":-0.2553,"absS":0.3104,"tC":22.12,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 62.75] {"t":24.6,"trans":426,"scat":22,"absT":-0.2677,"absS":0.3297,"tC":22.19,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 63.69] {"t":25.6,"trans":435,"scat":23,"absT":-0.2768,"absS":0.3104,"tC":22.25,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 64.64] {"t":26.6,"trans":445,"scat":27,"absT":-0.2866,"absS":0.2407,"tC":22.25,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 65.75] {"t":27.6,"trans":446,"scat":26,"absT":-0.2876,"absS":0.2571,"tC":22.31,"sweep":{"red":-304,"yellow":-66,"green":-167,"blue":-286},"stir":0,"swept":false}
+[ 66.69] {"t":28.6,"trans":68,"scat":217,"absT":0.5292,"absS":-0.6644,"tC":22.31,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":true}
+[ 67.64] {"t":29.6,"trans":447,"scat":34,"absT":-0.2886,"absS":0.1406,"tC":22.25,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 68.02] >>> s
+[ 68.02] # run stopped
+[ 68.64] {"t":-1.0,"trans":439,"scat":41,"absT":-0.2807,"absS":0.0593,"tC":22.19,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 69.64] {"t":-1.0,"trans":431,"scat":46,"absT":-0.2727,"absS":0.0093,"tC":22.44,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 70.64] {"t":-1.0,"trans":418,"scat":51,"absT":-0.2594,"absS":-0.0355,"tC":22.44,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 71.79] {"t":-1.0,"trans":403,"scat":54,"absT":-0.2436,"absS":-0.0603,"tC":22.31,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 72.74] {"t":-1.0,"trans":388,"scat":61,"absT":-0.2271,"absS":-0.1132,"tC":22.69,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
+[ 73.71] {"t":-1.0,"trans":371,"scat":66,"absT":-0.2076,"absS":-0.1474,"tC":22.25,"sweep":{"red":-246,"yellow":-246,"green":-245,"blue":-245},"stir":0,"swept":false}
