@@ -110,12 +110,13 @@ def source(scan_id: str, created_at: str = "2026-09-19T00:00:00Z") -> dict[str, 
     }
 
 
-async def test_create_writes_a_pending_scan_and_waits_for_refresh() -> None:
+async def test_create_writes_a_pending_scan_without_waiting_for_refresh() -> None:
     es = FakeEs(index={"result": "created"})
     doc = await store(es).create(payload())
     call = es.call("index")
     assert call["index"] == SCANS_INDEX
-    assert call["refresh"] == "wait_for"
+    # Realtime GETs serve the app; waiting for a refresh cost 3-5 s per write on Serverless.
+    assert call["refresh"] is False
     assert call["id"] == doc[Scan.SCAN_ID] == call["document"][Scan.SCAN_ID]
     assert doc[Scan.SCAN_ID].startswith("scan-") and len(doc[Scan.SCAN_ID]) == 21
     assert doc[Scan.REVISION] == 1
@@ -217,7 +218,7 @@ async def test_apply_bumps_the_revision_in_one_scripted_update() -> None:
     call = es.call("update")
     params = call["script"]["params"]
     assert revision == 3
-    assert call["refresh"] == "wait_for" and call["source"] is True
+    assert call["refresh"] is False and call["source"] is True
     assert "ctx._source.revision" in call["script"]["source"]
     assert params["status"] == "partial"
     assert params["patch"] == {"research": {"verdict": "recall_match"}}
@@ -325,6 +326,9 @@ async def test_scripted_update_round_trips_on_the_real_cluster() -> None:
         assert fetched[Scan.STAGES]["normalize"] == {"ok": True}
         assert fetched[Scan.RESEARCH] == {"verdict": "x"}
 
+        # Scan writes no longer wait for a refresh (realtime GETs serve the app), so
+        # the history list is eventually consistent: refresh explicitly before listing.
+        await es.indices.refresh(index=SCANS_INDEX)
         rows, _ = await live.list(device_id="pytest-live", lot="AB1234", limit=5)
         assert any(row[Scan.SCAN_ID] == scan_id for row in rows)
     finally:
