@@ -14,6 +14,7 @@ class OnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PeelScaffold(
+      fill: true,
       content: const [
         Text('Peel', style: PeelText.brand),
         SizedBox(height: PeelSpace.x8),
@@ -22,7 +23,14 @@ class OnboardingScreen extends StatelessWidget {
           style: PeelText.body,
         ),
         SizedBox(height: PeelSpace.x24),
-        PeelRiveSlot(stage: PeelStage.bottleScan, aspectRatio: 13 / 12),
+        Flexible(
+          child: Center(
+            child: PeelRiveSlot(
+              stage: PeelStage.bottleScan,
+              aspectRatio: 13 / 12,
+            ),
+          ),
+        ),
       ],
       actions: [
         PeelButton(

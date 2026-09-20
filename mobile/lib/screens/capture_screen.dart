@@ -86,21 +86,24 @@ class _CaptureScreenState extends State<CaptureScreen> {
   Widget build(BuildContext context) {
     final photo = scanSession.photoFor(widget.step);
     return PeelScaffold(
+      fill: true,
       content: [
         Text(copy.title, style: PeelText.brand),
         const SizedBox(height: PeelSpace.x8),
         Text(copy.instruction, style: PeelText.body),
         const SizedBox(height: PeelSpace.x24),
-        PhotoSlot(
-          photo: photo,
-          description: copy.placeholder,
-          empty: PeelRiveSlot(stage: stage),
-          onAdd: _pick,
-          onReplace: _pick,
-          onRemove: () {
-            scanSession.setPhoto(widget.step, null);
-            setState(() {});
-          },
+        Flexible(
+          child: PhotoSlot(
+            photo: photo,
+            description: copy.placeholder,
+            empty: PeelRiveSlot(stage: stage),
+            onAdd: _pick,
+            onReplace: _pick,
+            onRemove: () {
+              scanSession.setPhoto(widget.step, null);
+              setState(() {});
+            },
+          ),
         ),
         const SizedBox(height: PeelSpace.x16),
         ScanSteps(current: widget.step),

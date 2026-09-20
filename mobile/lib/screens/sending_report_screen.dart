@@ -37,6 +37,7 @@ class _SendingReportScreenState extends State<SendingReportScreen> {
   @override
   Widget build(BuildContext context) {
     return PeelScaffold(
+      fill: true,
       content: [
         Text(_sent ? 'Report sent' : 'Sending report', style: PeelText.title),
         const SizedBox(height: PeelSpace.x8),
@@ -47,9 +48,13 @@ class _SendingReportScreenState extends State<SendingReportScreen> {
           style: PeelText.body,
         ),
         const SizedBox(height: PeelSpace.x24),
-        PeelRiveSlot(
-          stage: _sent ? PeelStage.complete : PeelStage.research,
-          aspectRatio: 13 / 12,
+        Flexible(
+          child: Center(
+            child: PeelRiveSlot(
+              stage: _sent ? PeelStage.complete : PeelStage.research,
+              aspectRatio: 13 / 12,
+            ),
+          ),
         ),
       ],
       actions: [

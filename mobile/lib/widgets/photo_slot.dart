@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -31,31 +30,27 @@ class PhotoSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (photo == null) {
-      return GestureDetector(
-        onTap: onAdd,
-        child: empty ?? AnimationPlaceholder(description: description),
+      return Center(
+        child: GestureDetector(
+          onTap: onAdd,
+          child: empty ?? AnimationPlaceholder(description: description),
+        ),
       );
     }
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) => SizedBox(
-            // Leaves room for the step row under taller headings.
-            height: math.min(
-              constraints.maxWidth * 416 / 364,
-              MediaQuery.sizeOf(context).height * 0.45,
-            ),
-            child: Center(
-              child: AspectRatio(
-                aspectRatio: 364 / 416,
-                child: ClipRRect(
-                  borderRadius: PeelRadii.r16,
-                  child: Container(
-                    color: PeelColors.camera,
-                    child: Image.file(photo!, fit: BoxFit.contain),
-                  ),
+        Flexible(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 364 / 416,
+              child: ClipRRect(
+                borderRadius: PeelRadii.r16,
+                child: Container(
+                  color: PeelColors.camera,
+                  child: Image.file(photo!, fit: BoxFit.contain),
                 ),
               ),
             ),

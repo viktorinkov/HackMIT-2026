@@ -10,11 +10,16 @@ class PeelScaffold extends StatelessWidget {
     required this.content,
     this.actions = const [],
     this.topBar,
+    this.fill = false,
   });
 
   final List<Widget> content;
   final List<Widget> actions;
   final Widget? topBar;
+
+  /// Lays the content out inside the viewport instead of scrolling it, so a
+  /// flexible child shrinks rather than sliding under the pinned actions.
+  final bool fill;
 
   @override
   Widget build(BuildContext context) {
@@ -25,17 +30,24 @@ class PeelScaffold extends StatelessWidget {
           children: [
             if (topBar != null) topBar!,
             Expanded(
-              child: SingleChildScrollView(
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   PeelSpace.x24,
                   PeelSpace.x16,
                   PeelSpace.x24,
                   PeelSpace.x24,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: content,
-                ),
+                child: fill
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: content,
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: content,
+                        ),
+                      ),
               ),
             ),
             if (actions.isNotEmpty)

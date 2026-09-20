@@ -99,12 +99,13 @@ class _DeviceScreenState extends State<DeviceScreen> {
         _phase == DevicePhase.connecting || _phase == DevicePhase.checking;
 
     return PeelScaffold(
+      fill: true,
       content: [
         Text(copy.title, style: PeelText.brand),
         const SizedBox(height: PeelSpace.x8),
         Text(copy.body, style: PeelText.body),
         const SizedBox(height: PeelSpace.x24),
-        PeelRiveSlot(stage: _stage),
+        Flexible(child: Center(child: PeelRiveSlot(stage: _stage))),
         const SizedBox(height: PeelSpace.x16),
         const ScanSteps(current: ScanStep.pill),
       ],
