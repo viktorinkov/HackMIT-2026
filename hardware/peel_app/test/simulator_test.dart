@@ -1,7 +1,6 @@
 @Tags(['simulator'])
 library;
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
