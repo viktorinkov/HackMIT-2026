@@ -151,9 +151,11 @@ def draft_report_function() -> dict[str, Any]:
                 "purchased_on": {
                     "type": "string",
                     "description": (
-                        "The day they bought this medicine, written the way "
-                        "they said it. An approximate day is fine. "
-                        "Omit if unknown. Never ask them for a format."
+                        "JSON argument only, never spoken. Convert whatever "
+                        "they said into YYYY-MM-DD. 'September fifteenth "
+                        "twenty twenty six' becomes 2026-09-15. A month "
+                        "alone becomes the first of that month. Omit if "
+                        "unknown. Never ask the user for this form."
                     ),
                 },
                 "purchase_location": {

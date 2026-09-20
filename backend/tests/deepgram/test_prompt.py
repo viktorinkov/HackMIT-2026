@@ -23,8 +23,9 @@ def test_prompt_embeds_the_scan_context() -> None:
     assert "Never say it was submitted" in prompt.prompt
     assert "March twelfth, twenty twenty-six" in prompt.prompt
     assert "When did you buy this?" in prompt.prompt
-    assert "Never ask the user how to format a date" in prompt.prompt
-    assert "Never ask them to give year, month, and day as digits" in prompt.prompt
+    assert "Do not mention slashes, hyphens, month-day-year, or any required form" in prompt.prompt
+    assert "Do not mention a format" in prompt.prompt
+    assert "Silently convert the purchase day on that call" in prompt.prompt
     assert "YYYY-MM-DD" not in prompt.prompt
     assert "yy/mm/dd" not in prompt.prompt
     assert "seller or shop" in prompt.prompt

@@ -172,8 +172,9 @@ def test_draft_report_is_a_client_side_function() -> None:
     assert "scan_id" not in function["parameters"]["properties"]
     assert "does not submit" in function["description"]
     purchased = function["parameters"]["properties"]["purchased_on"]["description"]
-    assert "YYYY-MM-DD" not in purchased
-    assert "Never ask them for a format" in purchased
+    assert "YYYY-MM-DD" in purchased
+    assert "JSON argument only, never spoken" in purchased
+    assert "Never ask the user for this form" in purchased
 
 
 def test_voice_settings_use_flux_stt_with_turn_thresholds() -> None:
