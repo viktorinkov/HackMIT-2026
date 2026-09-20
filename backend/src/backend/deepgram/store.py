@@ -1,4 +1,4 @@
-"""Reports in `peel-reports`: one document per scan, keyed by `scan_id`."""
+"""Reports in `peel-reports`, joined to a scan by `scan_id`."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any, Protocol
 
-from elasticsearch import ApiError, AsyncElasticsearch, NotFoundError, TransportError
+from elasticsearch import ApiError, AsyncElasticsearch, TransportError
 from fastapi import Depends
 
 from backend.deepgram.models import ConcernReport, PurchaseLocation
@@ -16,7 +16,6 @@ from backend.knowledge.fields import REPORTS_INDEX, Report
 
 class ReportStore(Protocol):
     async def add(self, report: ConcernReport) -> ConcernReport: ...
-    async def get(self, scan_id: str) -> ConcernReport | None: ...
 
 
 class MemoryReportStore:
@@ -24,16 +23,8 @@ class MemoryReportStore:
         self._reports: dict[str, ConcernReport] = {}
 
     async def add(self, report: ConcernReport) -> ConcernReport:
-        existing = self._reports.get(report.scan_id)
-        if existing is not None:
-            report = report.model_copy(
-                update={"report_id": existing.report_id, "created_at": existing.created_at}
-            )
-        self._reports[report.scan_id] = report
+        self._reports[report.report_id] = report
         return report
-
-    async def get(self, scan_id: str) -> ConcernReport | None:
-        return self._reports.get(scan_id)
 
 
 class ElasticReportStore:
@@ -41,31 +32,14 @@ class ElasticReportStore:
         self._es = es
 
     async def add(self, report: ConcernReport) -> ConcernReport:
-        existing = await self.get(report.scan_id)
-        if existing is not None:
-            report = report.model_copy(
-                update={"report_id": existing.report_id, "created_at": existing.created_at}
-            )
         with _api_errors("could not store the report", status_code=503):
-            # `_id` is scan_id so GET is realtime; no search, no refresh wait.
             await self._es.index(
                 index=REPORTS_INDEX,
-                id=report.scan_id,
+                id=report.report_id,
                 document=document_from_report(report),
                 refresh=False,
             )
         return report
-
-    async def get(self, scan_id: str) -> ConcernReport | None:
-        try:
-            response = await self._es.get(index=REPORTS_INDEX, id=scan_id, realtime=True)
-        except NotFoundError:
-            return None
-        except ApiError as exc:
-            raise _wrapped("could not read the report", exc) from exc
-        except TransportError as exc:
-            raise _unreachable("could not read the report", exc) from exc
-        return report_from_document(dict(response["_source"]))
 
 
 def get_report_store(es: AsyncElasticsearch = Depends(get_es)) -> ElasticReportStore:
@@ -106,10 +80,6 @@ def report_from_document(source: dict[str, Any]) -> ConcernReport:
             lon=coords.get("lon"),
         )
     return ConcernReport.model_validate(doc)
-
-
-def _wrapped(message: str, exc: ApiError) -> KnowledgeError:
-    return KnowledgeError(f"{message}: {exc.message}", status_code=502)
 
 
 def _unreachable(message: str, exc: TransportError) -> KnowledgeError:

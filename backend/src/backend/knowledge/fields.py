@@ -217,7 +217,7 @@ class Scan:
 
 
 class Report:
-    """peel-reports: one report per scan, keyed by scan_id."""
+    """peel-reports: one document per filing, joined to a scan by scan_id."""
 
     REPORT_ID = "report_id"
     SCAN_ID = "scan_id"

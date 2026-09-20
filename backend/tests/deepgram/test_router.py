@@ -126,11 +126,11 @@ def test_create_report_stores_the_scan_context(
     assert body["snapshot"]["bottle"]["generic_name"] == "acetaminophen"
 
 
-def test_create_report_replaces_the_previous_filing(client: TestClient) -> None:
+def test_create_report_can_file_more_than_once(client: TestClient) -> None:
     first = client.post("/deepgram/scan-1/reports", json={"seller": "CVS Pharmacy"})
     second = client.post("/deepgram/scan-1/reports", json={"seller": "a friend"})
     assert first.status_code == second.status_code == 200
-    assert second.json()["report_id"] == first.json()["report_id"]
+    assert first.json()["report_id"] != second.json()["report_id"]
     assert second.json()["seller"] == "a friend"
 
 
