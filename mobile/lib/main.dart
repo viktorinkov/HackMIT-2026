@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'hardware/debug_screen.dart';
 import 'rive/peel_rive_stage.dart';
 import 'rive/peel_rive_widgets.dart';
+import 'screens/device_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/voice_screen.dart';
 import 'services/peel_api.dart';
@@ -38,6 +39,7 @@ class PeelApp extends StatelessWidget {
       home: switch (_peelStart) {
         'voice' => const _VoiceTestHome(),
         'debug' => DebugScreen(session: instrument),
+        'device' => const DeviceScreen(),
         _ => const OnboardingScreen(),
       },
       navigatorObservers: [PeelRiveNavigatorObserver()],
@@ -47,7 +49,8 @@ class PeelApp extends StatelessWidget {
 }
 
 /// Dev-only: `--dart-define=PEEL_START=voice` skips onboarding and opens Talk to Peel;
-/// `PEEL_START=debug` opens the instrument's bench screen instead of the product.
+/// `PEEL_START=debug` opens the instrument's bench screen instead of the product;
+/// `PEEL_START=device` opens the device step directly, for bench runs without the photo steps.
 class _VoiceTestHome extends StatefulWidget {
   const _VoiceTestHome();
 

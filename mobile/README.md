@@ -49,6 +49,7 @@ falls back to `POST /pill`.
 python3 ../hardware/sim/fake_board.py --tcp 9000
 flutter run --dart-define=PEEL_SIM=10.0.2.2:9000    # emulator → host simulator
 flutter run --dart-define=PEEL_START=debug          # open the bench screen directly
+flutter run --dart-define=PEEL_START=device         # open the device step directly (no photo steps)
 ```
 
 The bench screen is also a long press on the device step's header. The simulator-tagged tests
