@@ -4,6 +4,7 @@ from typing import Any
 
 from backend.config import Settings
 from backend.deepgram.lead import lead_from_context
+from backend.deepgram.models import ConcernReportCreate
 from backend.deepgram.prompt import build_playground_prompt
 from backend.research.contract import to_scan_context
 
@@ -38,38 +39,83 @@ def _pill_name(hardware: dict[str, Any] | None) -> str | None:
     return _named(candidate.get("generic_name"), None)
 
 
-def greeting_from_scan(doc: dict[str, Any]) -> str:
-    context = to_scan_context(doc)
-    lines = ["Hi, I'm Peel."]
-    if context.get("demo"):
-        lines.append("These findings are a simulated demo.")
-
+def _source_lines(context: dict[str, Any]) -> list[str]:
     bottle = _bottle_name(context.get("bottle"))
     imprint = _imprint_name(context.get("imprint"))
     pill = _pill_name(context.get("hardware"))
     observed = (context.get("imprint") or {}).get("observed_text") if context.get("imprint") else None
 
     if bottle:
-        lines.append(f"Bottle: the label says {bottle}.")
+        bottle_line = f"Bottle: the label says {bottle}."
     else:
-        lines.append("Bottle: no label result yet.")
+        bottle_line = "Bottle: no label result yet."
 
     if imprint:
-        lines.append(f"Imprint: the marking lookup returned {imprint}.")
+        imprint_line = f"Imprint: the marking lookup returned {imprint}."
     elif observed:
-        lines.append(f"Imprint: the marking is {observed}, with no drug name yet.")
+        imprint_line = f"Imprint: the marking is {observed}, with no drug name yet."
     else:
-        lines.append("Imprint: no marking lookup yet.")
+        imprint_line = "Imprint: no marking lookup yet."
 
     if pill:
-        lines.append(f"Pill: the hardware analysis reports the contents as {pill}.")
+        pill_line = f"Pill: the hardware analysis reports the contents as {pill}."
     else:
-        lines.append("Pill: no hardware analysis yet.")
+        pill_line = "Pill: no hardware analysis yet."
 
+    return [bottle_line, imprint_line, pill_line]
+
+
+def greeting_from_scan(doc: dict[str, Any]) -> str:
+    context = to_scan_context(doc)
+    lines = ["Hi, I'm Peel."]
+    if context.get("demo"):
+        lines.append("These findings are a simulated demo.")
+    return " ".join(lines)
+
+
+def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
+    context = to_scan_context(doc)
+    messages = _source_lines(context)
     lead = lead_from_context(context)
     if lead:
-        lines.append(lead)
-    return " ".join(lines)
+        messages.append(lead)
+    return messages
+
+
+def _clean_report_field(value: str | None) -> str | None:
+    cleaned = (value or "").strip()
+    return cleaned or None
+
+
+def concern_type_from_context(context: dict[str, Any]) -> str:
+    hardware = context.get("hardware") or {}
+    research = context.get("research") or {}
+    if hardware.get("reported_status") == "fake":
+        return "fake"
+    if research.get("verdict") == "recall_match":
+        return "recall"
+    degradation = (hardware.get("degradation") or {}).get("status")
+    if degradation in {"suspected", "detected"} or hardware.get("reported_status") == "substandard":
+        return "quality"
+    if research.get("verdict") == "mismatch_found":
+        return "mismatch"
+    if research.get("verdict") == "insufficient_evidence":
+        return "uncertain"
+    return "other"
+
+
+def problem_from_scan(doc: dict[str, Any]) -> str:
+    return " ".join(opening_messages_from_scan(doc))
+
+
+def fill_concern_report(doc: dict[str, Any], body: ConcernReportCreate) -> ConcernReportCreate:
+    context = to_scan_context(doc)
+    return ConcernReportCreate(
+        concern_type=_clean_report_field(body.concern_type) or concern_type_from_context(context),
+        summary=_clean_report_field(body.summary) or lead_from_context(context) or "Scan concern",
+        user_description=_clean_report_field(body.user_description) or problem_from_scan(doc),
+        symptoms=_clean_report_field(body.symptoms),
+    )
 
 
 def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
@@ -104,8 +150,10 @@ def draft_concern_report_function(url: str) -> dict[str, Any]:
     return {
         "name": "draft_concern_report",
         "description": (
-            "Call this to save a concern report for the current scan after the "
-            "user confirms they want to report."
+            "Save a concern report for the current scan after the user confirms "
+            "they want to file. The problem is already filled from this scan. "
+            "Do not ask the user to describe it. Call with no arguments unless "
+            "the user volunteered symptoms."
         ),
         "parameters": {
             "type": "object",
@@ -115,7 +163,7 @@ def draft_concern_report_function(url: str) -> dict[str, Any]:
                 "user_description": {"type": "string"},
                 "symptoms": {"type": "string"},
             },
-            "required": ["concern_type", "summary", "user_description"],
+            "required": [],
         },
         "defer_until_eot": True,
         "endpoint": {

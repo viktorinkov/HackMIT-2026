@@ -58,9 +58,14 @@ def test_session_returns_200_for_a_completed_scan(client: TestClient) -> None:
     body = response.json()
     assert body["scan_id"] == "scan-1"
     assert body["authorization"] == "Token"
-    assert body["settings"]["agent"]["greeting"].startswith("Hi, I'm Peel.")
-    assert "The label and the reference records do not agree." in body["settings"]["agent"][
-        "greeting"
+    assert body["settings"]["agent"]["greeting"] == (
+        "Hi, I'm Peel. These findings are a simulated demo."
+    )
+    assert body["opening_messages"] == [
+        "Bottle: the label says acetaminophen 500 mg.",
+        "Imprint: the marking lookup returned ibuprofen 200 mg.",
+        "Pill: the hardware analysis reports the contents as ibuprofen.",
+        "The label and the reference records do not agree.",
     ]
 
 
@@ -130,6 +135,23 @@ def test_create_report_unwraps_a_deepgram_payload(client: TestClient) -> None:
     )
     assert response.status_code == 200
     assert response.json()["concern_type"] == "quality"
+
+
+def test_create_report_autofills_the_problem_from_the_scan(client: TestClient) -> None:
+    response = client.post("/deepgram/scan-1/reports", json={})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["concern_type"] == "mismatch"
+    assert body["summary"] == "The label and the reference records do not agree."
+    assert body["user_description"].startswith("Bottle: the label says acetaminophen 500 mg.")
+    assert "Imprint:" in body["user_description"]
+    assert "Pill:" in body["user_description"]
+
+
+def test_create_report_autofills_an_empty_deepgram_call(client: TestClient) -> None:
+    response = client.post("/deepgram/scan-1/reports", json={"arguments": {}})
+    assert response.status_code == 200
+    assert response.json()["concern_type"] == "mismatch"
 
 
 def test_reports_404_when_the_scan_is_missing(client: TestClient, stub: StubStore) -> None:

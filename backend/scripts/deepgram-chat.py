@@ -345,6 +345,34 @@ async def _hold_open(ws, send_lock: asyncio.Lock) -> None:
         elapsed += FRAME_MS / 1000
 
 
+async def _speak_opening(
+    ws,
+    send_lock: asyncio.Lock,
+    peel_done: asyncio.Event,
+    messages: object,
+) -> bool:
+    if not isinstance(messages, list) or not messages:
+        return True
+    for text in messages:
+        content = str(text).strip()
+        if not content:
+            continue
+        peel_done.clear()
+        async with send_lock:
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "InjectAgentMessage",
+                        "message": content,
+                        "behavior": "queue",
+                    }
+                )
+            )
+        if not await _wait_idle(peel_done, timeout=20):
+            return False
+    return True
+
+
 async def _wait_idle(event: asyncio.Event, timeout: float, settle: float = 0.8) -> bool:
     try:
         await asyncio.wait_for(event.wait(), timeout=timeout)
@@ -412,6 +440,10 @@ async def _chat(session: dict, api_key: str, fixture: str) -> str:
         action = "quit"
         try:
             await _wait_idle(peel_done, timeout=25)
+            if closed.is_set():
+                return action
+            if not await _speak_opening(ws, send_lock, peel_done, session.get("opening_messages")):
+                sys.exit("Peel: (no opening)")
             if closed.is_set():
                 return action
             if smoke:
