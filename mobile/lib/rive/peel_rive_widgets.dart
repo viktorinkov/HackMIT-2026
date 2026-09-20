@@ -78,6 +78,7 @@ class PeelRiveSlot extends StatefulWidget {
 
 class _PeelRiveSlotState extends State<PeelRiveSlot> {
   final _key = GlobalKey();
+  bool _measured = false;
   late final PeelRiveSlotHandle _handle = peelRiveStage.register();
 
   @override
@@ -106,16 +107,25 @@ class _PeelRiveSlotState extends State<PeelRiveSlot> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _measure();
-      if (_handle.rect == null) WidgetsBinding.instance.scheduleFrame();
+      // The first frame can lay the slot out at zero size; keep frames coming
+      // until it has a real rect to report.
+      if (!_measured) WidgetsBinding.instance.scheduleFrame();
       _scheduleMeasure();
     });
   }
 
   void _measure() {
+    if (ModalRoute.of(context)?.isCurrent != true) {
+      _handle.clear();
+      return;
+    }
     final box = _key.currentContext?.findRenderObject();
     final host = peelRiveStage.hostKey.currentContext?.findRenderObject();
     if (box is! RenderBox || host is! RenderBox) return;
     if (!box.hasSize || box.size.isEmpty) return;
+    _measured = true;
+    // Also covers popping back to a screen whose slot never rebuilds.
+    peelRiveStage.show(widget.stage);
     _handle.moveTo(box.localToGlobal(Offset.zero, ancestor: host) & box.size);
   }
 

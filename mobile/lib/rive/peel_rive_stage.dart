@@ -74,6 +74,8 @@ class PeelRiveStage extends ChangeNotifier {
       _file = file;
       _controller = controller;
       _stage = vmi.number('stage');
+      final shown = _shown;
+      if (shown != null) _stage?.value = shown.value;
       debugPrint('Rive stage ready: artboard=${controller.artboard.name} '
           'machine=${controller.stateMachine.name} instance=${vmi.name} '
           'properties=${vmi.properties.map((p) => p.name).toList()}');
@@ -109,8 +111,12 @@ class PeelRiveStage extends ChangeNotifier {
   }
 
   void show(PeelStage stage) {
+    if (_shown == stage) return;
+    _shown = stage;
     _stage?.value = stage.value;
   }
+
+  PeelStage? _shown;
 
   PeelRiveSlotHandle register() {
     final handle = PeelRiveSlotHandle._(this);
@@ -162,6 +168,14 @@ class PeelRiveSlotHandle {
   void moveTo(Rect value) {
     if (rect == value) return;
     rect = value;
+    _stage._moved();
+  }
+
+  /// Drops the claim without unregistering, for a slot that is on a route in
+  /// the background or is currently showing a photo instead.
+  void clear() {
+    if (rect == null) return;
+    rect = null;
     _stage._moved();
   }
 
