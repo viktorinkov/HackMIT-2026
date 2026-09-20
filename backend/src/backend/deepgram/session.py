@@ -74,12 +74,7 @@ def greeting_from_scan(doc: dict[str, Any]) -> str:
 
 
 def opening_messages_from_scan(doc: dict[str, Any]) -> list[str]:
-    context = to_scan_context(doc)
-    messages = _source_lines(context)
-    lead = lead_from_context(context)
-    if lead:
-        messages.append(lead)
-    return messages
+    return _source_lines(to_scan_context(doc))
 
 
 def _clean_report_field(value: str | None) -> str | None:
@@ -105,7 +100,12 @@ def concern_type_from_context(context: dict[str, Any]) -> str:
 
 
 def problem_from_scan(doc: dict[str, Any]) -> str:
-    return " ".join(opening_messages_from_scan(doc))
+    context = to_scan_context(doc)
+    parts = list(_source_lines(context))
+    lead = lead_from_context(context)
+    if lead:
+        parts.append(lead)
+    return " ".join(parts)
 
 
 def fill_concern_report(doc: dict[str, Any], body: ConcernReportCreate) -> ConcernReportCreate:

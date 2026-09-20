@@ -65,7 +65,6 @@ def test_session_returns_200_for_a_completed_scan(client: TestClient) -> None:
         "Bottle: the label says acetaminophen 500 mg.",
         "Imprint: the marking lookup returned ibuprofen 200 mg.",
         "Pill: the hardware analysis reports the contents as ibuprofen.",
-        "The label and the reference records do not agree.",
     ]
 
 

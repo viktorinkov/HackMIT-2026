@@ -21,13 +21,12 @@ def test_greeting_is_only_the_intro() -> None:
     assert greeting_from_scan(complete_scan(demo=False)) == "Hi, I'm Peel."
 
 
-def test_opening_messages_are_three_source_lines_then_the_lead() -> None:
+def test_opening_messages_are_exactly_the_three_sources() -> None:
     messages = opening_messages_from_scan(complete_scan())
     assert messages == [
         "Bottle: the label says acetaminophen 500 mg.",
         "Imprint: the marking lookup returned ibuprofen 200 mg.",
         "Pill: the hardware analysis reports the contents as ibuprofen.",
-        "The label and the reference records do not agree.",
     ]
 
 
@@ -36,15 +35,18 @@ def test_opening_uses_observed_imprint_when_there_is_no_candidate() -> None:
     assert messages[1] == "Imprint: the marking is L484, with no drug name yet."
 
 
-def test_opening_leads_with_fake_instead_of_the_headline() -> None:
+def test_opening_does_not_include_the_headline_or_fake_lead() -> None:
     doc = complete_scan()
     doc["hardware"] = {**doc["hardware"], "status": "fake"}
     messages = opening_messages_from_scan(doc)
-    assert messages[3] == FAKE_LEAD
+    assert len(messages) == 3
+    assert FAKE_LEAD not in messages
     assert "The label and the reference records do not agree." not in messages
+    filled = fill_concern_report(doc, ConcernReportCreate())
+    assert filled.summary == FAKE_LEAD
 
 
-def test_opening_says_the_recall_when_the_headline_does_not() -> None:
+def test_opening_does_not_include_the_recall_lead() -> None:
     messages = opening_messages_from_scan(
         complete_scan(
             research={
@@ -54,7 +56,19 @@ def test_opening_says_the_recall_when_the_headline_does_not() -> None:
             }
         )
     )
-    assert messages[-1] == RECALL_LEAD
+    assert len(messages) == 3
+    assert RECALL_LEAD not in messages
+    filled = fill_concern_report(
+        complete_scan(
+            research={
+                "verdict": "recall_match",
+                "risk_level": "high",
+                "headline": "The label and the reference records do not agree.",
+            }
+        ),
+        ConcernReportCreate(),
+    )
+    assert filled.summary == RECALL_LEAD
 
 
 def test_keyterms_include_names_and_the_imprint_marking() -> None:

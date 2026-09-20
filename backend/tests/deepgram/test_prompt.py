@@ -10,6 +10,7 @@ def test_prompt_embeds_the_scan_context() -> None:
     assert '"scan_id":"scan-1"' in prompt.prompt
     assert "acetaminophen" in prompt.prompt
     assert "three separate messages" in prompt.prompt
+    assert "Do not add a fourth opening line" in prompt.prompt
     assert "backend already fills the problem" in prompt.prompt
     assert prompt.character_count == len(prompt.prompt)
     assert prompt.character_count < PROMPT_LIMIT
