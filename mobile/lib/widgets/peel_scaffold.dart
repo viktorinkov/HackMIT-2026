@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../rive/peel_rive_stage.dart';
+import '../rive/peel_rive_widgets.dart';
 import '../theme/peel_theme.dart';
+import 'scan_steps.dart';
 
 /// Screen shell from Figma: scroll area with 24 dp gutters plus a pinned
 /// bottom action stack.
@@ -79,14 +82,92 @@ class PeelScaffold extends StatelessWidget {
   }
 }
 
-/// Figma's "Shared scan header" (364x176): a fixed block above the shared
-/// Rive slot, so the slot starts at the same y on every screen of the flow
-/// and the artboard neither moves nor resizes across navigation.
+/// Shared geometry for Peel → capture → device so [PeelRiveSlot] reports the
+/// same global rect on every stage screen (viewport + constants only).
+///
+/// Do not wrap [PeelRiveSlot] in [Expanded] + vertical [Center]/[Align] —
+/// the slot stays top-aligned under a fixed header.
+class PeelStageScaffold extends StatelessWidget {
+  const PeelStageScaffold({
+    super.key,
+    required this.header,
+    required this.stage,
+    required this.primaryAction,
+    this.bottom,
+    this.secondaryAction,
+  });
+
+  /// Usually a [PeelStageHeader], or a [PageView] of headers at the same height.
+  final Widget header;
+
+  final PeelStage stage;
+
+  /// Chips or other footer. When null, reserves [ScanSteps.extent] empty space.
+  final Widget? bottom;
+
+  final Widget primaryAction;
+
+  /// Second action row. When null, reserves [actionHeight] empty space so the
+  /// actions band matches screens with Back / secondary.
+  final Widget? secondaryAction;
+
+  static const actionHeight = 56.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: PeelColors.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    header,
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: PeelRiveSlot(stage: stage),
+                    ),
+                    const Spacer(),
+                    bottom ?? const SizedBox(height: ScanSteps.extent),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                PeelSpace.x24,
+                PeelSpace.x8,
+                PeelSpace.x24,
+                PeelSpace.x16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  primaryAction,
+                  const SizedBox(height: PeelSpace.x8),
+                  secondaryAction ??
+                      const SizedBox(height: PeelStageScaffold.actionHeight),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Fixed-height brand header above the shared Rive slot so the artboard
+/// keeps the same Y across onboarding and scan screens.
 class PeelStageHeader extends StatelessWidget {
   const PeelStageHeader({super.key, required this.title, this.trailing});
 
-  static const height = 176.0;
-  static const _titleHeight = 136.0;
+  /// Top pad (16) + two brand lines (68×2) + bottom pad (8).
+  static const height = 160.0;
 
   final String title;
   final Widget? trailing;
@@ -97,23 +178,20 @@ class PeelStageHeader extends StatelessWidget {
       height: height,
       width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.only(top: PeelSpace.x24),
-        child: SizedBox(
-          height: _titleHeight,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: PeelText.brand,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+        padding: const EdgeInsets.only(top: PeelSpace.x16, bottom: PeelSpace.x8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: PeelText.brand,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              if (trailing != null) trailing!,
-            ],
-          ),
+            ),
+            if (trailing != null) trailing!,
+          ],
         ),
       ),
     );
