@@ -111,12 +111,12 @@ pending  →  partial  →  complete
 
 | Status | Meaning |
 | --- | --- |
-| `pending` | Scan exists; research has not produced a report yet. |
+| `pending` | Scan exists; research is still starting. |
 | `partial` | Deterministic Elasticsearch lookups are done. The report is already renderable. |
 | `complete` | Live web + Agent Builder + structured coerce finished (or were skipped). |
-| `error` | Elasticsearch was down when the scan was loaded. Everything else degrades instead of failing the scan. |
+| `error` | Elasticsearch was down when the scan was loaded. Later stages record `skipped` / `unavailable` and keep going. |
 
-`revision` increments on every write. It is “something changed,” not a stage counter.
+`revision` increments on every write, including stage timings and status patches.
 
 ### Research pipeline
 
@@ -124,67 +124,67 @@ pending  →  partial  →  complete
 
 | Stage | What it does | Talks to |
 | --- | --- | --- |
-| 0 Load | Read the scan from `peel-scans`. Fatal only if ES is down. | Elasticsearch |
+| 0 Load | Read the scan from `peel-scans`. Requires Elasticsearch. | Elasticsearch |
 | 1 Normalize | Join keys: RxNav approximate-term, NDC shape, imprint tokens. Best-effort. | RxNav |
 | 2 Deterministic | Exact lot / NDC / imprint-ladder / regulatory search. Writes a full report. Status → `partial`. | Elasticsearch |
 | 3 Web | Build a tiny query set, search + scrape, index hits into `peel-web-pages`. | Firecrawl → Elasticsearch |
 | 4 Agent | Elastic Agent Builder `converse()` with eight ES\|QL tools over the same indices. | Kibana → Elasticsearch |
 | 5 Coerce | OpenAI structured output folds agent text + evidence pack into `ResearchReport`. | OpenAI |
 
-If Firecrawl, Agent Builder, or OpenAI is missing or errors, the stage records `skipped` / `unavailable` and the stage-2 report stands. The product is designed to return *something sourced* rather than wait on every vendor.
+If Firecrawl, Agent Builder, or OpenAI is missing or errors, the stage records `skipped` / `unavailable` and the stage-2 report stands.
 
 Field-level contracts, mappings, and retrieval math live in [`backend/README.md`](backend/README.md).
 
 ## Backend
 
-The backend is a FastAPI app (`backend/src/backend`) that owns vision, the scan store, retrieval, the research agent, concern reports, and the Deepgram handoff. Elasticsearch is the database. There is no Mongo.
+The backend is a FastAPI app (`backend/src/backend`) that owns vision, the scan store, retrieval, the research agent, concern reports, and the Deepgram handoff. Elasticsearch is the database.
 
 ### Runpod
 
 The API is meant to run as a long-lived process on [Runpod](https://www.runpod.io/). [`backend/scripts/runpod-start.sh`](backend/scripts/runpod-start.sh) is the container entrypoint:
 
-1. Installs [uv](https://docs.astral.sh/uv/) under `/workspace` if it is not already there.
+1. Installs [uv](https://docs.astral.sh/uv/) under `/workspace` when missing.
 2. `uv sync --locked --no-dev --python 3.13`.
 3. `uvicorn backend.app:app --host 0.0.0.0 --port 8000`.
 
-Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup that is a warning, not a crash; each request then returns 503.
+Locally the same app is `uv run backend` (reload on `127.0.0.1:8000`). Secrets come from a repo-root `.env`, then `backend/.env` (later wins). On boot, `app.py` calls `ensure_indices()` so the five strict Elasticsearch mappings exist before the first `POST /scans`. If the cluster is unreachable at startup, the process logs a warning and later requests return 503.
 
-The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` still returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`; classification into a scan is not wired on `main` yet.
+The hardware spectrometry **model** is also intended to run on Runpod. In this tree `POST /pill` returns a deterministic mock (`hardware/model = mock-spectrometry`). The physical instrument (Seeed XIAO ESP32-S3 + ESP32-S3-BOX-3 face) streams JSON over USB to `hardware/peel_app`.
 
 ### Elasticsearch
 
-Everything Peel remembers lives on one Elastic Cloud Serverless “VectorDB” project (Elastic 9.6). Vector search goes through `semantic_text` fields backed by Elastic Inference (`.jina-embeddings-v5-text-small`). There are no ML nodes.
+Everything Peel remembers lives on one Elastic Cloud Serverless “VectorDB” project (Elastic 9.6). Vector search goes through `semantic_text` fields backed by Elastic Inference (`.jina-embeddings-v5-text-small`).
 
 Mappings are `dynamic: "strict"`. An unmapped field is rejected at index time, so `knowledge/fields.py` is the single source of truth for names across seed adapters, search, and Agent Builder tools.
 
 Five indices:
 
-| Index | Role | Vectors? |
+| Index | Role | Search |
 | --- | --- | --- |
-| `peel-regulatory` | Recalls and alerts: FDA, WHO, Health Canada, MHRA, NAFDAC. | Yes — `body_semantic` (title + reason + a short product slice; **not** lot tables). |
-| `peel-pills` | NLM Pillbox imprint archive (~84k, frozen Jan 2021). | No. Imprint/shape/color are keyword lookups. |
-| `peel-ndc` | openFDA NDC directory (~138k). Brand, generic, labeler, listing status. | No. |
+| `peel-regulatory` | Recalls and alerts: FDA, WHO, Health Canada, MHRA, NAFDAC. | Yes — `body_semantic` (title + reason + a short product slice). Lot numbers stay on keyword fields. |
+| `peel-pills` | NLM Pillbox imprint archive (~84k, frozen Jan 2021). | Keyword lookups |
+| `peel-ndc` | openFDA NDC directory (~138k). Brand, generic, labeler, listing status. | Keyword lookups |
 | `peel-web-pages` | Pages Firecrawl (or the agent) fetched. Grows on every live scan. | Yes — `page_semantic`. |
-| `peel-scans` | One document per check: bottle, imprint, hardware, report, evidence, stage timings. | No. |
+| `peel-scans` | One document per check: bottle, imprint, hardware, report, evidence, stage timings. | Keyword / stored |
 
-Two retrieval modes, on purpose:
+Two retrieval modes:
 
-- **Exact lookups** (`recalls_by_lot`, `recalls_by_ndc`, `ndc_directory`, the pill ladder) are `constant_score` term queries. They are never decayed and never mixed into a hybrid ranking. An old but exact lot hit is unioned in, not hoped into the top-k.
+- **Exact lookups** (`recalls_by_lot`, `recalls_by_ndc`, `ndc_directory`, the pill ladder) are `constant_score` term queries. They keep raw scores and are unioned with hybrid hits, so an old exact lot match still appears.
 - **Hybrid + recency decay** (`search_regulatory`, `search_web`) is an Elasticsearch `linear` retriever. BM25 (weight 1.0) and semantic (weight 1.2) each get a Gaussian decay, then minmax-normalized and summed. The **filter is pushed into every leg**, so the vector search runs on an already-narrowed candidate set.
 
-Decay floors: a regulatory record never drops below 35% of its un-decayed score (30-day offset, 730-day half-life). A web page decays much faster (7-day half-life, floor 0.20), because a scraped result is only interesting while it is fresh. `recency_date` on a web page is `published_at` or `last_changed_at` — never `fetched_at` — so re-fetching unchanged HTML cannot make it look new.
+Decay floors: a regulatory record's score floor is 35% (30-day offset, 730-day half-life). A web page uses a 7-day half-life and a 0.20 floor. `recency_date` on a web page is `published_at` or `last_changed_at`. Re-fetching unchanged HTML leaves that date in place.
 
 Lot strings collide (same code, different manufacturer; extraction junk like `"MG30"`). After a lot term hit, the backend corroborates against NDC and drug name. Only `exact_lot` / `all_lots_product` can become verdict `recall_match`. A lot that matches a *different* product, or an NDC that only appears because openFDA listed every sibling strength, stays a caution.
 
-Imprint identification is a ladder, not a fuzzy soup: exact imprint first, then shape family as a hard filter, then shape as a boost, then fuzzy text. Color and size never satisfy the query on their own.
+Imprint identification is a ladder: exact imprint first, then shape family as a hard filter, then shape as a boost, then fuzzy text. Color and size re-rank among documents that already matched an imprint tier.
 
 ### Elastic Agent Builder
 
-Stage 4 is not “an LLM with a search bar.” It is a Kibana Agent Builder agent (`peel-research-agent`) with eight ES\|QL tools compiled against the real mappings:
+Stage 4 is a Kibana Agent Builder agent (`peel-research-agent`) with eight ES\|QL tools compiled against the real mappings:
 
 | Tool | Does |
 | --- | --- |
-| `peel.recalls_by_lot` | Exact batch match, never decayed. |
+| `peel.recalls_by_lot` | Exact batch match. |
 | `peel.recalls_by_ndc` | Product-line recall lookup by 9-digit NDC. |
 | `peel.regulatory_search_text` | Keyword search with metadata filters + recency. |
 | `peel.regulatory_search_semantic` | Unfiltered vector search, score floor 0.70. |
@@ -193,15 +193,15 @@ Stage 4 is not “an LLM with a search bar.” It is a Kibana Agent Builder agen
 | `peel.web_evidence_search` | Already-fetched pages, 7-day decay. |
 | `peel.prior_scans` | Counts of earlier Peel scans for the same lot/NDC. |
 
-The agent is registered **lazily** (first research request, not process start) so a Kibana outage cannot block `POST /scans`. Specs are hashed onto the agent; `converse()` re-registers if another process overwrote them.
+The agent is registered on the first research request. `POST /scans` can succeed while Kibana is down. Specs are hashed onto the agent; `converse()` re-registers if another process overwrote them.
 
-The evidence pack from stages 2–3 is passed in as *already-executed tool results*. The agent is told not to re-run lookups “to verify.” On a conclusive lot hit that is one LLM call and ~25 s; ambiguous scans still take 40–60 s if follow-up tools run. The agent’s prose is an intermediate. Stage 5 (`gpt-4o` structured output) is what the client actually stores as `research`.
+The evidence pack from stages 2–3 is passed in as already-executed tool results. Follow-up tools run for remaining gaps. On a conclusive lot hit that is one LLM call and ~25 s; ambiguous scans still take 40–60 s if follow-up tools run. The agent’s prose is an intermediate. Stage 5 (`gpt-4o` structured output) is what the client stores as `research`.
 
 Kibana URL, if unset, is derived from `ELASTICSEARCH_URL` by replacing `.es.` with `.kb.`.
 
 ### Firecrawl
 
-Stage 3 is the only place the backend spends Firecrawl credits. Seeding the corpus does **not** use Firecrawl — `peel-seed` is anonymous HTTP to regulator bulk files and HTML.
+Stage 3 is the only place the backend spends Firecrawl credits. `peel-seed` fetches regulator bulk files and HTML over anonymous HTTP.
 
 Per scan, at the defaults:
 
@@ -221,9 +221,9 @@ There is an optional Kibana Firecrawl connector (`AGENT_BUILDER_FIRECRAWL_CONNEC
 
 ### OpenAI, Deepgram, reports
 
-- **Vision** — `POST /photo-identification/bottle` and `/imprint` send the image to GPT-4o with prompts that extract structured fields and drop personal identifiers. Image bytes are not stored on the scan; `photos[]` keeps a SHA-256 fingerprint.
+- **Vision** — `POST /photo-identification/bottle` and `/imprint` send the image to GPT-4o with prompts that extract structured fields and drop personal identifiers. The scan stores a SHA-256 fingerprint in `photos[]`.
 - **Coerce** — stage 5 is `responses.parse` into `ResearchReport`. Citations are rebuilt from the evidence pack; the model may pick which stored id to cite.
-- **Deepgram** — `POST /deepgram/session` mints Voice Agent settings from a `partial`/`complete` scan. The agent gets `scan_context` as a string (ElevenLabs-style dynamic variable). It has no backend webhook and no live search tool of its own.
+- **Deepgram** — `POST /deepgram/session` mints Voice Agent settings from a `partial`/`complete` scan. The agent receives `scan_context` as a string (ElevenLabs-style dynamic variable).
 - **Reports** — `POST /scans/{id}/reports` stores purchase date, place, and seller. The voice agent can draft; only the app’s Submit button writes.
 
 ### Seed corpus
@@ -242,7 +242,7 @@ uv run peel-seed seed --sources all
 | NLM Pillbox | `peel-pills` | ~84k |
 | openFDA NDC | `peel-ndc` | ~138k |
 
-~3 minutes once raw files are cached in `backend/data/` (gitignored). Idempotent: deterministic `_id`s overwrite. Zero Firecrawl, zero LLM.
+~3 minutes once raw files are cached in `backend/data/` (gitignored). Idempotent: deterministic `_id`s overwrite. Anonymous HTTP only.
 
 ## Getting started
 
@@ -293,7 +293,7 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | `GET` | `/scans?device_id=` | History by device, lot, or NDC |
 | `POST` | `/scans/{id}/reports` | Concern report |
 | `POST` | `/deepgram/session` | Mint Deepgram settings from a ready scan |
-| `GET` | `/knowledge/lot/{lot}` | Exact lot lookup (no scan) |
+| `GET` | `/knowledge/lot/{lot}` | Direct lot lookup |
 | `GET` | `/knowledge/ndc/{ndc}` | NDC directory + related recalls |
 | `GET` | `/knowledge/pill` | Imprint ladder |
 | `GET` | `/knowledge/search` | Hybrid regulatory or web search |
