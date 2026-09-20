@@ -1,0 +1,23 @@
+# 18_selftest, 2026-09-19. Small DC motor, driven fully on (no PWM) through the 2N2222A, fed from the
+# XIAO's 5V pin (USB power). Motor switched ON at t = 0.8 s and left on. No light changed.
+# Both channels jump by about +2000 mV together and stay there. After the motor was switched off the
+# next readings were 369/152, 294/121, 220/113 mV: straight back to baseline.
+t_s,trans_mV,scat_mV,tC,motor
+-2.0,301,135,25.00,off
+-1.0,317,136,25.06,off
+1.1,2134,2443,25.00,on
+2.3,2407,2607,25.12,on
+3.6,2392,2564,25.06,on
+4.8,2435,2565,25.06,on
+6.1,2403,2604,25.06,on
+7.4,2426,2635,25.06,on
+8.6,2515,2656,25.12,on
+9.9,2584,2735,25.06,on
+11.1,2582,2733,25.06,on
+12.4,2446,2700,25.06,on
+13.6,2480,2656,25.06,on
+14.9,2461,2679,25.12,on
+16.1,2514,2693,25.06,on
+17.4,2654,2793,25.12,on
+18.7,2629,2758,25.06,on
+19.9,2477,2758,25.06,on

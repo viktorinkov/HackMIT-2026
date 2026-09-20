@@ -1,0 +1,42 @@
+# 18_selftest, 2026-09-19, same bench. Averaging window 250 samples (about 100 ms = 12 cycles of
+# 120 Hz). LED response measured by lock-in: 6 on/off pairs, mean of the differences.
+# Three runs. Sensors and LEDs are loose on the table; whichever LED happens to face a sensor is "SEEN".
+
+--- run A: sensors face down on the table -------------------------------------------------
+1. transmission (D9) :  100 mV   noise 46 mV   reads ok
+   scatter      (D10):   91 mV   noise 41 mV   reads ok
+2. DS18B20           : found 1, address 28B3872100000025
+   temperature       : 23.62 C   PASS
+3. red    (GPIO  3): transmission    +0 mV, scatter    -3 mV   no light reached a sensor
+   yellow (GPIO  4): transmission    -2 mV, scatter    -4 mV   no light reached a sensor
+   green  (GPIO  5): transmission    +0 mV, scatter    -1 mV   no light reached a sensor
+   blue   (GPIO  6): transmission    -1 mV, scatter    -1 mV   no light reached a sensor
+
+--- run B: sensors held by hand above the LED bunch ------------------------------------------
+1. transmission (D9) :   98 mV   noise 51 mV   reads ok
+   scatter      (D10):  162 mV   noise 267 mV   noisy          (hand-held, moving)
+2. temperature       : 23.81 C   PASS
+3. red    (GPIO  3): transmission    -9 mV, scatter   -11 mV   no light reached a sensor
+   yellow (GPIO  4): transmission   +31 mV, scatter   +14 mV   SEEN
+   green  (GPIO  5): transmission   -19 mV, scatter    -5 mV   no light reached a sensor
+   blue   (GPIO  6): transmission    +0 mV, scatter    -2 mV   no light reached a sensor
+
+--- run C: after a reset, sensors resting near the LEDs ---------------------------------------
+1. transmission (D9) :  136 mV   noise 38 mV   reads ok
+   scatter      (D10):  146 mV   noise 45 mV   reads ok
+3. red    (GPIO  3): transmission    -1 mV, scatter   -18 mV   no light reached a sensor
+   yellow (GPIO  4): transmission    +0 mV, scatter    -4 mV   no light reached a sensor
+   green  (GPIO  5): transmission    +0 mV, scatter    -1 mV   no light reached a sensor
+   blue   (GPIO  6): transmission   +35 mV, scatter    +2 mV   SEEN
+
+--- run D: six LEDs fitted (IR 940 on GPIO1, violet on GPIO2), sensors on the table -------------
+   red    (GPIO  3): transmission    +0 mV, scatter    -3 mV
+   yellow (GPIO  4): transmission    -1 mV, scatter    -3 mV
+   green  (GPIO  5): transmission    +0 mV, scatter    -2 mV
+   blue   (GPIO  6): transmission    +0 mV, scatter    -2 mV
+   IR 940 (GPIO  1): transmission    -8 mV, scatter   -11 mV
+   violet (GPIO  2): transmission    -1 mV, scatter    -2 mV
+
+# Reading this: with no optical path the lock-in residual is within about +/-4 mV on a still sensor.
+# An LED that faces a sensor at a few centimetres gives +30 mV or more. The IR LED's emission is
+# UNVERIFIED: the sensor was never held against its dome.

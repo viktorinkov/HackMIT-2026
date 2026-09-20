@@ -1,0 +1,99 @@
+# 18_selftest, 2026-09-19, XIAO ESP32-S3 on the bench, room lighting, parts loose on the table.
+# Averaging window: 24 samples 400 us apart, about 12 ms. NOTE the slow wander in trans (530-723 mV) with nothing
+# changing: room lights ripple at 120 Hz (8.3 ms) and a window that short aliases it. The per-LED deltas here are
+# that wander, not light. Compare selftest_lockin_100ms.log.
+   temperature       : 24.00 C   PASS
+3. LEDs: each one on for a moment. WATCH THEM: every one should light.
+   red    (GPIO  3): transmission  -217 mV, scatter   +69 mV   seen by a sensor
+   yellow (GPIO  4): transmission  -213 mV, scatter   +47 mV   seen by a sensor
+   green  (GPIO  5): transmission  -195 mV, scatter   +18 mV   no light reached a sensor
+   blue   (GPIO  6): transmission  -166 mV, scatter   -12 mV   no light reached a sensor
+------------------------------------------------------------
+Now the live stream, one line a second.
+  cover the TRANSMISSION sensor  -> trans should fall
+  cover the SCATTER sensor       -> scat should fall
+  hold a finger on the probe     -> tC should climb
+  keys:  r re-run this test   g green on/off   m motor for 1.5 s
+============================================================
+trans  694 mV   scat  181 mV   tC 24.06
+trans  580 mV   scat  212 mV   tC 24.19
+trans  643 mV   scat  231 mV   tC 24.19
+trans  561 mV   scat  229 mV   tC 24.25
+trans  530 mV   scat  208 mV   tC 24.25
+trans  586 mV   scat  173 mV   tC 24.25
+trans  682 mV   scat  154 mV   tC 24.25
+trans  689 mV   scat  172 mV   tC 24.25
+trans  677 mV   scat  211 mV   tC 24.19
+trans  602 mV   scat  233 mV   tC 24.19
+trans  545 mV   scat  227 mV   tC 24.19
+trans  540 mV   scat  205 mV   tC 24.19
+trans  587 mV   scat  171 mV   tC 24.19
+trans  723 mV   scat  158 mV   tC 24.19
+trans 1158 mV   scat  203 mV   tC 24.25
+trans  662 mV   scat  209 mV   tC 24.25
+trans  543 mV   scat  226 mV   tC 24.19
+trans  582 mV   scat  270 mV   tC 24.25
+trans  687 mV   scat  390 mV   tC 24.25
+trans 1476 mV   scat  278 mV   tC 24.25
+trans 1193 mV   scat  251 mV   tC 24.25
+trans 1308 mV   scat  608 mV   tC 24.25
+trans 1219 mV   scat 1294 mV   tC 24.25
+trans  680 mV   scat  280 mV   tC 24.25
+trans  527 mV   scat  230 mV   tC 24.25
+trans  515 mV   scat  202 mV   tC 24.19
+trans  613 mV   scat  172 mV   tC 24.19
+trans  694 mV   scat  157 mV   tC 24.19
+trans  719 mV   scat  183 mV   tC 24.19
+trans  688 mV   scat  226 mV   tC 24.12
+trans  606 mV   scat  244 mV   tC 24.12
+trans  534 mV   scat  235 mV   tC 24.12
+trans  535 mV   scat  204 mV   tC 24.12
+trans  616 mV   scat  167 mV   tC 24.06
+trans  697 mV   scat  156 mV   tC 24.06
+trans  716 mV   scat  186 mV   tC 24.00
+trans  676 mV   scat  223 mV   tC 24.06
+trans  601 mV   scat  239 mV   tC 24.00
+trans  539 mV   scat  228 mV   tC 23.94
+trans  540 mV   scat  198 mV   tC 24.00
+trans  611 mV   scat  165 mV   tC 23.94
+trans  690 mV   scat  156 mV   tC 23.94
+trans  688 mV   scat  184 mV   tC 24.00
+trans  697 mV   scat  233 mV   tC 23.94
+trans  598 mV   scat  233 mV   tC 23.94
+trans  538 mV   scat  224 mV   tC 23.94
+trans  537 mV   scat  197 mV   tC 23.88
+trans  608 mV   scat  164 mV   tC 23.88
+trans  685 mV   scat  155 mV   tC 23.81
+trans 1345 mV   scat  240 mV   tC 23.88
+trans 1528 mV   scat  512 mV   tC 23.88
+trans  755 mV   scat  394 mV   tC 23.88
+trans  535 mV   scat  217 mV   tC 23.81
+trans  537 mV   scat  195 mV   tC 23.88
+trans  581 mV   scat  165 mV   tC 23.81
+trans  630 mV   scat  155 mV   tC 23.81
+trans  645 mV   scat  178 mV   tC 23.75
+trans  629 mV   scat  212 mV   tC 23.81
+trans  587 mV   scat  223 mV   tC 23.75
+trans  462 mV   scat  188 mV   tC 23.75
+trans  586 mV   scat  190 mV   tC 23.81
+trans  579 mV   scat  170 mV   tC 23.75
+trans  629 mV   scat  155 mV   tC 23.75
+trans  645 mV   scat  174 mV   tC 23.75
+trans  635 mV   scat  207 mV   tC 23.75
+trans  595 mV   scat  226 mV   tC 23.75
+trans  546 mV   scat  223 mV   tC 23.75
+trans  528 mV   scat  208 mV   tC 23.69
+trans  553 mV   scat  177 mV   tC 23.69
+trans  589 mV   scat  154 mV   tC 23.69
+trans  655 mV   scat  161 mV   tC 23.69
+trans  645 mV   scat  193 mV   tC 23.69
+trans  610 mV   scat  223 mV   tC 23.69
+trans  567 mV   scat  227 mV   tC 23.69
+trans  528 mV   scat  218 mV   tC 23.69
+trans  538 mV   scat  193 mV   tC 23.69
+trans  584 mV   scat  164 mV   tC 23.62
+trans  639 mV   scat  159 mV   tC 23.69
+trans  650 mV   scat  182 mV   tC 23.62
+trans  631 mV   scat  214 mV   tC 23.69
+trans  585 mV   scat  228 mV   tC 23.62
+trans  539 mV   scat  225 mV   tC 23.62
