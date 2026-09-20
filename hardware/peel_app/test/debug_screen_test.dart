@@ -34,7 +34,7 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(home: DebugScreen(session: session)));
     expect(find.text('no readings yet'), findsOneWidget);
-    expect(find.text('none'), findsOneWidget); // no faults
+    expect(find.text('none'), findsNWidgets(2)); // no faults, no observations
 
     // Commands are dead until there is a board to send them to.
     expect(
@@ -64,6 +64,28 @@ void main() {
     await tester.pump();
     expect(find.text('# blank stored'), findsOneWidget);
     expect(find.text('rst:0x1 (POWERON)'), findsOneWidget);
+
+    session.dispose();
+    await tester.pump();
+  });
+
+  testWidgets('a swept line is an observation, not a fault', (tester) async {
+    final session = Session(watchUsb: false, logging: false);
+    final link = FakeLink();
+    await tester.pumpWidget(MaterialApp(home: DebugScreen(session: session)));
+    await session.connectTo(link);
+
+    link.say('{"t":1.0,"trans":2460,"scat":41,"tempC":22.4,"stir":0,"swept":true}');
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
+
+    expect(find.textContaining('SWEPT_LINE'), findsOneWidget);
+    final faults = tester.widget<Column>(
+        find.ancestor(of: find.text('faults'), matching: find.byType(Column)).first);
+    expect(faults.children.any((w) => w is Text && w.data == 'none'), isTrue);
 
     session.dispose();
     await tester.pump();

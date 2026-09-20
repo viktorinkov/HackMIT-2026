@@ -59,6 +59,8 @@ class _DebugScreenState extends State<DebugScreen> {
             const Divider(),
             _faults(session.faults),
             const Divider(),
+            _observations(session.faults),
+            const Divider(),
             _diag(session.diag),
             const Divider(),
             _notes(session),
@@ -135,10 +137,18 @@ class _DebugScreenState extends State<DebugScreen> {
     );
   }
 
-  Widget _faults(List<Fault> faults) => Column(
+  /// Only what is wrong. An empty list here means a healthy board, so the informational
+  /// entries — a swept line, a late line — are listed separately below.
+  Widget _faults(List<Fault> faults) =>
+      _faultList('faults', faults.where((f) => f.severity != Severity.info).toList());
+
+  Widget _observations(List<Fault> faults) => _faultList(
+      'observations (not faults)', faults.where((f) => f.severity == Severity.info).toList());
+
+  Widget _faultList(String title, List<Fault> faults) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('faults'),
+          Text(title),
           if (faults.isEmpty) const Text('none'),
           for (final f in faults)
             Padding(
