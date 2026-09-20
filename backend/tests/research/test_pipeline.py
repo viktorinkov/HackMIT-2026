@@ -301,7 +301,7 @@ async def test_a_full_run_writes_partial_then_complete() -> None:
 
     await pipeline.run(SCAN_ID)
 
-    assert store.statuses == ["partial", "complete"]
+    assert store.statuses == ["pending", "partial", "complete"]
     assert set(store.stages) == {"normalize", "deterministic", "web", "agent", "coerce"}
     assert all(stage["status"] == "ok" for stage in store.stages.values())
     report = store.last_patch()[Scan.RESEARCH]
@@ -956,3 +956,94 @@ async def test_the_raw_spectrum_never_reaches_a_third_party_model() -> None:
     coerce_input = openai_client.calls[0]["input"]
     assert "spectrum" not in coerce_input
     assert "0.123456789" not in coerce_input
+
+
+async def test_running_stage_is_visible_before_agent_returns() -> None:
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    class WaitingAgent(FakeAgent):
+        async def converse(self, *args, **kwargs):
+            entered.set()
+            await release.wait()
+            return await super().converse(*args, **kwargs)
+
+    pipeline, store = build(agent=WaitingAgent())
+    task = asyncio.create_task(pipeline.run(SCAN_ID))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        assert store.stages["agent"]["status"] == "running"
+        assert store.statuses[-1] == "partial"
+        # Web results must be available while the agent is still processing.
+        assert store.last_patch()[Scan.EVIDENCE]["web_queries"]
+    finally:
+        release.set()
+        await task
+    assert store.stages["agent"]["status"] == "ok"
+
+
+async def test_rerun_clears_old_terminal_report_and_stage_traces() -> None:
+    doc = scan_doc() | {Scan.STATUS: "complete", Scan.STAGES: {"agent": {"status": "ok"}}}
+    pipeline, store = build(doc=doc)
+    await pipeline.run(SCAN_ID)
+    assert store.applies[0]["status"] == "pending"
+    assert store.applies[0]["patch"] == {
+        Scan.STAGES: {}, Scan.EVIDENCE: {}, Scan.RESEARCH: None,
+    }
+
+
+async def test_force_waits_for_old_progress_writes_before_restarting() -> None:
+    entered, cleanup_started, cleanup_done = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    restarted = asyncio.Event()
+
+    class PipelineWithCleanup(StubPipeline):
+        async def run(self, scan_id: str) -> None:
+            self.runs += 1
+            if self.runs > 1:
+                restarted.set()
+                return
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                cleanup_started.set()
+                await cleanup_done.wait()
+                raise
+
+    app = app_with(PipelineWithCleanup())
+    launch_research(app, SCAN_ID)
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        assert launch_research(app, SCAN_ID, force=True)
+        await asyncio.wait_for(cleanup_started.wait(), 2)
+        assert not restarted.is_set()
+        cleanup_done.set()
+        await asyncio.wait_for(restarted.wait(), 2)
+    finally:
+        cleanup_done.set()
+        await cancel_all(app)
+
+
+async def test_agent_tool_results_are_published_before_coercion_finishes() -> None:
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    class WaitingOpenAI(FakeOpenAI):
+        async def _parse(self, **kwargs: Any) -> Any:
+            entered.set()
+            await release.wait()
+            return await super()._parse(**kwargs)
+
+    agent = FakeAgent(ConverseResult(
+        message="Research complete", conversation_id="live-conversation",
+        tool_calls=[ToolCall(tool_id="peel.recalls_by_lot", params={}, results=[])],
+    ))
+    pipeline, store = build(agent=agent, openai_client=WaitingOpenAI())
+    task = asyncio.create_task(pipeline.run(SCAN_ID))
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        assert store.statuses[-1] == "partial"
+        evidence = store.last_patch()[Scan.EVIDENCE]
+        assert evidence["conversation_id"] == "live-conversation"
+        assert evidence["tool_calls"][0]["tool_id"] == "peel.recalls_by_lot"
+    finally:
+        release.set()
+        await task

@@ -161,7 +161,15 @@ def launch_research(app: FastAPI, scan_id: str, *, force: bool = False) -> bool:
         pipeline = get_pipeline(app)
     except Exception:  # noqa: BLE001 - no Elasticsearch means nothing to research
         return False
-    task = asyncio.create_task(pipeline.run(scan_id), name=f"research:{scan_id}")
+
+    async def run_after_previous() -> None:
+        # Cancellation can persist a final stage note. Drain it before the new
+        # run clears old traces, so it cannot overwrite the new running status.
+        if running is not None:
+            await asyncio.gather(running, return_exceptions=True)
+        await pipeline.run(scan_id)
+
+    task = asyncio.create_task(run_after_previous(), name=f"research:{scan_id}")
     # A bare create_task result can be garbage-collected mid-flight.
     tasks[scan_id] = task
     task.add_done_callback(lambda done: _forget(tasks, scan_id, done))
@@ -205,6 +213,7 @@ class _RunState:
     report: ResearchReport | None = None
     page_ids: list[str] = field(default_factory=list)
     credits: int = 0
+    progress_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     web_queries: list[dict[str, Any]] = field(default_factory=list)
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     conversation_id: str | None = None
@@ -264,6 +273,12 @@ class ResearchPipeline:
         if scan is None:
             return
 
+        # Clear a prior run's terminal status and traces before publishing new progress.
+        await self._apply(
+            scan_id,
+            status="pending",
+            patch={Scan.STAGES: {}, Scan.EVIDENCE: {}, Scan.RESEARCH: None},
+        )
         state = _RunState(scan_id=scan_id, scan=scan, norm=dict(scan.get(Scan.NORM) or {}))
         try:
             await asyncio.wait_for(
@@ -413,6 +428,7 @@ class ResearchPipeline:
         # Runs even after a timeout: pages a finished search already indexed are
         # real evidence and must not be thrown away with the cancelled ones.
         await self._collect_web_hits(state)
+        await self._publish_progress(state)
         if status == "timeout" and state.page_ids:
             await self._record(
                 state.scan_id,
@@ -494,6 +510,16 @@ class ResearchPipeline:
             if page_id not in state.page_ids:
                 state.page_ids.append(page_id)
 
+        await self._publish_progress(state)
+
+    async def _publish_progress(self, state: _RunState) -> None:
+        # Concurrent web searches must not overwrite a newer evidence snapshot.
+        async with state.progress_lock:
+            patch = {Scan.EVIDENCE: self._evidence_patch(state)}
+            if state.report is not None:
+                patch[Scan.RESEARCH] = state.report.model_dump()
+            await self._apply(state.scan_id, patch=patch)
+
     async def _collect_web_hits(self, state: _RunState) -> None:
         """Ranked web hits, unioned with the pages this scan itself fetched.
 
@@ -560,6 +586,7 @@ class ResearchPipeline:
                     "rows": rows[:MAX_TOOL_ROWS],
                 }
             )
+        await self._publish_progress(state)
         harvested = await _try(
             self._web.harvest_agent_pages(result.tool_calls, scan_id=state.scan_id), []
         )
@@ -685,10 +712,14 @@ class ResearchPipeline:
     ) -> str:
         started = time.perf_counter() if started is None else started
         status, error = "ok", None
+        await self._record(state.scan_id, name, "running", started, None)
         try:
             await asyncio.wait_for(func(), timeout=timeout)
         except TimeoutError:
             status, error = "timeout", f"stage exceeded {timeout:.0f}s"
+        except asyncio.CancelledError:
+            await self._record(state.scan_id, name, "cancelled", started, "research interrupted")
+            raise
         except AgentBuilderUnavailable as exc:
             status, error = "unavailable", _reason(exc)
         except Exception as exc:  # noqa: BLE001 - degradation matrix, design C §5.5
