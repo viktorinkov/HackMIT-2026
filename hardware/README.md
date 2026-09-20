@@ -12,9 +12,7 @@ firmware/19_box3_link/, 22_box3_probe/    Bring-up tools.
 peel_app/                Flutter Android app: USB serial → parser → faults → session log.
 sim/                     fake_board.py: the XIAO in software, breakable on purpose.
 tools/                   Desktop serial clients: peel_monitor.py, capture.py, flash_when_ready.py.
-data/                    Real captures from this hardware. Start with data/README.md.
-docs/HARDWARE.md         Overview, and the index to every other document.
-DEVIN_HANDOFF.md         The current brief.
+data/                    Real captures from this hardware.
 ```
 
 ## Flash the board
@@ -38,5 +36,3 @@ With no board plugged in, run the simulator and press **Simulator** in the app, 
 ```bash
 python3 sim/fake_board.py --tcp 9000
 ```
-
-First time with real hardware: `docs/PLUG_IN_DAY.md`.
