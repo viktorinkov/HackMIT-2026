@@ -43,7 +43,7 @@ def test_measurements_reach_research_and_voice_without_inventing_identity():
     assert context["reported_status"] == "unknown"
     assert context["degradation"]["status"] == "not_assessed"
     assert context["measurements"] == evidence
-    assert "hardware result is unknown" in opening_messages_from_scan(scan)[2]
+    assert "sensor hasn’t identified a match yet" in opening_messages_from_scan(scan)[2]
     prompt = build_playground_prompt(scan).prompt
     assert '"sensor_readings"' not in prompt
     assert '"absorbance_trace"' not in prompt

@@ -43,7 +43,7 @@ def test_real_readings_flow_to_saved_result_and_short_voice():
     assert h['reference_match']['closest_match']=='Vitamin B12'
     assert h['status']=='unknown' and h['pill_type'] is None
     doc={'scan_id':'test','hardware':h}
-    assert opening_messages_from_scan(doc)[2].startswith('Closest match: Vitamin B12.')
+    assert opening_messages_from_scan(doc)[2].startswith('The closest match is Vitamin B12 ')
     prompt=build_playground_prompt(doc).prompt
     assert 'synthetic-optical-v1' in prompt
     assert '"absorbance_trace"' not in prompt
