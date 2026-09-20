@@ -1,0 +1,68 @@
+{
+  "note": "Third-party files, unmodified. three is pinned to r183 to match the copy bundled inside 3d-force-graph 1.80.0. The addons keep their two-directory layout because they import each other by relative path.",
+  "files": [
+    {
+      "package": "3d-force-graph",
+      "version": "1.80.0",
+      "file": "3d-force-graph-1.80.0.min.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/3d-force-graph@1.80.0/dist/3d-force-graph.min.js",
+      "license": "MIT",
+      "bytes": 1313897,
+      "sha256": "d96e738edcca580edd524730c1c6b05ed2efce028c23ca95db1bf43033a72e42"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/three.module.min.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.min.js",
+      "license": "MIT",
+      "bytes": 359146,
+      "sha256": "e3ec4d5d223c0119f754150a3d9deef16139074ea17b073e93bbce315ad16eda"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/three.core.min.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.core.min.js",
+      "license": "MIT",
+      "bytes": 382596,
+      "sha256": "c5f69a04c70de8c95152040c286a3c8a0489603b019dfd61b34c451e3371c4fd"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/addons/postprocessing/UnrealBloomPass.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/postprocessing/UnrealBloomPass.js",
+      "license": "MIT",
+      "bytes": 14921,
+      "sha256": "1158bb02f6467889aba19c1a788b9107054d7f6a558498b5e2152db5873bb859"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/addons/postprocessing/Pass.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/postprocessing/Pass.js",
+      "license": "MIT",
+      "bytes": 4218,
+      "sha256": "444b409c235ead986893c472e720da1b779a56985c7d10b279c7944b52bd61c5"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/addons/shaders/CopyShader.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/shaders/CopyShader.js",
+      "license": "MIT",
+      "bytes": 729,
+      "sha256": "a33057d5ac91c43304c186ac0e8816e62bb2ed471d3a00ff3018dfd5c0389718"
+    },
+    {
+      "package": "three",
+      "version": "0.183.0",
+      "file": "three-0.183.0/addons/shaders/LuminosityHighPassShader.js",
+      "source_url": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/shaders/LuminosityHighPassShader.js",
+      "license": "MIT",
+      "bytes": 1291,
+      "sha256": "5044f780b6e6cf863947f64c36fe1587132f7fbe395ada863cd1e5f0388dcf1e"
+    }
+  ]
+}

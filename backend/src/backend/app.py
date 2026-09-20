@@ -17,6 +17,8 @@ from backend.reports.router import router as reports_router
 from backend.research.agent_builder import close_agent_builder
 from backend.research.pipeline import cancel_all as cancel_research
 from backend.scans.router import router as scans_router
+from backend.graph.router import router as graph_router
+from backend.graph.static_app import atlas_static
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,8 @@ app.include_router(scans_router)
 app.include_router(reports_router)
 app.include_router(knowledge_router)
 app.include_router(deepgram_router)
+app.include_router(graph_router)
+app.mount("/atlas", atlas_static, name="atlas")
 
 
 @app.get("/")

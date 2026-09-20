@@ -1,0 +1,492 @@
+/*
+ * The note panel: an Obsidian-style reading pane for one node. Desktop is a
+ * floating right-hand panel; embed/touch turns it into a bottom sheet with
+ * three detents. Depends on css/tokens.css and the .atlas-panel base in
+ * css/chrome.css.
+ */
+
+/*
+ * Open/close is one GPU-only transition (transform + opacity, 360ms
+ * --ease-out — matches the scene's camera tween). The panel stays mounted
+ * and `display:flex` at all times; `.atlas-open` is the visible target
+ * state and `.atlas-inert` (visibility+pointer-events, no transition of its
+ * own) is added only once the close animation has actually finished — see
+ * panels/note.js's `closePanel()` — so the panel can never intercept a
+ * click, or be measured as open, while invisible, but the close fade itself
+ * stays visible the whole time it plays.
+ */
+#note {
+  top: var(--sp-3);
+  right: var(--sp-3);
+  bottom: var(--sp-3);
+  width: var(--note-w);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(24px);
+  transition: transform var(--t-panel) var(--ease-out), opacity var(--t-panel) var(--ease-out);
+  will-change: transform, opacity;
+}
+
+#note.atlas-open {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+#note.atlas-inert {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.atlas-note-scroll {
+  overflow-y: auto;
+  padding: var(--sp-4);
+  flex: 1;
+}
+
+.atlas-note-close {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------
+ * Header
+ * ------------------------------------------------------------------- */
+.atlas-note-title {
+  margin: 0 0 2px;
+  font-size: var(--fs-h2);
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+.atlas-note-subtitle {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-s);
+  color: var(--text-muted);
+}
+
+.atlas-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--sp-3);
+}
+
+.atlas-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.atlas-badge--verdict-recall_match {
+  color: var(--verdict-recall);
+  border-color: var(--verdict-recall);
+}
+
+.atlas-badge--verdict-mismatch_found {
+  color: var(--verdict-mismatch);
+  border-color: var(--verdict-mismatch);
+}
+
+.atlas-badge--verdict-insufficient_evidence {
+  color: var(--verdict-insufficient);
+  border-color: var(--verdict-insufficient);
+}
+
+.atlas-badge--verdict-no_adverse_findings {
+  color: var(--verdict-none);
+  border-color: var(--verdict-none);
+}
+
+.atlas-badge--risk-high {
+  color: var(--sev-critical);
+  border-color: var(--sev-critical);
+}
+
+.atlas-badge--risk-medium {
+  color: var(--sev-high);
+  border-color: var(--sev-high);
+}
+
+.atlas-badge--demo {
+  color: var(--n-pill);
+  border-color: var(--n-pill);
+}
+
+/* Striped SIMULATED hardware badge — always shown alongside a hardware
+   reading, never blended into it. */
+.atlas-badge--simulated {
+  color: #17171a;
+  border-color: transparent;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--sev-moderate),
+    var(--sev-moderate) 6px,
+    #17171a 6px,
+    #17171a 8px
+  );
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ---------------------------------------------------------------------
+ * Properties table (Obsidian's metadata block)
+ * ------------------------------------------------------------------- */
+.atlas-properties {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-s);
+}
+
+.atlas-properties tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.atlas-properties tr:last-child {
+  border-bottom: none;
+}
+
+.atlas-properties th,
+.atlas-properties td {
+  text-align: left;
+  padding: 5px 0;
+  vertical-align: top;
+}
+
+.atlas-properties th {
+  width: 40%;
+  color: var(--text-faint);
+  font-weight: 500;
+  padding-right: var(--sp-2);
+}
+
+.atlas-properties td {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.atlas-properties td.atlas-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+/* ---------------------------------------------------------------------
+ * Callout — recall_match / mismatch_found headline
+ * ------------------------------------------------------------------- */
+.atlas-callout {
+  border-left: 3px solid var(--border-strong);
+  background: var(--bg-secondary);
+  border-radius: 0 var(--r-s) var(--r-s) 0;
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-s);
+}
+
+.atlas-callout--recall_match {
+  border-left-color: var(--verdict-recall);
+  background: var(--callout-recall-bg);
+}
+
+.atlas-callout--mismatch_found {
+  border-left-color: var(--verdict-mismatch);
+  background: var(--callout-mismatch-bg);
+}
+
+.atlas-callout-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.atlas-callout [data-backend-text] {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------------
+ * Sections (## Findings, ## Mismatches, ## Linked mentions, ...)
+ * ------------------------------------------------------------------- */
+.atlas-section {
+  margin-bottom: var(--sp-4);
+}
+
+.atlas-section-heading {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-3);
+}
+
+.atlas-section:first-of-type .atlas-section-heading {
+  border-top: none;
+  padding-top: 0;
+}
+
+.atlas-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atlas-list-item {
+  font-size: var(--fs-s);
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.atlas-severity-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Next steps: plain, unchecked, not interactive. */
+.atlas-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--fs-s);
+  color: var(--text);
+}
+
+.atlas-step::before {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+}
+
+/* Linked mentions (backlinks) */
+.atlas-backlink-relation {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------
+ * Sources
+ * ------------------------------------------------------------------- */
+.atlas-source {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-s);
+}
+
+.atlas-source:last-child {
+  border-bottom: none;
+}
+
+.atlas-source-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.atlas-source-title:hover {
+  text-decoration: underline;
+}
+
+.atlas-source-title::after {
+  content: "\2197"; /* ↗ external-link glyph */
+  font-size: var(--fs-xs);
+}
+
+.atlas-source-meta {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  margin-top: 2px;
+}
+
+.atlas-source-attribution {
+  color: var(--text-faint);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------------
+ * Skeleton (loading)
+ * ------------------------------------------------------------------- */
+.atlas-skeleton-line {
+  height: 10px;
+  border-radius: var(--r-s);
+  margin-bottom: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-hover) 37%,
+    var(--bg-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: atlas-shimmer 1.4s ease infinite;
+}
+
+@keyframes atlas-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.atlas-note-error {
+  color: var(--sev-high);
+  font-size: var(--fs-s);
+  margin-bottom: var(--sp-3);
+}
+
+/* Footer attribution line, shown at the bottom of the note scroll area. */
+.atlas-footer {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* =======================================================================
+ * Embed / touch: the note becomes a bottom sheet with three detents.
+ * "Closed" here means fully off-screen (translateY(100%)) — there is no
+ * peek-at-nothing state — and the detent transforms only take effect once
+ * `.atlas-open` is present, so closing always animates all the way off
+ * rather than stopping wherever the sheet last was.
+ * ===================================================================== */
+body[data-embed="1"] #note,
+body[data-tier="mobile"] #note {
+  position: fixed;
+  inset: auto 0 0 0;
+  top: auto;
+  right: 0;
+  left: 0;
+  width: auto;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  border-bottom: none;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transition: transform var(--t-panel) var(--ease-out), opacity var(--t-panel) var(--ease-out);
+  transform: translateY(100%);
+  opacity: 0;
+  max-height: 92vh;
+}
+
+body[data-embed="1"] #note.atlas-open,
+body[data-tier="mobile"] #note.atlas-open {
+  opacity: 1;
+}
+
+body[data-embed="1"] #note.atlas-open[data-detent="peek"],
+body[data-tier="mobile"] #note.atlas-open[data-detent="peek"] {
+  transform: translateY(calc(100% - 96px));
+}
+
+body[data-embed="1"] #note.atlas-open[data-detent="half"],
+body[data-tier="mobile"] #note.atlas-open[data-detent="half"] {
+  transform: translateY(50%);
+}
+
+body[data-embed="1"] #note.atlas-open[data-detent="full"],
+body[data-tier="mobile"] #note.atlas-open[data-detent="full"] {
+  transform: translateY(8vh);
+}
+
+.atlas-sheet-handle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 4px;
+  cursor: grab;
+  flex: none;
+}
+
+.atlas-sheet-handle::before {
+  content: "";
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+body[data-embed="1"] .atlas-sheet-handle,
+body[data-tier="mobile"] .atlas-sheet-handle {
+  display: flex;
+}
+
+body[data-embed="1"] .atlas-note-close,
+body[data-tier="mobile"] .atlas-note-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  #note {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: auto;
+    right: 0;
+    left: 0;
+    width: auto;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    transition: transform var(--t-panel) var(--ease-out), opacity var(--t-panel) var(--ease-out);
+    transform: translateY(100%);
+    opacity: 0;
+    max-height: 92vh;
+  }
+
+  #note.atlas-open {
+    opacity: 1;
+  }
+
+  #note.atlas-open[data-detent="peek"] {
+    transform: translateY(calc(100% - 96px));
+  }
+
+  #note.atlas-open[data-detent="half"] {
+    transform: translateY(50%);
+  }
+
+  #note.atlas-open[data-detent="full"] {
+    transform: translateY(8vh);
+  }
+
+  .atlas-sheet-handle {
+    display: flex;
+  }
+
+  .atlas-note-close {
+    display: inline-flex;
+  }
+}

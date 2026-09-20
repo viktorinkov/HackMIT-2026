@@ -1,0 +1,114 @@
+/*
+ * Design tokens for Atlas chrome. The :root block immediately below is
+ * transcribed verbatim (same custom-property names and values, reflowed to
+ * one declaration per line) from the approved visual spec, section 2
+ * "Chrome tokens". Do not change a value here without updating that spec.
+ */
+:root {
+  color-scheme: dark;
+
+  --bg-canvas: #131316;
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #262626;
+  --bg-hover: #2a2a2a;
+  --bg-active: #363636;
+
+  --border: #363636;
+  --border-strong: #3f3f3f;
+  --text: #dadada;
+  --text-muted: #b3b3b3;
+  --text-faint: #666;
+
+  --accent: #8b6cef;
+  --accent-bright: #a882ff;
+  --accent-soft: rgba(139, 108, 239, 0.16);
+
+  --sev-critical: #fb464c;
+  --sev-high: #e9973f;
+  --sev-moderate: #e0c45c;
+  --sev-unknown: #9b8f86;
+
+  --verdict-recall: #fb464c;
+  --verdict-mismatch: #e9973f;
+  --verdict-insufficient: #8a8a93;
+  --verdict-none: #9aa7b8;
+
+  --n-scan: #a882ff;
+  --n-lot: #c9c9d1;
+  --n-ndc: #53dfdd;
+  --n-manufacturer: #6ea8ff;
+  --n-regulator: #f2e9dc;
+  --n-country: #7f8ea3;
+  --n-web: #8f8f9a;
+  --n-pill: #9fe8e6;
+
+  --font-ui: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter,
+    "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "Roboto Mono", Menlo, monospace;
+
+  --fs-xs: 11px;
+  --fs-s: 12px;
+  --fs-ui: 13px;
+  --fs-m: 15px;
+  --fs-h2: 18px;
+  --fs-h1: 26px;
+  --lh: 1.5;
+
+  --r-s: 4px;
+  --r-m: 8px;
+  --r-l: 12px;
+  --r-xl: 16px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+
+  --panel-bg: rgba(30, 30, 30, 0.72);
+  --panel-blur: saturate(140%) blur(18px);
+  --panel-border: 1px solid rgba(255, 255, 255, 0.06);
+  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+
+  --rail-w: 280px;
+  --note-w: 400px;
+  --switcher-w: 620px;
+  --timeline-h: 72px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 140ms;
+  --t-med: 240ms;
+  --t-slow: 420ms;
+}
+
+/*
+ * Supplementary tokens (not part of the verbatim block above) needed by the
+ * chrome built on top of it: solid embed/mobile panel fill (backdrop-filter
+ * is expensive over a live WebGL canvas in a WebView, so it is switched off
+ * there in favour of an opaque fill), chip/toast colours, and a small
+ * z-index scale so panels stack predictably over the canvas and each other.
+ */
+:root {
+  /* Chrome round 3: the note/rail open-close transition duration, matched to
+     the scene's own 360ms easeOutCubic canvas tween (--ease-out below is the
+     same curve) so a node click's camera move and the note's slide-in read
+     as one motion. Distinct from --t-slow (420ms), which nothing here
+     changes. */
+  --t-panel: 360ms;
+
+  --panel-bg-solid: rgba(30, 30, 30, 0.94);
+
+  --chip-bg: rgba(38, 38, 38, 0.92);
+  --chip-border: rgba(255, 255, 255, 0.08);
+  --toast-bg: rgba(24, 24, 26, 0.96);
+
+  --callout-recall-bg: rgba(251, 70, 76, 0.08);
+  --callout-mismatch-bg: rgba(233, 151, 63, 0.08);
+
+  --z-canvas: 0;
+  --z-vignette: 1;
+  --z-labels: 2;
+  --z-chrome: 10;
+  --z-modal: 100;
+  --z-toast: 200;
+}
