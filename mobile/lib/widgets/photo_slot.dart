@@ -40,7 +40,7 @@ class PhotoSlot extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AspectRatio(
-          aspectRatio: 13 / 16,
+          aspectRatio: 364 / 416,
           child: ClipRRect(
             borderRadius: PeelRadii.r16,
             child: Container(

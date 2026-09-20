@@ -50,7 +50,7 @@ class PeelRiveStage extends ChangeNotifier {
 
   void _modalChanged(int delta) {
     _modalRoutes += delta;
-    notifyListeners();
+    _moved();
   }
 
   /// The rect of the slot that should currently hold the artboard, in global
@@ -126,10 +126,22 @@ class PeelRiveStage extends ChangeNotifier {
 
   void _unregister(PeelRiveSlotHandle handle) {
     _slots.remove(handle);
-    notifyListeners();
+    _moved();
   }
 
-  void _moved() => notifyListeners();
+  /// Slots report from build and dispose, so the rebuild is deferred to the
+  /// next frame rather than dropped for happening mid-frame.
+  void _moved() {
+    if (_notifying) return;
+    _notifying = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifying = false;
+      notifyListeners();
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  bool _notifying = false;
 
   @override
   void dispose() {
