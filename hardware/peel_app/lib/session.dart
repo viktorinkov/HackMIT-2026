@@ -20,13 +20,17 @@ class Session extends ChangeNotifier {
     this.watchUsb = true,
     this.logging = true,
     this.tick = const Duration(milliseconds: 500),
-  });
+    Future<SessionLog> Function()? openLog,
+  }) : _openLog = openLog ?? SessionLog.open;
 
   /// False in tests and on the desktop, where the USB plugin has no implementation.
   final bool watchUsb;
 
   /// False in tests that must not touch the filesystem.
   final bool logging;
+
+  /// How a connection gets its log. Tests pass their own to decide when the file is ready.
+  final Future<SessionLog> Function() _openLog;
 
   final Duration tick;
 
@@ -150,10 +154,17 @@ class Session extends ChangeNotifier {
     faults = const [];
     if (logging) {
       log = null;
-      SessionLog.open().then((opened) {
+      _openLog().then((opened) {
+        // The file opens in its own time, and the connection it was for may be gone by
+        // then: hung up, or replaced by one with a log of its own on the way. Nothing
+        // would ever close this one, so it is closed here instead of adopted.
+        if (_disposed || !identical(_link, link)) {
+          unawaited(opened.close());
+          return;
+        }
         log = opened;
         opened.event('connected', {'device': link.label}, DateTime.now());
-        if (!_disposed) notifyListeners();
+        notifyListeners();
       }).catchError((Object e) {
         // A log we cannot write is not a reason to lose the run.
         error = 'Session log unavailable: $e';

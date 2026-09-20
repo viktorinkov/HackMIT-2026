@@ -67,6 +67,13 @@ class UsbLink implements Link {
     if (!await port.open()) {
       // open() returns false both when the permission dialog was refused and when another
       // app holds the device. The caller shows this to the user as is.
+      // create() already took a connection to the device, and only close() gives it back:
+      // left open, it is this app that holds the board on the next attempt.
+      try {
+        await port.close();
+      } catch (_) {
+        // Closing a port that never opened may throw; there is nothing more to release.
+      }
       throw StateError('Could not open the port: USB permission was denied, or another '
           'app has the board open.');
     }

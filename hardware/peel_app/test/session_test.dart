@@ -216,6 +216,39 @@ void main() {
       expect(await log.read(), contains('"kind":"reading"'));
     });
 
+    test('a log that opens after its connection has gone is closed, not adopted', () async {
+      // The file is ready when the test says so, which is later than the app would like.
+      final opening = <Completer<SessionLog>>[];
+      final logged = Session(
+        watchUsb: false,
+        openLog: () {
+          opening.add(Completer<SessionLog>());
+          return opening.last.future;
+        },
+      );
+      addTearDown(logged.dispose);
+
+      // Connect, hang up, connect again: two logs asked for and neither open yet.
+      await logged.connectTo(link);
+      await logged.disconnect();
+      await logged.connectTo(FakeLink('fake board 2'));
+      expect(opening, hasLength(2));
+
+      final stale = await SessionLog.open(directory: dir, now: DateTime(2026, 5, 1, 9, 30, 15));
+      final current = await SessionLog.open(directory: dir, now: DateTime(2026, 5, 1, 9, 30, 16));
+      // The newer one first, so the stale one arrives last and would win if it were adopted.
+      opening[1].complete(current);
+      opening[0].complete(stale);
+      await settle();
+
+      expect(logged.log, same(current));
+      expect(current.isClosed, isFalse);
+      expect(stale.isClosed, isTrue);
+
+      await logged.disconnect();
+      expect(current.isClosed, isTrue);
+    });
+
     test('faults are written when they are raised and again when they clear', () async {
       final log = await SessionLog.open(directory: dir);
       final logged = Session(
