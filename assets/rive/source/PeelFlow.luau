@@ -1,11 +1,12 @@
 --!nocheck
--- One persistent scene. Only host stage changes advance the workflow.
+-- One persistent scene. Host-controlled by default; demoMode previews all stages.
 -- stage: 0 bottle, 1 imprint, 2 connecting, 3 placed, 4 checking,
 --        5 scan complete, 6 research, 7 research complete/cleared.
 export type PeelFlow = {
- stage: Input<number>, reduceMotion: Input<boolean>, motionPaused: Input<boolean>,
+ stage: Input<number>, demoMode: Input<boolean>, reduceMotion: Input<boolean>, motionPaused: Input<boolean>,
  pillShape: Input<number>, pillForm: Input<number>, pillColorA: Input<Color>,
  pillColorB: Input<Color>, twoTone: Input<boolean>, imprintText: Input<string>,
+ demoClock: number, demoWasEnabled: boolean,
  clock: number, elapsed: number, lastStage: number, duration: number,
  pose: any, from: any, paths: any, paints: any, cursor: number,
  researchClock: number, exitClock: number, exitCycle: any, exitLeadingVisible: boolean, geometry: any, oldGeometry: any, appearanceTime: number, appearance: any, oldAppearance: any,
@@ -151,22 +152,36 @@ local function phone(self,r,p,t)
  end
  line(self,r,-10,64,10,64,C.muted,2.5);r:restore()
 end
+local function waterLines(self,r,t)
+ local phase=t*2*PI/(self.lastStage==4 and 6 or 8)
+ for j=0,1 do
+  local q=path(self)
+  for i=0,36 do
+   local u=i/36;local angle=phase+j*PI+u*PI*1.15
+   local point=Vector.xy((35+52*u)*math.cos(angle),(10+15*u)*math.sin(angle))
+   if i==0 then q:moveTo(point) else q:lineTo(point) end
+  end
+  paint(self,r,q,nil,C.teal,2)
+ end
+end
 local function deviceBack(self,r,p,t)
  transform(r,p.deviceX,p.deviceY,p.deviceS,p.deviceR)
  paint(self,r,oval(self,0,0,116,42),C.canvas,C.ink,2.5)
  local liquid=oval(self,0,0,102,31);paint(self,r,liquid,C.liquid,C.teal,2)
- r:save();r:clipPath(liquid)
- local wave=3*math.sin(t*2*PI/(self.lastStage==4 and 6 or 5))
- for j=0,1 do
-  local q=path(self);q:moveTo(Vector.xy(-103,-5+j*19));q:cubicTo(Vector.xy(-35,-15+j*19+wave),Vector.xy(35,10+j*19-wave),Vector.xy(103,-5+j*19));paint(self,r,q,nil,C.teal,2)
- end
- r:restore()
- local count=self.lastStage==4 and 3 or 1
- for j=1,count do
-  local a=t*2*PI/(self.lastStage==4 and 6 or 5)+(j-1)*2*PI/3
-  local x=106*math.cos(a);local y=34*math.sin(a)
+ -- LEDs are built into the rear rim: fixed position, color, and brightness.
+ for j,angle in {-2.45,-PI/2,-.69} do
+  local x=109*math.cos(angle);local y=36*math.sin(angle)
   line(self,r,x-6,y,x+6,y,({C.red,C.green,C.blue})[j],4)
  end
+ r:restore()
+end
+local function waterFront(self,r,p,t)
+ -- The opaque surface fully hides the pill after it falls into the water.
+ -- Its appearance stays intact underneath for host-driven continuity.
+ transform(r,p.deviceX,p.deviceY,p.deviceS,p.deviceR)
+ local liquid=oval(self,0,0,102,31)
+ paint(self,r,liquid,C.liquid,C.teal,2)
+ r:save();r:clipPath(liquid);waterLines(self,r,t);r:restore()
  r:restore()
 end
 local function deviceFront(self,r,p)
@@ -227,23 +242,36 @@ local function target(stage)
  if stage==0 then p.bottleX=132;p.phoneX=252;p.preview=0;p.pillX=132;p.pillY=180;p.pillS=.2;p.deviceY=620
  elseif stage==1 then p.phoneX=270;p.pillX=158;p.pillY=180;p.pillS=1;p.deviceY=620
  elseif stage==2 then -- pill waits above the opening
- elseif stage==3 or stage==4 then p.pillY=267
- elseif stage==5 then p.pillY=267;p.close=1
- elseif stage==6 then p.pillY=267;p.close=1;p.deviceX=-100;p.deviceY=160;p.deviceS=.13;p.researchX=0
+ elseif stage==3 or stage==4 then p.pillY=276
+ elseif stage==5 then p.pillY=276;p.close=1
+ elseif stage==6 then p.pillY=276;p.close=1;p.deviceX=-100;p.deviceY=160;p.deviceS=.13;p.researchX=0
  elseif stage==7 then p.deviceX=-100;p.deviceS=.13;p.close=1;p.researchX=-520 end
  return p
 end
 local function appearance(self)
  return {shape=self.pillShape,form=self.pillForm,a=Color.alpha(self.pillColorA,255),b=Color.alpha(self.pillColorB,255),two=self.twoTone,text=self.imprintText}
 end
+-- Demo-only dwell times include each transition and at least one full idle loop.
+-- The 52-second demo repeats; stage remains the host's untouched input.
+local function demoStage(clock)
+ local time=clock%52
+ for i,duration in {5,6,6,6,7,7,13,2} do
+  if time<duration then return i-1 end
+  time-=duration
+ end
+ return 0
+end
 local function update(self)
+ if self.demoMode~=self.demoWasEnabled then
+  self.demoClock=0;self.demoWasEnabled=self.demoMode
+ end
  local incoming=appearance(self);local changed=false
  for k,v in incoming do if self.appearance[k]~=v then changed=true end end
  if changed then
   self.oldAppearance=self.appearance;self.appearance=incoming;self.appearanceTime=0;self.oldGeometry={self.geometry[1],self.geometry[2],self.geometry[3]}
   if self.lastStage<1 then self.appearanceTime=.45;self.oldAppearance=incoming end
  end
- local stage=math.max(0,math.min(7,math.floor(self.stage+.5)))
+ local stage=self.demoMode and demoStage(self.demoClock) or math.max(0,math.min(7,math.floor(self.stage+.5)))
  if stage~=self.lastStage then
   self.from=copy(self.pose);self.lastStage=stage;self.elapsed=0
   self.duration=({.8,1.5,.75,.8,.5,1.4,.9,.65})[stage+1]
@@ -258,6 +286,9 @@ local function update(self)
 end
 local function advance(self,seconds)
  update(self)
+ if self.demoMode and not self.motionPaused then
+  self.demoClock+=seconds;update(self)
+ end
  local stop=self.reduceMotion or self.motionPaused
  self.appearanceTime=stop and .45 or math.min(.45,self.appearanceTime+seconds)
  local g=geometry(self.pillShape,self.pillForm);local appearanceMix=smooth(self.appearanceTime/.45)
@@ -265,7 +296,7 @@ local function advance(self,seconds)
  if stop then
   if self.elapsed<self.duration or self.reduceMotion then self.pose=target(self.lastStage);self.elapsed=self.duration end
   if self.lastStage==6 then self.pose.deviceX=182.5;self.pose.deviceY=160;self.pose.deviceS=15/116 end
-  if self.lastStage>=5 then local p=self.pose;p.pillX=p.deviceX;p.pillY=p.deviceY+p.deviceS;p.pillS=.6*p.deviceS;p.pillR=p.deviceR end
+  if self.lastStage>=5 then local p=self.pose;p.pillX=p.deviceX;p.pillY=p.deviceY+10*p.deviceS;p.pillS=.6*p.deviceS;p.pillR=p.deviceR end
   return true
  end
  self.clock+=seconds;self.elapsed+=seconds
@@ -295,7 +326,7 @@ local function advance(self,seconds)
   elseif self.lastStage==3 then p.pillX+=3*math.sin(t*2*PI/5)
   elseif self.lastStage==4 then p.pillX+=3*math.sin(t*2*PI/6);p.pillR=math.rad(5)*math.sin(t*2*PI/6) end
  end
- if self.lastStage>=5 then p.pillX=p.deviceX;p.pillY=p.deviceY+p.deviceS;p.pillS=.6*p.deviceS;p.pillR=p.deviceR end
+ if self.lastStage>=5 then p.pillX=p.deviceX;p.pillY=p.deviceY+10*p.deviceS;p.pillS=.6*p.deviceS;p.pillR=p.deviceR end
  self.pose=p;return true
 end
 local function draw(self,r)
@@ -306,7 +337,9 @@ local function draw(self,r)
  deviceBack(self,r,p,t)
  local scan=nil
  if self.lastStage==1 and self.elapsed>=self.duration then scan=-35+70*(.5-.5*math.cos(t*PI/2)) end
- pill(self,r,p.pillX,p.pillY,p.pillS,p.pillR,scan)
+ local submerged=self.lastStage>=3 and p.pillY>=p.deviceY
+ if not submerged then pill(self,r,p.pillX,p.pillY,p.pillS,p.pillR,scan) end
+ waterFront(self,r,p,t)
  deviceFront(self,r,p)
  orangeTop(self,r,p,t)
  research(self,r,p,t,true)
@@ -321,8 +354,8 @@ local function init(self)
  self.from=copy(self.pose);self.lastStage=-1;update(self);return true
 end
 return function(): Node<PeelFlow>
- return {stage=0,reduceMotion=false,motionPaused=false,pillShape=0,pillForm=0,
+ return {stage=0,demoMode=false,reduceMotion=false,motionPaused=false,pillShape=0,pillForm=0,
  pillColorA=Color.rgb(245,241,232),pillColorB=Color.rgb(245,241,232),twoTone=false,imprintText='',
- clock=0,elapsed=0,lastStage=-1,duration=.8,pose={},from={},paths={},paints={},cursor=0,
+ demoClock=0,demoWasEnabled=false,clock=0,elapsed=0,lastStage=-1,duration=.8,pose={},from={},paths={},paints={},cursor=0,
  researchClock=0,exitClock=0,exitCycle={0,0},exitLeadingVisible=true,geometry={70,35,0},oldGeometry={70,35,0},appearanceTime=.45,appearance={},oldAppearance={},init=init,update=update,advance=advance,draw=draw}
 end

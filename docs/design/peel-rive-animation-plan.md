@@ -48,7 +48,7 @@ The exported animation has **no opaque background**. The host app may use **#FFF
 | Research cards | Surface fill; Ink outline; Muted content marks; Teal connecting paths. |
 | Pill | The scan palette below; no brand-color tint from the surrounding scene. |
 
-The three moving device lights use **red #C64B4B**, **green #6EA879**, and **blue #5C8FD6**. These are proposed illustration colors, not existing Figma tokens. Each segment keeps its assigned color and brightness as it moves; there is no RGB cycling or flashing.
+The three stationary device lights use **red #C64B4B**, **green #6EA879**, and **blue #5C8FD6**. These are proposed illustration colors, not existing Figma tokens. Each segment stays fixed in the rim and keeps its assigned color and brightness; there is no RGB cycling, flashing, or orbiting. Motion comes from the water.
 
 ### Pill palette — proposed scan color matches
 
@@ -171,13 +171,13 @@ The pill sits above the center of the opening, approximately 70–90 px wide for
 
 The device rises from below the animation area. It slows into place beneath the pill, with the opening kept level. As the vessel settles, one shallow wave travels across the liquid and becomes the slower waiting movement.
 
-Three short light segments are built into the rim. They have steady colors and brightness; their movement suggests activity.
+Three short light segments are built into the rim. They have fixed positions, steady colors, and steady brightness. The water movement suggests activity.
 
 ### Continuous loop — 5 seconds
 
 The surface rises a few pixels on one side while lowering on the other, then reverses. Use a wave height of roughly 3–4 px. The device shell remains still.
 
-One small light segment travels along the rim and passes behind its front edge before repeating. Keep the remaining rim details steady so the eye has a stable reference.
+All three RGB light segments remain stationary in the rim. Two shallow circulating curves make the water swivel inside the fixed shell.
 
 The pill moves only a couple of pixels vertically. It stays above the opening during this scene.
 
@@ -192,17 +192,17 @@ The pill moves only a couple of pixels vertically. It stays above the opening du
 | 0.00–0.15 s | The pill aligns with the center of the opening. Its visible face stays toward the viewer. |
 | 0.15–0.45 s | The pill descends into the liquid along a short, gently accelerating path. |
 | 0.45–0.65 s | A shallow depression forms in the surface. Two curved ripple lines spread outward. |
-| 0.65–0.80 s | The pill settles just below the surface. The depression relaxes and the ripple lines move behind the rim. |
+| 0.65–0.80 s | The pill sinks fully below the opaque surface and becomes completely hidden. The depression relaxes and the ripple lines move behind the rim. |
 
 Keep the contact restrained: no splash outside the device, flying droplets, or large bounce. The pill stays intact and recognizable.
 
-Use a stylized cutaway of the opening to keep part of the pill visible. The foreground lip hides its lower edge. Do not reduce the pill's opacity to suggest submersion.
+The opaque water physically covers the pill as it falls in. Once submerged, no part of the pill remains visible. Do not show a half-submerged pill or an orange core, and do not fade the pill's opacity.
 
 ### Continuous loop — 5 seconds
 
-After placement, the liquid returns to its small wave movement. The pill drifts gently within the opening, by approximately 3–4 px. It does not jump out or fall in again each cycle.
+After placement, the liquid returns to its small wave movement. The pill remains fully hidden beneath the opaque surface. It does not jump out or fall in again each cycle.
 
-As the design moves into Checking pill, increase the movement of the surface curves and rim segments smoothly, while preserving the same composition.
+As the design moves into Checking pill, increase the circulation of the surface curves smoothly while all rim lights stay fixed, while preserving the same composition.
 
 ## 5. Checking pill
 
@@ -210,7 +210,7 @@ As the design moves into Checking pill, increase the movement of the surface cur
 
 ### Composition
 
-Keep the vessel at the same position and scale as the placement scene. Keep the pill's observed colors distinct from the device's colored lights. The pill is still visible through the opening, partially hidden by the front rim.
+Keep the vessel at the same position and scale as the placement scene. The pill stays completely hidden beneath the opaque water. Preserve its observed appearance internally; do not draw a pill-shaped core in the opening.
 
 Add two broad curved lines on the liquid surface to suggest circulation. Keep these lines sparse; the scene should read clearly without small decorative particles.
 
@@ -218,18 +218,18 @@ Add two broad curved lines on the liquid surface to suggest circulation. Keep th
 
 | Time | Movement |
 | --- | --- |
-| 0.0–1.5 s | The liquid curves bend gently toward the right. The pill drifts a few pixels with them. |
-| 1.5–3.0 s | The curves travel around the opening and pass behind the front rim. The pill reaches a small tilt of no more than 5°. |
-| 3.0–4.5 s | The pill returns toward the center as the liquid curves continue their circulation. |
-| 4.5–6.0 s | The liquid and pill return to their starting poses and movement direction. |
+| 0.0–1.5 s | The liquid curves bend gently toward the right. The pill remains hidden. |
+| 1.5–3.0 s | The curves travel around the opening and pass behind the front rim. The RGB lights stay fixed in the rim. |
+| 3.0–4.5 s | The liquid curves continue their circulation inside the stationary shell. |
+| 4.5–6.0 s | The liquid curves return to their starting poses and movement direction. |
 
-Three small red, green, and blue segments move around the rim at steady brightness, replacing the Figma note's flashing RGB colors. Space them apart so they are readable as individual moving details. They pass behind the shell as they move around its back.
+Three small red, green, and blue segments are fixed in the rim at steady brightness. They never orbit, swivel, flash, or change color. The water carries the circulating motion.
 
 Keep the body of the machine still. There is no full-scene spinning, color wash over the pill, rising liquid level, or implied progress percentage.
 
 ### Handoff to completion — approximately 0.5 seconds
 
-The liquid curves straighten. The pill settles at the center. The light segments travel into the shell and become hidden by the rim, keeping their brightness constant while they leave view.
+The liquid curves straighten. The pill remains hidden under the water. The light segments stay fixed until the closing upper shell physically covers them.
 
 The upper half of the orange begins moving down toward the opening.
 
