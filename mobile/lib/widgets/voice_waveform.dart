@@ -2,39 +2,34 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:waveform_flutter/waveform_flutter.dart';
 
-import '../services/voice_service.dart';
+import '../services/peel_voice_client.dart';
 import '../theme/peel_theme.dart';
 
-/// Bar waveform for the voice screen.
-///
-/// The band is always full width: it starts as a flat baseline and the bars
-/// rise in place as amplitudes arrive, instead of sweeping in from one side.
-/// Each state gets its own colour and motion so you can tell who is talking
-/// without reading the label: orange jitter while you speak, a slow grey pulse
-/// while Peel thinks, a steady teal swell while Peel answers.
+/// Bar waveform for the voice screen, driven by live mic and playback RMS.
 class PeelVoiceWaveform extends StatefulWidget {
-  const PeelVoiceWaveform({required this.state, super.key});
+  const PeelVoiceWaveform({
+    required this.state,
+    required this.rms,
+    super.key,
+  });
 
-  final VoiceState state;
+  final VoiceAgentState state;
+  final double rms;
 
   @override
   State<PeelVoiceWaveform> createState() => _PeelVoiceWaveformState();
 }
 
 class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
-  static const _tick = Duration(milliseconds: 70);
+  static const _tick = Duration(milliseconds: 110);
   static const _height = 132.0;
   static const _barWidth = 4.0;
   static const _barGap = 4.0;
-  static const _flatHold = Duration(milliseconds: 500);
 
-  final _random = Random();
   final _levels = <double>[];
   Timer? _timer;
   int _frame = 0;
-  DateTime _flatUntil = DateTime.now().add(_flatHold);
 
   @override
   void initState() {
@@ -47,7 +42,6 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.state != widget.state) {
       _levels.fillRange(0, _levels.length, 0);
-      _flatUntil = DateTime.now().add(_flatHold);
     }
   }
 
@@ -60,28 +54,42 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   void _advance() {
     if (_levels.isEmpty) return;
     _frame++;
-    final amplitude = DateTime.now().isBefore(_flatUntil)
-        ? Amplitude(current: 0, max: 100)
-        : Amplitude(current: _level * 100, max: 100);
-    _levels
-      ..removeAt(0)
-      ..add(amplitude.current / amplitude.max);
+    final mid = _levels.length ~/ 2;
+    final next = _level;
+    for (var i = 0; i < mid; i++) {
+      _levels[i] = _levels[i + 1];
+    }
+    for (var i = _levels.length - 1; i > mid; i--) {
+      _levels[i] = _levels[i - 1];
+    }
+    _levels[mid] = next;
+    if (_levels.length.isEven && mid > 0) {
+      _levels[mid - 1] = next;
+    }
   }
 
   double get _level {
+    final live = widget.rms.clamp(0.0, 1.0);
     final phase = _frame * 0.35;
     return switch (widget.state) {
-      VoiceState.listening => 0.35 + _random.nextDouble() * 0.65,
-      VoiceState.thinking => 0.10 + 0.05 * (1 + sin(phase * 0.6)),
-      VoiceState.speaking =>
-        0.30 + 0.45 * (0.5 + 0.5 * sin(phase)) + _random.nextDouble() * 0.1,
+      VoiceAgentState.listening => max(0.06, min(1.0, pow(live, 0.55) * 1.8)),
+      VoiceAgentState.speaking => max(0.08, live),
+      VoiceAgentState.thinking => 0.10 + 0.05 * (1 + sin(phase * 0.6)),
+      VoiceAgentState.connecting ||
+      VoiceAgentState.ended ||
+      VoiceAgentState.error =>
+        0,
     };
   }
 
   Color get _color => switch (widget.state) {
-        VoiceState.listening => PeelColors.orange,
-        VoiceState.thinking => PeelColors.line,
-        VoiceState.speaking => PeelColors.teal,
+        VoiceAgentState.listening => PeelColors.orange,
+        VoiceAgentState.thinking => PeelColors.line,
+        VoiceAgentState.speaking => PeelColors.teal,
+        VoiceAgentState.connecting ||
+        VoiceAgentState.ended ||
+        VoiceAgentState.error =>
+          PeelColors.line,
       };
 
   @override
@@ -94,11 +102,9 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
           if (bars != _levels.length) {
             _levels
               ..clear()
-              ..addAll(List<double>.filled(bars, 0));
+              ..addAll(List<double>.filled(max(0, bars), 0));
           }
           return Row(
-            // Rebuilding the bars on a state change drops the height/colour
-            // interpolation, so the reset to the baseline is immediate.
             key: ValueKey(widget.state),
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

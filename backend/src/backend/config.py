@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     elasticsearch_api_key: str = ""
     deepgram_api_key: str = ""
     deepgram_websocket_url: str = "wss://agent.deepgram.com/v1/agent/converse"
+    deepgram_grant_url: str = "https://api.deepgram.com/v1/auth/grant"
+    # The app requests mic permission before it asks for a session, so the token
+    # only has to outlive the WebSocket handshake. Deepgram caps this at 3600.
+    deepgram_token_ttl_seconds: int = 120
+    # False: when the grant fails the session still returns Settings with
+    # authorization "Token", so a demo build can fall back to a usage key.
+    # True: a failed grant is a 502 and the app never sees the Token scheme.
+    deepgram_require_temp_token: bool = False
 
     # Kibana hosts Agent Builder. Blank derives it from the Elasticsearch URL.
     kibana_url: str = ""

@@ -14,26 +14,18 @@ flutter analyze && flutter test
 
 ## Flow
 
-Onboarding → scan bottle → scan imprint → scan pill → device connect and pill
-check → results → chat (text or voice) → report → report sent.
+Onboarding → scan bottle → scan imprint → device check (optional) → research
+→ results → voice or report.
 
 Each scan step takes a photo with the camera or picks an existing one, previews
 it and can replace or remove it. Camera permission denial and cancellation are
 handled in the picker sheet.
 
-## Mocked for the demo
+## Services
 
-- Recognition and the verdict (`lib/data/mock_data.dart`). The results screen
-  starts on the mismatch story so the report flow is reachable; tap the finding
-  card to cycle match / mismatch / could not confirm / degradation.
-- Report submission is a timed placeholder. Device connection and run state use real telemetry.
-- Chat replies are canned.
-- Voice chat cycles listening → thinking → speaking over a `waveform_flutter`
-  bar waveform (`lib/widgets/voice_waveform.dart`), which gives each state its
-  own colour and motion: orange jitter for you, a grey pulse while Peel thinks,
-  a teal swell while Peel answers. Voice is mocked; the planned integration
-  is the backend's `POST /deepgram/session` (Deepgram Voice Agent) — no key
-  ships in the app.
+Bottle and imprint identification, research, reporting, and voice use the backend
+through `lib/services/peel_api.dart`. Configure `PEEL_API_BASE` at build time.
+The app retains the current main-branch UI, voice flow and persistent device ID.
 
 ## Instrument
 
@@ -44,7 +36,8 @@ and the repository's 1.1.0 protocol.
 
 Fill with clear water, close the lid, and tap **Water ready** to take the blank.
 Drop in the pill and tap **Check pill** to start; **Stop** ends the run. The
-BOX-3 can also start/stop it. Temperature advice targets 37 ± 1.5 °C; a missing
+legacy BOX-3 control firmware can also start/stop it; the new display-only
+firmware mirrors the phone workflow. Temperature advice targets 37 ± 1.5 °C; a missing
 probe or the -127/85 sentinels do not block a run. Sensor faults remain in debug,
 and raw values are not smoothed or used to invent a pill verdict.
 
@@ -62,13 +55,12 @@ physical phone: its USB port is occupied by the board.
 
 ## Backend
 
-The app does not call the backend yet. `lib/data/mock_data.dart`
-(`MockBackend`) and `lib/state/scan_session.dart` are the seams for
-`POST /scans`, `POST /reports` and `POST /deepgram/session`. Finished runs are
-available as `ScanSession.runReadings` and `ScanSession.runLogPath`. The reading
-list includes swept lines unchanged; exclude those lines when plotting or
-judging trans/scat. The log path is nullable if logging is unavailable; it points
-to a per-connection JSONL file in the app cache.
+Completed runs retain all raw readings and their nullable session log path in
+`ScanSession.runReadings` and `runLogPath`. The backend scan payload includes up
+to 4096 finite, non-swept absorbance samples with status `unknown` and confidence
+zero; the app does not derive a pill classification. Skip hardware omits the
+hardware payload entirely and continues the normal research flow. The backend's
+mock `/pill` endpoint is not called by this device workflow.
 
 ## Animation
 

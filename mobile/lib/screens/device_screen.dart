@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../rive/peel_rive_stage.dart';
-import '../rive/peel_rive_widgets.dart';
+import '../data/api_models.dart';
+import '../services/peel_api.dart';
 import '../main.dart' show deviceRun;
 import '../device/device_run.dart';
 import '../device/debug_screen.dart';
@@ -16,9 +17,10 @@ import 'results_screen.dart';
 
 /// Device connect + pill check, driven by the instrument.
 class DeviceScreen extends StatefulWidget {
-  const DeviceScreen({super.key, this.controller});
+  const DeviceScreen({super.key, this.controller, this.api});
 
   final DeviceRun? controller;
+  final PeelApi? api;
 
   @override
   State<DeviceScreen> createState() => _DeviceScreenState();
@@ -28,6 +30,9 @@ class _DeviceScreenState extends State<DeviceScreen> {
   DeviceRun get run => widget.controller ?? deviceRun;
   DevicePhase get _phase => run.phase;
   Timer? _timer;
+  bool _research = false;
+  bool _busy = false;
+  String? _error;
 
   @override
   void initState() {
@@ -42,18 +47,14 @@ class _DeviceScreenState extends State<DeviceScreen> {
   void _changed() {
     if (!mounted) return;
     setState(() {});
+    if (_research) return;
     if (_phase != DevicePhase.complete) {
       _timer?.cancel();
       _timer = null;
     } else {
       _timer ??= Timer(const Duration(milliseconds: 1600), () {
         if (!mounted) return;
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (_) => const ResultsScreen(),
-            settings: const RouteSettings(name: 'results'),
-          ),
-        );
+        _startResearch();
       });
     }
   }
@@ -63,6 +64,84 @@ class _DeviceScreenState extends State<DeviceScreen> {
     run.removeListener(_changed);
     _timer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _startResearch() async {
+    if (_busy) return;
+    setState(() {
+      _research = true;
+      _error = null;
+      _busy = true;
+    });
+    try {
+      final deviceId = run.scan.deviceId;
+      if (deviceId == null || deviceId.isEmpty) {
+        await run.scan.loadDeviceId();
+      }
+      if (!run.scan.hardwareSkipped && run.scan.runReadings.isNotEmpty) {
+        run.scan.hardware = PillHardwareAnalysis(
+          model: 'peel-xiao',
+          result: PillHardwareResult(
+            status: 'unknown',
+            confidence: 0,
+            degraded: false,
+            spectrum: run.scan.runReadings
+                .where((r) => !r.swept && r.absT != null && r.absT!.isFinite)
+                .map((r) => r.absT!)
+                .take(4096)
+                .toList(),
+          ),
+        );
+      }
+      final photos = <PhotoRef>[
+        if (run.scan.bottleRef != null) run.scan.bottleRef!,
+        if (run.scan.imprintRef != null) run.scan.imprintRef!,
+      ];
+      final created = await (widget.api ?? peelApi).createScan(
+        deviceId: run.scan.deviceId!,
+        bottle: run.scan.bottleResult,
+        imprint: run.scan.imprintResult,
+        hardware: run.scan.hardware?.result,
+        hardwareModel: run.scan.hardware?.model,
+        photos: photos,
+      );
+      run.scan.scanId = created.scanId;
+      run.scan.scan = created;
+      var scan = created;
+      while (scan.status == 'pending' || scan.status == 'partial') {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        if (!mounted) return;
+        scan = await (widget.api ?? peelApi).getScan(created.scanId);
+        run.scan.scan = scan;
+      }
+      if (!mounted) return;
+      if (scan.status == 'error') {
+        setState(() {
+          _busy = false;
+          _error = 'Research did not finish. Retry to start research again.';
+        });
+        return;
+      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => const ResultsScreen(),
+          settings: const RouteSettings(name: 'results'),
+        ),
+      );
+    } on PeelApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.toString();
+      });
+    }
   }
 
   PeelStage get _stage => switch (_phase) {
@@ -117,68 +196,68 @@ class _DeviceScreenState extends State<DeviceScreen> {
   @override
   Widget build(BuildContext context) {
     final copy = _copy;
-
-    return PeelScaffold(
-      fill: true,
-      padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
-      content: [
-        GestureDetector(
-          onLongPress: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => Theme(
-                data: ThemeData(),
-                child: DebugScreen(session: run.session),
-              ),
+    final canLeave =
+        !_research &&
+        _phase != DevicePhase.checking &&
+        _phase != DevicePhase.complete;
+    return PeelStageScaffold(
+      header: GestureDetector(
+        onLongPress: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Theme(
+              data: ThemeData(),
+              child: DebugScreen(session: run.session),
             ),
           ),
-          child: PeelStageHeader(title: copy.title),
         ),
-        PeelRiveSlot(stage: _stage),
-        const SizedBox(height: PeelSpace.x16),
-        const ScanSteps(current: ScanStep.pill),
-        const SizedBox(height: PeelSpace.x8),
-        Flexible(
-          child: Text(
-            copy.body,
+        child: PeelStageHeader(title: _research ? 'Researching' : copy.title),
+      ),
+      stage: _research ? PeelStage.research : _stage,
+      bottom: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _error ?? (_research ? 'Preparing your results.' : copy.body),
             style: PeelText.body,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
-      actions: [
-        if (_phase != DevicePhase.complete)
-          PeelButton(
-            label: switch (_phase) {
-              DevicePhase.connecting => 'Retry connection',
-              DevicePhase.connected => 'Water ready',
-              DevicePhase.temperature => 'Start anyway',
-              DevicePhase.ready => 'Check pill',
-              _ => 'Stop',
-            },
-            onPressed: run.act,
-          ),
-        if (_phase != DevicePhase.checking && _phase != DevicePhase.complete)
-          PeelButton(
-            label: 'Skip hardware',
-            variant: PeelButtonVariant.text,
-            onPressed: () {
-              run.scan.skipHardware();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute<void>(
-                  builder: (_) => const ResultsScreen(),
-                  settings: const RouteSettings(name: 'results'),
-                ),
-              );
-            },
-          ),
-        if (_phase != DevicePhase.complete)
-          PeelButton(
-            label: 'Back',
-            variant: PeelButtonVariant.secondary,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-      ],
+          const SizedBox(height: PeelSpace.x8),
+          const ScanSteps(current: ScanStep.pill),
+          if (canLeave)
+            PeelButton(
+              label: 'Skip hardware',
+              variant: PeelButtonVariant.text,
+              onPressed: () {
+                run.scan.skipHardware();
+                _startResearch();
+              },
+            ),
+        ],
+      ),
+      primaryAction: _research
+          ? PeelButton(
+              label: _error == null ? 'Researching…' : 'Retry',
+              onPressed: _busy ? null : _startResearch,
+            )
+          : PeelButton(
+              label: switch (_phase) {
+                DevicePhase.connecting => 'Retry connection',
+                DevicePhase.connected => 'Water ready',
+                DevicePhase.temperature => 'Start anyway',
+                DevicePhase.ready => 'Check pill',
+                DevicePhase.complete => 'Opening results…',
+                _ => 'Stop',
+              },
+              onPressed: _phase == DevicePhase.complete ? null : run.act,
+            ),
+      secondaryAction: canLeave
+          ? PeelButton(
+              label: 'Back',
+              variant: PeelButtonVariant.secondary,
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          : null,
     );
   }
 }

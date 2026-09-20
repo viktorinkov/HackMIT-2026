@@ -1,20 +1,26 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
+import '../data/api_models.dart';
 import '../data/mock_data.dart';
+import '../services/peel_api.dart';
 import '../device/signals.dart';
-export '../main.dart' show scanSession;
 
 export '../data/mock_data.dart' show ScanStep;
 
-/// Single in-memory session shared by the demo screens.
+const _deviceIdKey = 'peel_user_uuid';
+
+/// Single in-memory session shared by the scan screens.
 class ScanSession extends ChangeNotifier {
   int generation = 0;
   bool hardwareSkipped = false;
 
   void skipHardware() {
     hardwareSkipped = true;
+    hardware = null;
     runReadings = const [];
     runLogPath = null;
     notifyListeners();
@@ -32,26 +38,45 @@ class ScanSession extends ChangeNotifier {
 
   File? bottlePhoto;
   File? imprintPhoto;
-  File? pillPhoto;
+  BottlePhotoResult? bottleResult;
+  ImprintPhotoResult? imprintResult;
+  PhotoRef? bottleRef;
+  PhotoRef? imprintRef;
+  PillHardwareAnalysis? hardware;
+  String? scanId;
+  ScanEnvelope? scan;
+  ReportDraft reportDraft = const ReportDraft();
+  String? deviceId;
 
-  ScanResult result = MockBackend.evaluate();
+  ResearchReport? get research => scan?.research;
 
-  String concern = 'I have a concern about this pill.';
-  String dateNoticed = 'Today';
-  String medicineName = 'Acetaminophen';
-  String strength = '500 mg';
-  String manufacturer = 'Not on the bottle';
-  String lotNumber = 'Not on the bottle';
-  String expiryDate = 'Not on the bottle';
+  Future<void> loadDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var id = prefs.getString(_deviceIdKey);
+    if (id == null || id.isEmpty) {
+      id = const Uuid().v4();
+      await prefs.setString(_deviceIdKey, id);
+    }
+    deviceId = id;
+    notifyListeners();
+  }
 
   void setPhoto(ScanStep step, File? photo) {
     switch (step) {
       case ScanStep.bottle:
         bottlePhoto = photo;
+        if (photo == null) {
+          bottleResult = null;
+          bottleRef = null;
+        }
       case ScanStep.imprint:
         imprintPhoto = photo;
+        if (photo == null) {
+          imprintResult = null;
+          imprintRef = null;
+        }
       case ScanStep.pill:
-        pillPhoto = photo;
+        break;
     }
     notifyListeners();
   }
@@ -59,30 +84,47 @@ class ScanSession extends ChangeNotifier {
   File? photoFor(ScanStep step) => switch (step) {
     ScanStep.bottle => bottlePhoto,
     ScanStep.imprint => imprintPhoto,
-    ScanStep.pill => pillPhoto,
+    ScanStep.pill => null,
   };
 
-  void cycleResult() {
-    result = MockBackend.next(result);
+  bool hasVision(ScanStep step) => switch (step) {
+    ScanStep.bottle => bottleResult != null,
+    ScanStep.imprint => imprintResult != null,
+    ScanStep.pill => false,
+  };
+
+  Future<void> identifyPhoto(ScanStep step, File photo) async {
+    switch (step) {
+      case ScanStep.bottle:
+        bottlePhoto = photo;
+        bottleResult = await peelApi.identifyBottle(photo);
+        bottleRef = await peelApi.photoRef('bottle', photo);
+      case ScanStep.imprint:
+        imprintPhoto = photo;
+        imprintResult = await peelApi.identifyImprint(photo);
+        imprintRef = await peelApi.photoRef('imprint', photo);
+      case ScanStep.pill:
+        break;
+    }
     notifyListeners();
   }
 
-  void updateReport({
-    String? concern,
-    String? dateNoticed,
-    String? medicineName,
-    String? strength,
-    String? manufacturer,
-    String? lotNumber,
-    String? expiryDate,
-  }) {
-    this.concern = concern ?? this.concern;
-    this.dateNoticed = dateNoticed ?? this.dateNoticed;
-    this.medicineName = medicineName ?? this.medicineName;
-    this.strength = strength ?? this.strength;
-    this.manufacturer = manufacturer ?? this.manufacturer;
-    this.lotNumber = lotNumber ?? this.lotNumber;
-    this.expiryDate = expiryDate ?? this.expiryDate;
+  void clearVision(ScanStep step) {
+    switch (step) {
+      case ScanStep.bottle:
+        bottleResult = null;
+        bottleRef = null;
+      case ScanStep.imprint:
+        imprintResult = null;
+        imprintRef = null;
+      case ScanStep.pill:
+        break;
+    }
+    notifyListeners();
+  }
+
+  void applyDraft(ReportDraft draft) {
+    reportDraft = draft;
     notifyListeners();
   }
 
@@ -93,8 +135,16 @@ class ScanSession extends ChangeNotifier {
     runLogPath = null;
     bottlePhoto = null;
     imprintPhoto = null;
-    pillPhoto = null;
-    result = MockBackend.evaluate();
+    bottleResult = null;
+    imprintResult = null;
+    bottleRef = null;
+    imprintRef = null;
+    hardware = null;
+    scanId = null;
+    scan = null;
+    reportDraft = const ReportDraft();
     notifyListeners();
   }
 }
+
+final scanSession = ScanSession();

@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../data/api_models.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/field_card.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
-import 'edit_report_screen.dart';
 import 'sending_report_screen.dart';
 
 class ReportDetailsScreen extends StatefulWidget {
@@ -18,55 +18,137 @@ class ReportDetailsScreen extends StatefulWidget {
 }
 
 class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
-  Future<void> _edit() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const EditReportScreen()),
+  late DateTime? _purchasedOn = _parseDate(scanSession.reportDraft.purchasedOn);
+  late final _label = TextEditingController(
+    text: scanSession.reportDraft.purchaseLocation?.label ?? '',
+  );
+  late final _city = TextEditingController(
+    text: scanSession.reportDraft.purchaseLocation?.city ?? '',
+  );
+  late final _region = TextEditingController(
+    text: scanSession.reportDraft.purchaseLocation?.region ?? '',
+  );
+  late final _country = TextEditingController(
+    text: scanSession.reportDraft.purchaseLocation?.country ?? '',
+  );
+  late final _seller = TextEditingController(
+    text: scanSession.reportDraft.seller ?? '',
+  );
+
+  @override
+  void dispose() {
+    _label.dispose();
+    _city.dispose();
+    _region.dispose();
+    _country.dispose();
+    _seller.dispose();
+    super.dispose();
+  }
+
+  DateTime? _parseDate(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  String? _dateString() {
+    final date = _purchasedOn;
+    if (date == null) return null;
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+
+  ReportDraft _draft() {
+    final location = PurchaseLocation(
+      label: _label.text.trim().isEmpty ? null : _label.text.trim(),
+      city: _city.text.trim().isEmpty ? null : _city.text.trim(),
+      region: _region.text.trim().isEmpty ? null : _region.text.trim(),
+      country: _country.text.trim().isEmpty ? null : _country.text.trim(),
     );
-    if (mounted) setState(() {});
+    return ReportDraft(
+      purchasedOn: _dateString(),
+      purchaseLocation: location.isEmpty ? null : location,
+      seller: _seller.text.trim().isEmpty ? null : _seller.text.trim(),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _purchasedOn ?? now,
+      firstDate: DateTime(now.year - 10),
+      lastDate: now,
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _purchasedOn = picked);
+  }
+
+  void _submit() {
+    scanSession.applyDraft(_draft());
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const SendingReportScreen(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final scan = scanSession.scan;
+    final research = scan?.research;
     return PeelScaffold(
       topBar: PeelTopBar(
         title: 'Report',
-        trailing: TextButton(
-          onPressed: _edit,
-          child: Text(
-            'Edit',
-            style: PeelText.label.copyWith(color: PeelColors.deep),
-          ),
-        ),
+        onBack: () => Navigator.of(context).pop(),
       ),
       content: [
-        const _Section(title: 'Concern'),
-        Text(scanSession.concern, style: PeelText.body),
-        const SizedBox(height: PeelSpace.x8),
-        PeelFieldCard(label: 'Date noticed', value: scanSession.dateNoticed),
-        const _Section(title: 'Medicine'),
-        PeelFieldCard(label: 'Medicine name', value: scanSession.medicineName),
-        const SizedBox(height: PeelSpace.x8),
-        PeelFieldCard(label: 'Strength', value: scanSession.strength),
-        const SizedBox(height: PeelSpace.x8),
-        PeelFieldCard(label: 'Manufacturer', value: scanSession.manufacturer),
-        const _Section(title: 'Bottle details'),
-        PeelFieldCard(label: 'Lot number', value: scanSession.lotNumber),
-        const SizedBox(height: PeelSpace.x8),
-        PeelFieldCard(label: 'Expiry date', value: scanSession.expiryDate),
-        const _Section(title: 'Scan evidence'),
-        const Text('Attached scan photos', style: PeelText.caption),
-        const SizedBox(height: PeelSpace.x8),
-        const _EvidenceRow(),
-      ],
-      actions: [
-        PeelButton(
-          label: 'Submit report',
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SendingReportScreen(),
-            ),
+        const _Section(title: 'Purchase'),
+        GestureDetector(
+          onTap: _pickDate,
+          child: PeelFieldCard(
+            label: 'Purchased on',
+            value: _dateString() ?? 'Choose a date',
           ),
         ),
+        const SizedBox(height: PeelSpace.x8),
+        _Field(label: 'Place', controller: _label),
+        const SizedBox(height: PeelSpace.x8),
+        _Field(label: 'City', controller: _city),
+        const SizedBox(height: PeelSpace.x8),
+        _Field(label: 'Region', controller: _region),
+        const SizedBox(height: PeelSpace.x8),
+        _Field(label: 'Country', controller: _country),
+        const SizedBox(height: PeelSpace.x8),
+        _Field(label: 'Seller', controller: _seller),
+        const _Section(title: 'Scan'),
+        PeelFieldCard(
+          label: 'Bottle',
+          value: _mapLine(scan?.bottle, ['generic_name', 'brand_name']),
+        ),
+        const SizedBox(height: PeelSpace.x8),
+        PeelFieldCard(
+          label: 'Imprint',
+          value: scan?.imprint?['imprint'] as String? ?? 'Not read',
+        ),
+        const SizedBox(height: PeelSpace.x8),
+        PeelFieldCard(
+          label: 'Pill',
+          value: scan?.hardware?['status'] as String? ?? 'unknown',
+        ),
+        if (research != null) ...[
+          const SizedBox(height: PeelSpace.x8),
+          PeelFieldCard(label: 'Finding', value: research.headline),
+        ],
+        // Photo thumbnails stay in the file, commented out until we show them.
+        // const _Section(title: 'Scan evidence'),
+        // const Text('Attached scan photos', style: PeelText.caption),
+        // const SizedBox(height: PeelSpace.x8),
+        // const _EvidenceRow(),
+      ],
+      actions: [
+        PeelButton(label: 'Submit', onPressed: _submit),
         PeelButton(
           label: 'Back',
           variant: PeelButtonVariant.secondary,
@@ -74,6 +156,15 @@ class _ReportDetailsScreenState extends State<ReportDetailsScreen> {
         ),
       ],
     );
+  }
+
+  String _mapLine(Map<String, dynamic>? map, List<String> keys) {
+    if (map == null) return 'No observation';
+    for (final key in keys) {
+      final value = map[key];
+      if (value is String && value.isNotEmpty) return value;
+    }
+    return 'Not read';
   }
 }
 
@@ -94,20 +185,53 @@ class _Section extends StatelessWidget {
   }
 }
 
+class _Field extends StatelessWidget {
+  const _Field({required this.label, required this.controller});
+
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      style: PeelText.body,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: PeelText.caption,
+        filled: true,
+        fillColor: PeelColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: PeelRadii.r12,
+          borderSide: const BorderSide(color: PeelColors.line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: PeelRadii.r12,
+          borderSide: const BorderSide(color: PeelColors.line),
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
 class _EvidenceRow extends StatelessWidget {
   const _EvidenceRow();
 
   @override
   Widget build(BuildContext context) {
-    const labels = ['Bottle', 'Imprint', 'Pill'];
+    const steps = [
+      (ScanStep.bottle, 'Bottle'),
+      (ScanStep.imprint, 'Imprint'),
+    ];
     return Row(
       children: [
-        for (var i = 0; i < ScanStep.values.length; i++) ...[
+        for (var i = 0; i < steps.length; i++) ...[
           if (i > 0) const SizedBox(width: PeelSpace.x8),
           Expanded(
             child: _Thumb(
-              label: labels[i],
-              photo: scanSession.photoFor(ScanStep.values[i]),
+              label: steps[i].$2,
+              photo: scanSession.photoFor(steps[i].$1),
             ),
           ),
         ],
