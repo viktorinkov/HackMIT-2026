@@ -11,12 +11,23 @@ dependencies = [
     "elasticsearch[async]>=9.5.1",
     "fastapi[standard]>=0.141.1",
     "firecrawl-py>=4.43.0",
+    "httpx>=0.28.1",
     "openai>=3.16.2",
     "pydantic-settings>=2.15.0",
+    "pypdf>=6.19.0",
+    "python-dateutil>=2.9.0",
+    "rich>=15.0.0",
+    "typer>=0.27.2",
 ]
 
 [project.scripts]
 backend = "backend:main"
+peel-seed = "backend.seed.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["live: talks to the real Elastic/Kibana cluster; runs only when PEEL_LIVE=1"]
 
 [build-system]
 requires = ["uv_build>=0.12.15,<0.13.0"]
@@ -25,4 +36,5 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
 ]
