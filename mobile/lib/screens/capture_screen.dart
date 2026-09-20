@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../rive/peel_rive_stage.dart';
 import '../rive/peel_rive_widgets.dart';
+import '../services/photo_service.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
@@ -41,14 +42,27 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ScanStep.pill => PeelStage.pillScan,
       };
 
-  Future<void> _openPhoto() async {
+  /// Source sheet first, then the full-screen preview of what was taken.
+  Future<void> _pick() async {
+    final file = await choosePhoto(context, title: copy.title);
+    if (file == null || !mounted) return;
+    scanSession.setPhoto(widget.step, file);
+    setState(() {});
+    await _review();
+  }
+
+  Future<void> _review() async {
+    final photo = scanSession.photoFor(widget.step);
+    if (photo == null) return;
     final choice = await PhotoScreen.open(
       context,
       title: copy.title,
-      photo: scanSession.photoFor(widget.step),
+      photo: photo,
+      onReplaced: (file) => scanSession.setPhoto(widget.step, file),
     );
-    if (choice == null) return;
-    scanSession.setPhoto(widget.step, choice.file);
+    if (!mounted) return;
+    // Closing with the X leaves the photo as it is.
+    if (choice != null) scanSession.setPhoto(widget.step, choice.file);
     setState(() {});
   }
 
@@ -75,7 +89,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           trailing: photo == null
               ? null
               : TextButton(
-                  onPressed: _openPhoto,
+                  onPressed: _review,
                   child: Text(
                     'View photo',
                     style: PeelText.label.copyWith(color: PeelColors.deep),
@@ -89,7 +103,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       actions: [
         PeelButton(
           label: photo == null ? copy.action : 'Continue',
-          onPressed: photo == null ? _openPhoto : _continue,
+          onPressed: photo == null ? _pick : _continue,
         ),
         if (Navigator.of(context).canPop())
           PeelButton(

@@ -14,25 +14,39 @@ class PhotoChoice {
   final File? file;
 }
 
-/// Full-screen capture and preview, pushed as a fullscreen dialog so the app
-/// bar's auto leading is an X rather than a back arrow. Taking, replacing and
-/// removing a photo all happen here, so the scan screens never swap the shared
-/// artboard out for a preview.
+/// Full-screen preview of a photo that has already been taken or chosen,
+/// pushed as a fullscreen dialog so the app bar's auto leading is an X rather
+/// than a back arrow. Replacing and removing happen here, so the scan screens
+/// never swap the shared artboard out for a preview.
 class PhotoScreen extends StatefulWidget {
-  const PhotoScreen({super.key, required this.title, this.photo});
+  const PhotoScreen({
+    super.key,
+    required this.title,
+    required this.photo,
+    required this.onReplaced,
+  });
 
   final String title;
-  final File? photo;
+  final File photo;
+
+  /// Called as soon as a replacement is picked, so the caller is up to date
+  /// even if the screen is then closed with the X.
+  final ValueChanged<File> onReplaced;
 
   static Future<PhotoChoice?> open(
     BuildContext context, {
     required String title,
-    File? photo,
+    required File photo,
+    required ValueChanged<File> onReplaced,
   }) {
     return Navigator.of(context).push<PhotoChoice>(
       MaterialPageRoute<PhotoChoice>(
         fullscreenDialog: true,
-        builder: (_) => PhotoScreen(title: title, photo: photo),
+        builder: (_) => PhotoScreen(
+          title: title,
+          photo: photo,
+          onReplaced: onReplaced,
+        ),
       ),
     );
   }
@@ -42,17 +56,13 @@ class PhotoScreen extends StatefulWidget {
 }
 
 class _PhotoScreenState extends State<PhotoScreen> {
-  File? _photo;
-
-  @override
-  void initState() {
-    super.initState();
-    _photo = widget.photo;
-  }
+  late File _photo = widget.photo;
 
   Future<void> _pick() async {
     final file = await choosePhoto(context, title: widget.title);
     if (file == null || !mounted) return;
+    // Reported straight away, so closing with the X keeps the replacement.
+    widget.onReplaced(file);
     setState(() => _photo = file);
   }
 
@@ -80,68 +90,37 @@ class _PhotoScreenState extends State<PhotoScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: photo == null
-                    ? const _Empty()
-                    : ClipRRect(
-                        borderRadius: PeelRadii.r16,
-                        child: ColoredBox(
-                          color: PeelColors.camera,
-                          child: Image.file(
-                            photo,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                          ),
-                        ),
-                      ),
+                child: ClipRRect(
+                  borderRadius: PeelRadii.r16,
+                  child: ColoredBox(
+                    color: PeelColors.camera,
+                    child: Image.file(
+                      photo,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: PeelSpace.x16),
-              if (photo == null)
-                PeelButton(label: 'Add a photo', onPressed: _pick)
-              else ...[
-                PeelButton(
-                  label: 'Use this photo',
-                  onPressed: () =>
-                      Navigator.of(context).pop(PhotoChoice(photo)),
-                ),
-                const SizedBox(height: PeelSpace.x8),
-                PeelButton(
-                  label: 'Replace photo',
-                  variant: PeelButtonVariant.secondary,
-                  onPressed: _pick,
-                ),
-                const SizedBox(height: PeelSpace.x8),
-                PeelButton(
-                  label: 'Remove photo',
-                  variant: PeelButtonVariant.text,
-                  onPressed: () =>
-                      Navigator.of(context).pop(const PhotoChoice(null)),
-                ),
-              ],
+              PeelButton(
+                label: 'Use this photo',
+                onPressed: () => Navigator.of(context).pop(PhotoChoice(photo)),
+              ),
+              const SizedBox(height: PeelSpace.x8),
+              PeelButton(
+                label: 'Replace photo',
+                variant: PeelButtonVariant.secondary,
+                onPressed: _pick,
+              ),
+              const SizedBox(height: PeelSpace.x8),
+              PeelButton(
+                label: 'Remove photo',
+                variant: PeelButtonVariant.text,
+                onPressed: () =>
+                    Navigator.of(context).pop(const PhotoChoice(null)),
+              ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  const _Empty();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: PeelColors.soft,
-        borderRadius: PeelRadii.r16,
-      ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(PeelSpace.x24),
-          child: Text(
-            'Take a photo with the camera, or choose one you already have.',
-            style: PeelText.body.copyWith(color: PeelColors.muted),
-            textAlign: TextAlign.center,
           ),
         ),
       ),
