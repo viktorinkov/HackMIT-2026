@@ -5,24 +5,18 @@ import '../data/mock_data.dart';
 /// Voice states shown by the prototype.
 enum VoiceState { listening, thinking, speaking }
 
-/// Mocked voice loop.
+/// Mocked voice loop for the demo.
 ///
-/// The real chat will run on Deepgram: the official Flutter example
-/// (deepgram_speech_to_text) streams microphone bytes into
-/// `deepgram.listen.live(stream)` for transcription and plays
-/// `deepgram.speak.text(reply)` back. That needs a Deepgram API key, so the
-/// demo cycles through the same three states with canned copy instead.
+/// The real implementation will call the backend's `POST /deepgram/session`
+/// for a scan and drive a Deepgram Voice Agent websocket from the returned
+/// `websocket_url` + `settings`, emitting the same listening / thinking /
+/// speaking states. No Deepgram key ships in the app.
 class VoiceService {
-  VoiceService({required this.verdict, this.apiKey});
+  VoiceService({required this.verdict});
 
   final ScanVerdict verdict;
 
-  /// Pass with `--dart-define=DEEPGRAM_API_KEY=...` to wire the real service.
-  final String? apiKey;
-
   static const String _transcript = 'Is it safe to take this pill?';
-
-  bool get isMocked => apiKey == null || apiKey!.isEmpty;
 
   /// Emits the listening → thinking → speaking loop with the copy for each
   /// state.

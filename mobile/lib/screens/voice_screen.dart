@@ -17,10 +17,7 @@ class VoiceScreen extends StatefulWidget {
 }
 
 class _VoiceScreenState extends State<VoiceScreen> {
-  final _service = VoiceService(
-    verdict: scanSession.result.verdict,
-    apiKey: const String.fromEnvironment('DEEPGRAM_API_KEY'),
-  );
+  final _service = VoiceService(verdict: scanSession.result.verdict);
 
   StreamSubscription<({VoiceState state, String text})>? _subscription;
   VoiceState _state = VoiceState.listening;
@@ -87,14 +84,14 @@ class _VoiceScreenState extends State<VoiceScreen> {
           ),
         ),
         const SizedBox(height: PeelSpace.x8),
-        if (_service.isMocked)
-          const Center(
-            child: Text(
-              'Demo voice. Deepgram streaming turns on with an API key.',
-              style: PeelText.caption,
-              textAlign: TextAlign.center,
-            ),
+        const Center(
+          child: Text(
+            'Demo voice. Live Deepgram voice sessions arrive with the '
+            'backend wiring.',
+            style: PeelText.caption,
+            textAlign: TextAlign.center,
           ),
+        ),
       ],
       actions: [
         PeelButton(

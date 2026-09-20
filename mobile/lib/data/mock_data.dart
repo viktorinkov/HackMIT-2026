@@ -2,11 +2,16 @@
 /// for the demo every result below is static.
 enum ScanVerdict { match, mismatch, unconfirmed, degradation }
 
+/// The three photo captures of the scan flow.
+enum ScanStep { bottle, imprint, pill }
+
 class RecognitionRow {
-  const RecognitionRow(this.label, this.value, {this.detail});
+  const RecognitionRow(this.label, this.value,
+      {required this.step, this.detail});
 
   final String label;
   final String value;
+  final ScanStep step;
   final String? detail;
 }
 
@@ -52,9 +57,11 @@ class MockBackend {
     findingDetail: 'The bottle, the imprint and the pill agree.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
-      RecognitionRow('Bottle', 'Acetaminophen · 500 mg'),
-      RecognitionRow('Imprint', 'L484 · matches bottle', detail: 'White · oval'),
-      RecognitionRow('Pill', 'Matches bottle'),
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'L484 · matches bottle',
+          step: ScanStep.imprint, detail: 'White · oval'),
+      RecognitionRow('Pill', 'Matches bottle', step: ScanStep.pill),
     ],
     facts: _facts,
     sideEffects: _sideEffects,
@@ -66,10 +73,11 @@ class MockBackend {
     findingDetail: 'The imprint on the pill belongs to a different medicine.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
-      RecognitionRow('Bottle', 'Acetaminophen · 500 mg'),
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
       RecognitionRow('Imprint', 'I-2 · does not match bottle',
-          detail: 'Orange · round'),
-      RecognitionRow('Pill', 'Does not match bottle'),
+          step: ScanStep.imprint, detail: 'Orange · round'),
+      RecognitionRow('Pill', 'Does not match bottle', step: ScanStep.pill),
     ],
     facts: _facts,
     sideEffects: _sideEffects,
@@ -81,9 +89,11 @@ class MockBackend {
     findingDetail: 'The imprint photo was not clear enough to read.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
-      RecognitionRow('Bottle', 'Acetaminophen · 500 mg'),
-      RecognitionRow('Imprint', 'Not readable', detail: 'Blurry photo'),
-      RecognitionRow('Pill', 'Not confirmed'),
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'Not readable',
+          step: ScanStep.imprint, detail: 'Blurry photo'),
+      RecognitionRow('Pill', 'Not confirmed', step: ScanStep.pill),
     ],
     facts: _facts,
     sideEffects: _sideEffects,
@@ -95,9 +105,12 @@ class MockBackend {
     findingDetail: 'The device readings are outside the expected range.',
     medicine: 'Acetaminophen · 500 mg',
     rows: [
-      RecognitionRow('Bottle', 'Acetaminophen · 500 mg'),
-      RecognitionRow('Imprint', 'L484 · matches bottle', detail: 'White · oval'),
-      RecognitionRow('Pill', 'Colour and surface changed'),
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'L484 · matches bottle',
+          step: ScanStep.imprint, detail: 'White · oval'),
+      RecognitionRow('Pill', 'Colour and surface changed',
+          step: ScanStep.pill),
     ],
     facts: _facts,
     sideEffects: _sideEffects,

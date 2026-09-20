@@ -43,7 +43,10 @@ class PhotoService {
       if (picked == null) return const PhotoPickResult(PhotoOutcome.cancelled);
       return PhotoPickResult(PhotoOutcome.picked, File(picked.path));
     } on PlatformException {
-      return const PhotoPickResult(PhotoOutcome.permissionDenied);
+      if (source == PhotoSource.camera) {
+        return const PhotoPickResult(PhotoOutcome.permissionDenied);
+      }
+      return const PhotoPickResult(PhotoOutcome.cancelled);
     }
   }
 }

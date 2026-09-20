@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../data/mock_data.dart';
 
+export '../data/mock_data.dart' show ScanStep;
+
 /// Single in-memory session shared by the demo screens.
 class ScanSession extends ChangeNotifier {
   File? bottlePhoto;
@@ -70,8 +72,6 @@ class ScanSession extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-enum ScanStep { bottle, imprint, pill }
 
 /// The demo runs against one session instance.
 final scanSession = ScanSession();

@@ -52,15 +52,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ),
         ),
         const SizedBox(height: PeelSpace.x12),
-        for (var i = 0; i < result.rows.length; i++) ...[
-          if (scanSession.photoFor(ScanStep.values[i]) != null) ...[
-            _EvidencePhoto(photo: scanSession.photoFor(ScanStep.values[i])!),
+        for (final row in result.rows) ...[
+          if (scanSession.photoFor(row.step) != null) ...[
+            _EvidencePhoto(photo: scanSession.photoFor(row.step)!),
             const SizedBox(height: PeelSpace.x8),
           ],
           PeelFieldCard(
-            label: result.rows[i].label,
-            value: result.rows[i].value,
-            detail: result.rows[i].detail,
+            label: row.label,
+            value: row.value,
+            detail: row.detail,
           ),
           const SizedBox(height: PeelSpace.x8),
         ],

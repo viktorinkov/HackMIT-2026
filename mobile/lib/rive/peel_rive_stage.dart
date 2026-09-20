@@ -24,7 +24,6 @@ enum PeelStage {
 class PeelRiveStage extends ChangeNotifier {
   static const artboard = 'PeelScan';
   static const stateMachine = 'State Machine 1';
-  static const viewModel = 'ViewModel2';
   static const instance = 'Instance';
   static const asset = 'assets/rive/peel_scan_flow.riv';
   static const aspectRatio = 364 / 416;
