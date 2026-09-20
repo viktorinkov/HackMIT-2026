@@ -42,8 +42,8 @@ class PeelRiveStage extends ChangeNotifier {
   rive.RiveWidgetController? get controller => _controller;
   bool get failed => _error != null;
 
-  /// The artboard is painted above the navigator, so it has to step aside for
-  /// dialogs and sheets. The state machine keeps running while it is hidden.
+  /// True while a dialog or sheet is open. Slots use this to keep their rect
+  /// instead of clearing when [ModalRoute.isCurrent] flips false for a popup.
   bool get covered => _modalRoutes > 0;
   int _modalRoutes = 0;
 

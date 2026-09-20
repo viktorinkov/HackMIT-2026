@@ -79,15 +79,37 @@ class PeelText {
 }
 
 ThemeData buildPeelTheme() {
+  const scheme = ColorScheme(
+    brightness: Brightness.light,
+    primary: PeelColors.orange,
+    onPrimary: PeelColors.ink,
+    primaryContainer: PeelColors.soft,
+    onPrimaryContainer: PeelColors.ink,
+    secondary: PeelColors.deep,
+    onSecondary: PeelColors.surface,
+    secondaryContainer: PeelColors.soft,
+    onSecondaryContainer: PeelColors.deep,
+    tertiary: PeelColors.teal,
+    onTertiary: PeelColors.surface,
+    tertiaryContainer: PeelColors.tealSoft,
+    onTertiaryContainer: PeelColors.teal,
+    error: PeelColors.error,
+    onError: PeelColors.surface,
+    errorContainer: PeelColors.errorSoft,
+    onErrorContainer: PeelColors.error,
+    surface: PeelColors.canvas,
+    onSurface: PeelColors.ink,
+    onSurfaceVariant: PeelColors.muted,
+    outline: PeelColors.line,
+    outlineVariant: PeelColors.line,
+    surfaceContainerHighest: PeelColors.surface,
+  );
+
   return ThemeData(
     useMaterial3: true,
     fontFamily: 'Inter',
     scaffoldBackgroundColor: PeelColors.canvas,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: PeelColors.orange,
-      primary: PeelColors.orange,
-      surface: PeelColors.canvas,
-    ),
+    colorScheme: scheme,
     textSelectionTheme: const TextSelectionThemeData(
       cursorColor: PeelColors.deep,
       selectionHandleColor: PeelColors.deep,

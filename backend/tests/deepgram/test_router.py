@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.config import Settings, get_settings
+from backend.deepgram.auth import TokenGrant, TokenGrantError, get_token_granter
 from backend.deepgram.router import router
 from backend.knowledge.client import KnowledgeError
 from backend.scans.store import get_scan_store
@@ -25,33 +26,54 @@ class StubStore:
         return self.doc
 
 
+class StubGranter:
+    def __init__(self, error: TokenGrantError | None = None) -> None:
+        self.error = error
+        self.calls = 0
+
+    async def grant(self, *, ttl_seconds: int | None = None) -> TokenGrant:
+        self.calls += 1
+        if self.error:
+            raise self.error
+        return TokenGrant(access_token="jwt-123", expires_in=120)
+
+
 @pytest.fixture
 def stub() -> StubStore:
     return StubStore(doc=complete_scan())
 
 
 @pytest.fixture
-def settings() -> Settings:
-    return Settings(openai_api_key="test")
+def granter() -> StubGranter:
+    return StubGranter()
 
 
 @pytest.fixture
-def client(stub: StubStore, settings: Settings) -> Iterator[TestClient]:
+def settings() -> Settings:
+    return Settings(openai_api_key="test", deepgram_api_key="dg-key")
+
+
+@pytest.fixture
+def client(stub: StubStore, settings: Settings, granter: StubGranter) -> Iterator[TestClient]:
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_scan_store] = lambda: stub
     app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_token_granter] = lambda: granter
     with TestClient(app) as test_client:
         yield test_client
 
 
-def test_session_returns_200_for_a_completed_scan(client: TestClient) -> None:
+def test_session_returns_a_bearer_token_for_a_completed_scan(client: TestClient) -> None:
     response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
     assert response.status_code == 200
     body = response.json()
     assert body["scan_id"] == "scan-1"
-    assert body["authorization"] == "Token"
-    assert body["settings"]["agent"]["greeting"] == (
+    assert body["authorization"] == "Bearer"
+    assert body["access_token"] == "jwt-123"
+    assert body["expires_in"] == 120
+    assert body["grant_error"] is None
+    assert body["settings"]["agent"]["greeting"].startswith(
         "Hi, I'm Peel. These findings are a simulated demo."
     )
     assert body["opening_messages"] == [
@@ -61,11 +83,37 @@ def test_session_returns_200_for_a_completed_scan(client: TestClient) -> None:
     ]
 
 
+def test_session_falls_back_to_token_when_the_grant_fails(
+    client: TestClient, granter: StubGranter
+) -> None:
+    granter.error = TokenGrantError("needs Member permission", status_code=403)
+    response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["authorization"] == "Token"
+    assert body["access_token"] is None
+    assert body["grant_error"] == "needs Member permission"
+    # Settings still ship so a demo build can connect with its own usage key.
+    assert body["settings"]["type"] == "Settings"
+
+
+def test_session_502s_when_a_temp_token_is_required(
+    client: TestClient, granter: StubGranter, settings: Settings
+) -> None:
+    settings.deepgram_require_temp_token = True
+    granter.error = TokenGrantError("needs Member permission", status_code=403)
+    response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
+    assert response.status_code == 502
+    assert response.json()["detail"] == "needs Member permission"
+
+
 def test_session_advertises_a_client_side_draft_report(client: TestClient) -> None:
     response = client.post("/deepgram/session", json={"scan_id": "scan-1"})
-    functions = response.json()["settings"]["agent"]["think"]["functions"]
-    assert [function["name"] for function in functions] == ["draft_report"]
-    assert "endpoint" not in functions[0]
+    # `think` is an ordered fallback chain; every provider gets the same tool.
+    for think in response.json()["settings"]["agent"]["think"]:
+        functions = think["functions"]
+        assert [function["name"] for function in functions] == ["draft_report"]
+        assert "endpoint" not in functions[0]
 
 
 def test_session_needs_no_public_api_base_url(client: TestClient) -> None:
