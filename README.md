@@ -16,9 +16,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
-  <img src="assets/hardware-placeholder.svg" alt="Placeholder for a photo of the Peel hardware" width="720">
-  <br>
-  <em>Hardware photo — coming soon</em>
+  <img src="assets/hardware.webp" alt="The Peel instrument: a low-cost optical dissolution tester with a status display" width="720">
 </p>
 
 <p align="center">

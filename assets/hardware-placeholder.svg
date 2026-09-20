@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810" role="img" aria-label="Placeholder for a photo of the Peel hardware">
-  <rect width="1440" height="810" fill="#F6F1E8"/>
-  <rect x="48" y="48" width="1344" height="714" rx="28" fill="none" stroke="#C4B8A5" stroke-width="4" stroke-dasharray="18 14"/>
-  <text x="720" y="370" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" fill="#3D2C1E">Hardware photo</text>
-  <text x="720" y="424" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" fill="#7A6A58">Replace with a photo of the Peel instrument</text>
-</svg>
