@@ -55,15 +55,21 @@ class Ctx:
         es: Any = None,
         scans: Any = None,
         scan_docs: list[dict[str, Any]] | None = None,
+        reports: list[dict[str, Any]] | None = None,
     ) -> None:
         self.es = es or FakeEs()
         self.scans = scans or FakeScans()
         self.search = None
         self.settings = None
         self._scan_docs = scan_docs or []
+        self._reports = reports or []
 
     async def scan_docs(self, device_id: str, limit: int = 200) -> list[dict[str, Any]]:
         return list(self._scan_docs)
+
+    async def report_docs(self, scan_ids: Any) -> list[dict[str, Any]]:
+        wanted = set(scan_ids or ())
+        return [row for row in self._reports if row.get("scan_id") in wanted]
 
 
 def _scan_doc(**overrides: Any) -> dict[str, Any]:
@@ -481,6 +487,139 @@ async def test_a_node_outside_the_personal_graph_falls_back_to_a_titled_context_
     assert detail.notice
     assert "context" in detail.notice.lower()
     assert any(p.key == "id" and p.value == "lot:doesnotexist" for p in detail.properties)
+
+
+# --------------------------------------------------------------------------- reports
+
+SELLER_ID = "seller:riverside demo pharmacy|columbus|ohio|united-states"
+PLACE_ID = "place:columbus|ohio|united-states"
+# Words that would turn a note about someone's own report into an accusation.
+ACCUSING_WORDS = (
+    "fake", "counterfeit", "falsified", "dangerous", "avoid", "blame", "guilty",
+    "responsible", "culprit", "suspect", "dodgy", "illegal", "criminal", "warning",
+)
+
+
+def _purchase_report(**overrides: Any) -> dict[str, Any]:
+    """The stored `peel-reports` shape, as `report_docs` hands it over."""
+    doc: dict[str, Any] = {
+        "report_id": "rep-1",
+        "scan_id": "scan-alert",
+        "purchased_on": "2026-08-20",
+        "seller": "Riverside Demo Pharmacy",
+        "purchase_location": {"city": "Columbus", "region": "Ohio",
+                              "country": "United States"},
+        "created_at": "2026-09-03T10:00:00Z",
+    }
+    doc.update(overrides)
+    return doc
+
+
+async def test_a_seller_note_says_where_it_came_from_and_never_judges_the_seller() -> None:
+    # The owning scan's verdict is recall_match: the note must still say nothing
+    # about the seller, and must carry no badge at all.
+    ctx = Ctx(scan_docs=[_alert_scan_doc()], reports=[_purchase_report()])
+
+    detail = await node_detail(ctx, SELLER_ID, device_id="dev-1")
+
+    assert detail.type == "seller"
+    assert detail.title == "Riverside Demo Pharmacy"
+    assert detail.subtitle == "Named in your report as where you bought it"
+    assert detail.badges == []
+    assert detail.body is not None
+    assert "report you filed" in detail.body
+    assert "has not checked" in detail.body
+    assert any(p.key == "reports" and p.value == "1" for p in detail.properties)
+    assert any(p.key == "place" and p.value == "Columbus, United States"
+               for p in detail.properties)
+    relations = {link.relation for link in detail.backlinks}
+    assert RELATION_LABELS["bought_from"] in relations
+    assert detail.counts["alert"] == 0
+
+
+async def test_a_place_note_is_built_from_the_structured_fields_only() -> None:
+    ctx = Ctx(
+        scan_docs=[_alert_scan_doc()],
+        reports=[_purchase_report(seller=None, purchase_location={
+            "label": "my aunt's house, 12 Elm St", "city": "Columbus",
+            "region": "Ohio", "country": "United States",
+        })],
+    )
+
+    detail = await node_detail(ctx, PLACE_ID, device_id="dev-1")
+
+    assert detail.type == "place"
+    assert detail.title == "Columbus, United States"
+    assert detail.badges == []
+    dumped = detail.model_dump_json()
+    assert "Elm St" not in dumped and "aunt" not in dumped
+
+
+async def test_a_seller_note_states_only_this_persons_own_numbers() -> None:
+    """A note is rebuilt from this device's own scans and reports, every time.
+
+    Other people's counts live on the `cluster:` node `/graph/expand` mints and
+    on its own note; nothing another device filed may reach a seller note, not
+    even as a number, and no attr set elsewhere may smuggle one in.
+    """
+    import backend.graph.detail as detail_module
+
+    ctx = Ctx(scan_docs=[_alert_scan_doc()], reports=[_purchase_report()])
+    personal = await detail_module._load_personal(ctx, "dev-1")
+    assert personal is not None
+    node = personal.nodes[SELLER_ID]
+    assert "other_reports" not in node.attrs and "other_flagged" not in node.attrs
+    node.attrs["other_reports"] = 4
+    node.attrs["other_flagged"] = 3
+
+    detail = detail_module._build_graph_detail(node, personal)
+
+    assert detail.body == detail_module.BODY_TEXT["seller"]
+    assert "4" not in detail.body
+    assert [prop.key for prop in detail.properties] == ["reports", "purchased_on", "place"]
+    assert detail.badges == []
+
+
+async def test_the_crowd_cluster_note_is_about_counts_and_nothing_else() -> None:
+    detail = await node_detail(
+        Ctx(), f"cluster:{SELLER_ID}|reports", device_id="dev-1"
+    )
+
+    assert detail.type == "cluster"
+    assert detail.title == "Other people's reports"
+    assert detail.badges == []
+    assert detail.body is not None
+    assert "no dates, no locations, no scans" in detail.body
+    assert detail.properties == []
+
+
+async def test_no_authored_report_wording_uses_an_assurance_word_or_accuses_a_seller() -> None:
+    import backend.graph.detail as detail_module
+
+    haystack = " ".join(
+        [
+            detail_module.SUBTITLES["seller"],
+            detail_module.SUBTITLES["place"],
+            detail_module.SUBTITLES["report_cluster"],
+            detail_module.BODY_TEXT["seller"],
+            detail_module.BODY_TEXT["place"],
+            detail_module.BODY_TEXT["report_cluster"],
+            detail_module.RELATION_LABELS["bought_from"],
+            detail_module.RELATION_LABELS["bought_in"],
+            detail_module.RELATION_LABELS["located_in"],
+            detail_module.RELATION_LABELS["also_reported"],
+            detail_module.PROPERTY_LABELS["your_reports"],
+            detail_module.PROPERTY_LABELS["purchased_on"],
+            detail_module.PROPERTY_LABELS["purchased_between"],
+            detail_module.PROPERTY_LABELS["place"],
+        ]
+    ).lower()
+    for word in BANNED_WORDS:
+        # "unverified" would trip this too, which is the point: the copy says
+        # "Peel has not checked it" instead.
+        assert word not in haystack, f"banned word {word!r} leaked into report copy"
+    for word in ACCUSING_WORDS:
+        assert word not in haystack, f"report copy must not accuse a seller ({word!r})"
 
 
 # --------------------------------------------------------------------------- generic

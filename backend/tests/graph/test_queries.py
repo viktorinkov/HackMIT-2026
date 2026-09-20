@@ -9,7 +9,7 @@ from elasticsearch import ApiError, NotFoundError
 from backend.graph import queries
 from backend.graph.queries import GraphQueries
 from backend.knowledge.client import KnowledgeError
-from backend.knowledge.fields import REGULATORY_INDEX, Ndc, Reg, Web
+from backend.knowledge.fields import REGULATORY_INDEX, Ndc, Reg, Report, Scan, Web
 
 
 def _meta(status: int) -> ApiResponseMeta:
@@ -172,3 +172,44 @@ async def test_a_record_fetch_excludes_the_body_fields() -> None:
     source = await GraphQueries(es).record("fda-enf-1")
     assert source[Reg.TITLE] == "Recall"
     assert es.call("get")["source_excludes"] == [Reg.RAW, Reg.BODY_SEMANTIC, Reg.BODY]
+
+
+# --------------------------------------------------------------------------- reports
+
+
+def test_a_seller_lookup_matches_the_keyword_and_excludes_this_devices_scans() -> None:
+    body = queries.build_reports_by_seller(
+        ["Riverside Demo Pharmacy", "Riverside Demo Pharmacy", ""],
+        exclude_scan_ids=["scan-1", "scan-1"],
+    )
+    bool_query = body["query"]["bool"]
+    # The `.kw` sub-field, never the analysed one: an analysed match would join
+    # "Riverside Pharmacy" to every other pharmacy in the index.
+    assert bool_query["filter"] == [
+        {"terms": {"seller.kw": ["Riverside Demo Pharmacy"]}}
+    ]
+    assert bool_query["must_not"] == [{"terms": {Report.SCAN_ID: ["scan-1"]}}]
+    # Only the join key is ever read back.
+    assert body["_source"] == {"includes": [Report.SCAN_ID]}
+
+
+def test_a_place_lookup_only_ever_filters_on_the_structured_fields() -> None:
+    body = queries.build_reports_by_place(city="Douala", country="Cameroon")
+    assert body["query"]["bool"]["filter"] == [
+        {"term": {"purchase_location.city": "Douala"}},
+        {"term": {"purchase_location.country": "Cameroon"}},
+    ]
+    assert body["query"]["bool"]["must_not"] == []
+    rendered = str(body)
+    assert "label" not in rendered and "coordinates" not in rendered
+
+
+def test_the_crowd_scan_join_reads_three_fields_and_nothing_else() -> None:
+    body = queries.build_crowd_scans(["other-1", "other-2", "other-1"])
+    assert body["query"] == {"terms": {Scan.SCAN_ID: ["other-1", "other-2"]}}
+    # `device_id` groups rows into people inside `graph.expand` and never
+    # leaves it; the medicine name is not read at all, because a breakdown of
+    # other people's medicines is not a count of reports.
+    assert body["_source"] == {"includes": ["device_id", "research.verdict", "demo"]}
+    assert "norm" not in str(body["_source"])
+    assert body["size"] == 2

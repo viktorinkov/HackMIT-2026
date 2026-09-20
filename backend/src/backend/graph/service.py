@@ -20,6 +20,8 @@ streams. They are imported inside the methods so that a missing module is a clea
 from __future__ import annotations
 
 import json
+import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -32,14 +34,19 @@ from backend.graph.builder import graph_from_scans
 from backend.graph.cache import TTLCache
 from backend.graph.models import (
     ExpandResponse,
+    GraphLink,
     GraphMeta,
+    GraphNode,
     GraphResponse,
     NodeDetail,
     SearchGraphResponse,
 )
+from backend.graph.reports_graph import attach_reports
 from backend.graph.settings import GraphSettings, get_graph_settings
 from backend.knowledge.client import KnowledgeError
-from backend.knowledge.fields import SCANS_INDEX, Scan
+from backend.knowledge.fields import REPORTS_INDEX, SCANS_INDEX, Report, Scan
+
+logger = logging.getLogger(__name__)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -65,6 +72,32 @@ SCAN_SOURCE_INCLUDES: tuple[str, ...] = (
     "evidence.web_page_ids",
     "evidence.evidence_pack",
 )
+
+# The second privacy boundary, for `peel-reports`, and an allow-list for the
+# same reason `SCAN_SOURCE_INCLUDES` is one: `peel-reports` is the index that
+# holds free text people typed, so a field added to it later must not become
+# readable here merely by existing. These six are exactly what
+# `reports_graph.normalise_report` reads; everything else stays in the cluster.
+REPORT_SOURCE_INCLUDES: tuple[str, ...] = (
+    Report.SCAN_ID,
+    Report.PURCHASED_ON,
+    Report.SELLER,
+    f"{Report.PURCHASE_LOCATION}.city",
+    f"{Report.PURCHASE_LOCATION}.region",
+    f"{Report.PURCHASE_LOCATION}.country",
+)
+# Named again as a refusal rather than an omission: `coordinates` are a geo_point
+# the person's phone supplied and `label` is free text they typed or spoke. The
+# includes list above already leaves both out; this says so out loud, and holds
+# even if someone widens the allow-list to the whole `purchase_location` object.
+REPORT_SOURCE_EXCLUDES: tuple[str, ...] = (
+    f"{Report.PURCHASE_LOCATION}.coordinates",
+    f"{Report.PURCHASE_LOCATION}.label",
+)
+# `terms` is capped at 65,536 entries by default, but a request that large is a
+# bug rather than a device's history; chunk well below it.
+REPORT_SCAN_CHUNK = 1024
+REPORT_LIMIT = 500
 
 NOTICE = (
     "Peel checks published records only. It cannot tell you what is inside a tablet — "
@@ -128,6 +161,54 @@ class GraphContext:
             raise KnowledgeError(f"Elasticsearch is unreachable: {exc}", status_code=503) from exc
         return [dict(hit["_source"]) for hit in response["hits"]["hits"]]
 
+    async def report_docs(self, scan_ids: Sequence[str]) -> list[dict[str, Any]]:
+        """The purchase reports filed against these scans, through the allow-list.
+
+        Reports are additive: they never change a verdict, a tier or an alert
+        edge. A reports index that is missing, unreachable or rejecting queries
+        must therefore cost someone the sellers on their graph and nothing else,
+        so every Elasticsearch failure here degrades to "no reports".
+        """
+        es = self.es
+        ids = [scan_id for scan_id in dict.fromkeys(scan_ids or ()) if scan_id]
+        if es is None or not ids:
+            return []
+        out: list[dict[str, Any]] = []
+        for start in range(0, len(ids), REPORT_SCAN_CHUNK):
+            chunk = ids[start : start + REPORT_SCAN_CHUNK]
+            try:
+                response = await es.search(
+                    index=REPORTS_INDEX,
+                    query={"bool": {"filter": [{"terms": {Report.SCAN_ID: chunk}}]}},
+                    sort=[{Report.CREATED_AT: "desc"}],
+                    size=REPORT_LIMIT,
+                    source={
+                        "includes": list(REPORT_SOURCE_INCLUDES),
+                        "excludes": list(REPORT_SOURCE_EXCLUDES),
+                    },
+                    track_total_hits=False,
+                )
+            except (ApiError, TransportError) as exc:
+                logger.warning(
+                    "graph: reports are unavailable, serving the graph without them (%s)",
+                    type(exc).__name__,
+                )
+                return []
+            out.extend(dict(hit["_source"]) for hit in response["hits"]["hits"])
+        return out
+
+    async def with_reports(
+        self, docs: Sequence[dict[str, Any]], nodes: list[GraphNode], links: list[GraphLink]
+    ) -> tuple[list[GraphNode], list[GraphLink]]:
+        """One reports query for a built personal graph, then the pure attach."""
+        scan_ids = [
+            str(doc.get(Scan.SCAN_ID) or "")
+            for doc in docs
+            if isinstance(doc, dict) and doc.get(Scan.SCAN_ID)
+        ]
+        reports = await self.report_docs(scan_ids)
+        return attach_reports(nodes, links, reports, scan_ids)
+
     async def personal(self, device_id: str) -> GraphResponse:
         """This device's own graph, for the read paths that relate a result back to it
         (search highlights, node notes). One scans query; the service caches its own copy."""
@@ -135,6 +216,7 @@ class GraphContext:
         nodes, links, truncated = graph_from_scans(
             docs, max_nodes=self.settings.max_nodes, max_links=self.settings.max_links
         )
+        nodes, links = await self.with_reports(docs, nodes, links)
         return GraphResponse(
             nodes=nodes,
             links=links,
@@ -179,6 +261,9 @@ class GraphService:
             nodes, links, truncated = graph_from_scans(
                 docs, max_nodes=cap, max_links=self.settings.max_links
             )
+            # Sellers and places are counted like any other type, so the legend
+            # on the page learns about them without a second contract.
+            nodes, links = await self.context.with_reports(docs, nodes, links)
             counts: dict[str, int] = {}
             for node in nodes:
                 counts[node.type] = counts.get(node.type, 0) + 1

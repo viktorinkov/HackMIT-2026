@@ -753,6 +753,138 @@
    "count": 2
   },
   {
+   "id": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "type": "seller",
+   "label": "Riverside Demo Pharmacy",
+   "sublabel": "Columbus, United States",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "count": 2,
+   "date": "2026-09-02",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ],
+   "attrs": {
+    "reports": 2,
+    "first_purchased_on": "2026-08-20",
+    "last_purchased_on": "2026-09-02",
+    "city": "Columbus",
+    "region": "Ohio",
+    "country": "United States",
+    "variants": [
+     "Riverside Demo Pharmacy"
+    ]
+   }
+  },
+  {
+   "id": "seller:pharmacie du marché demo|douala|littoral|cameroon",
+   "type": "seller",
+   "label": "Pharmacie du Marché Demo",
+   "sublabel": "Douala, Cameroon",
+   "val": 2.4,
+   "personal": true,
+   "expandable": true,
+   "count": 1,
+   "date": "2026-08-30",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "reports": 1,
+    "first_purchased_on": "2026-08-30",
+    "last_purchased_on": "2026-08-30",
+    "city": "Douala",
+    "region": "Littoral",
+    "country": "Cameroon",
+    "variants": [
+     "Pharmacie du Marché Demo"
+    ]
+   }
+  },
+  {
+   "id": "place:columbus|ohio|united-states",
+   "type": "place",
+   "label": "Columbus, United States",
+   "val": 1.8,
+   "personal": true,
+   "count": 2,
+   "date": "2026-09-02",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ],
+   "attrs": {
+    "reports": 2,
+    "first_purchased_on": "2026-08-20",
+    "last_purchased_on": "2026-09-02",
+    "city": "Columbus",
+    "region": "Ohio",
+    "country": "United States"
+   }
+  },
+  {
+   "id": "place:douala|littoral|cameroon",
+   "type": "place",
+   "label": "Douala, Cameroon",
+   "val": 1.8,
+   "personal": true,
+   "count": 1,
+   "date": "2026-08-30",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ],
+   "attrs": {
+    "reports": 1,
+    "first_purchased_on": "2026-08-30",
+    "last_purchased_on": "2026-08-30",
+    "city": "Douala",
+    "region": "Littoral",
+    "country": "Cameroon"
+   }
+  },
+  {
+   "id": "place:boston|massachusetts|united-states",
+   "type": "place",
+   "label": "Boston, United States",
+   "val": 1.6,
+   "personal": true,
+   "count": 1,
+   "date": "2026-08-28",
+   "demo": true,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ],
+   "attrs": {
+    "reports": 1,
+    "first_purchased_on": "2026-08-28",
+    "last_purchased_on": "2026-08-28",
+    "city": "Boston",
+    "region": "Massachusetts",
+    "country": "United States"
+   }
+  },
+  {
+   "id": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+   "type": "cluster",
+   "label": "Named by 4 other people",
+   "val": 1.2,
+   "count": 4,
+   "expandable": false,
+   "demo": true,
+   "attrs": {
+    "relation": "reports",
+    "parent": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+    "count": 4,
+    "flagged": 2
+   }
+  },
+  {
    "id": "cluster:reg:fda|records",
    "type": "cluster",
    "label": "+17,961 more FDA records",
@@ -1581,6 +1713,118 @@
    ]
   },
   {
+   "id": "scan:demo-levo-d2402430>bought_from>seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "source": "scan:demo-levo-d2402430",
+   "target": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "kind": "bought_from",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-levo-d2402430"
+   ]
+  },
+  {
+   "id": "scan:demo-levo-d2402999>bought_from>seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "source": "scan:demo-levo-d2402999",
+   "target": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "kind": "bought_from",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "seller:riverside demo pharmacy|columbus|ohio|united-states>located_in>place:columbus|ohio|united-states",
+   "source": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "target": "place:columbus|ohio|united-states",
+   "kind": "located_in",
+   "strong": false,
+   "weight": 0.3,
+   "count": 2,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "place:columbus|ohio|united-states>located_in>country:united-states",
+   "source": "place:columbus|ohio|united-states",
+   "target": "country:united-states",
+   "kind": "located_in",
+   "strong": false,
+   "weight": 0.3,
+   "count": 2,
+   "scan_ids": [
+    "scan:demo-levo-d2402430",
+    "scan:demo-levo-d2402999"
+   ]
+  },
+  {
+   "id": "scan:demo-healmoxy-h02605>bought_from>seller:pharmacie du marché demo|douala|littoral|cameroon",
+   "source": "scan:demo-healmoxy-h02605",
+   "target": "seller:pharmacie du marché demo|douala|littoral|cameroon",
+   "kind": "bought_from",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "seller:pharmacie du marché demo|douala|littoral|cameroon>located_in>place:douala|littoral|cameroon",
+   "source": "seller:pharmacie du marché demo|douala|littoral|cameroon",
+   "target": "place:douala|littoral|cameroon",
+   "kind": "located_in",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "place:douala|littoral|cameroon>located_in>country:cameroon",
+   "source": "place:douala|littoral|cameroon",
+   "target": "country:cameroon",
+   "kind": "located_in",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-healmoxy-h02605"
+   ]
+  },
+  {
+   "id": "scan:demo-ibuprofen-i2>bought_in>place:boston|massachusetts|united-states",
+   "source": "scan:demo-ibuprofen-i2",
+   "target": "place:boston|massachusetts|united-states",
+   "kind": "bought_in",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "place:boston|massachusetts|united-states>located_in>country:united-states",
+   "source": "place:boston|massachusetts|united-states",
+   "target": "country:united-states",
+   "kind": "located_in",
+   "strong": false,
+   "weight": 0.3,
+   "scan_ids": [
+    "scan:demo-ibuprofen-i2"
+   ]
+  },
+  {
+   "id": "seller:riverside demo pharmacy|columbus|ohio|united-states>also_reported>cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+   "source": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+   "target": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+   "kind": "also_reported",
+   "strong": false,
+   "weight": 0.3,
+   "count": 4
+  },
+  {
    "id": "reg:fda>more>cluster:reg:fda|records",
    "source": "reg:fda",
    "target": "cluster:reg:fda|records",
@@ -1619,7 +1863,9 @@
    "imprint": 2,
    "pill_ref": 1,
    "topic": 3,
-   "cluster": 3
+   "seller": 2,
+   "place": 3,
+   "cluster": 4
   },
   "timeline": [
    {

@@ -6,7 +6,8 @@ from typing import Any
 import pytest
 
 from backend.graph.builder import VERDICT_LABELS, graph_from_scans
-from backend.graph.models import ALERT_CAPABLE_KINDS, MATCH_TIER_RANK
+from backend.graph.models import ALERT_CAPABLE_KINDS, MATCH_TIER_RANK, REPORT_KINDS
+from backend.graph.reports_graph import attach_reports
 from backend.research.evidence import verdict_from_evidence
 
 # The ids, lots and NDCs below are the real seeded records, so a change in the
@@ -218,6 +219,36 @@ def test_only_alert_capable_kinds_ever_carry_an_alert() -> None:
         for link in links:
             if link.alert:
                 assert link.kind in ALERT_CAPABLE_KINDS
+
+
+PURCHASE_REPORT = {
+    "report_id": "rep-1",
+    "scan_id": "scan-1",
+    "purchased_on": "2026-08-20",
+    "seller": "Riverside Demo Pharmacy",
+    "purchase_location": {"city": "Columbus", "region": "Ohio", "country": "United States"},
+    "created_at": "2026-09-03T10:00:00Z",
+}
+
+
+@pytest.mark.parametrize(("name", "evidence"), INVARIANT_PACKS, ids=[n for n, _ in INVARIANT_PACKS])
+def test_reports_never_change_which_links_are_alerts(name: str, evidence: dict[str, Any]) -> None:
+    """R5: attaching a purchase report is additive, and the invariant still holds."""
+    nodes, links, _ = graph_from_scans([scan(evidence_pack=evidence)])
+    before = {link.id for link in links if link.alert}
+
+    with_reports, links_after = attach_reports(nodes, links, [PURCHASE_REPORT], ["scan-1"])
+    expected = verdict_from_evidence(evidence, has_mismatch=False)[0] == "recall_match"
+
+    assert {link.id for link in links_after if link.alert} == before, name
+    assert any(link.alert for link in links_after) is expected, name
+    # And nothing the report minted is strong, alerting or tiered.
+    for link in links_after:
+        if link.kind in REPORT_KINDS:
+            assert link.alert is False and link.strong is False, name
+    for node in with_reports:
+        if node.type in ("seller", "place"):
+            assert node.match_tier is None and node.severity is None, name
 
 
 def test_an_ndc_hit_covering_all_lots_is_the_alert_the_verdict_counts() -> None:

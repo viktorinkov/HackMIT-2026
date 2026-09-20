@@ -223,6 +223,53 @@
    }
   }
  },
+ "seller:riverside demo pharmacy|columbus|ohio|united-states": {
+  "anchor": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+  "nodes": [
+   {
+    "id": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+    "type": "cluster",
+    "label": "Named by 4 other people",
+    "val": 1.2,
+    "count": 4,
+    "expandable": false,
+    "demo": true,
+    "attrs": {
+     "relation": "reports",
+     "parent": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+     "count": 4,
+     "flagged": 2
+    }
+   }
+  ],
+  "links": [
+   {
+    "id": "seller:riverside demo pharmacy|columbus|ohio|united-states>also_reported>cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+    "source": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+    "target": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+    "kind": "also_reported",
+    "strong": false,
+    "alert": false,
+    "weight": 0.3,
+    "count": 4,
+    "match_kind": "also_reported"
+   }
+  ],
+  "meta": {
+   "device_id": "peel-graph-demo",
+   "scans": 6,
+   "generated_at": "2026-09-19T23:30:00Z",
+   "source": "demo",
+   "demo": true,
+   "truncated": false,
+   "index_date": "2026-09-19",
+   "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+   "counts": {
+    "other_reports": 4,
+    "flagged": 2
+   }
+  }
+ },
  "reg:fda": {
   "anchor": "reg:fda",
   "nodes": [
