@@ -1,0 +1,4 @@
+tags:
+  # Tests that spawn hardware/sim/fake_board.py and talk to it over TCP. They need
+  # python3 on PATH and take a few seconds each: `flutter test -x simulator` skips them.
+  simulator:

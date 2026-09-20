@@ -1,49 +1,78 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:usb_serial/usb_serial.dart';
 
+import 'lines.dart';
+
 /// A source of text lines from the instrument, and a way to send it the one-letter commands
-/// 17_stream understands: b blank, z t=0, a auto t=0, s stop, m stirrer.
+/// 17_stream understands: b blank, z t=0, a auto t=0, s stop, m stirrer, d diagnostics.
 abstract class Link {
   String get label;
+
+  /// Whole lines, CR and NULs already stripped. Closes when the board goes away.
   Stream<String> get lines;
+
   Future<void> send(String command);
   Future<void> close();
 }
 
 /// The real board, over a USB OTG cable.
 ///
-/// The DevKitC's port marked USB is the ESP32-S3's own USB-Serial/JTAG, which Android sees
-/// as a CDC serial device. Its port marked UART goes through a CP210x or CH34x bridge chip.
-/// usb_serial drives all three.
+/// The XIAO ESP32-S3's USB-C port is the chip's own USB-Serial/JTAG peripheral, which
+/// Android sees as a CDC-ACM device with Espressif's vendor id 0x303A. A DevKitC's port
+/// marked UART instead goes through a CP210x or CH34x bridge. usb_serial drives all three,
+/// but only the CDC path needs the fallback below: felHR85's driver table is keyed on
+/// vendor id and does not know Espressif's.
 class UsbLink implements Link {
   UsbLink._(this._port, this.label);
 
   final UsbPort _port;
   @override
   final String label;
+
   final _lines = StreamController<String>.broadcast();
+  final _assembler = LineAssembler();
   StreamSubscription<Uint8List>? _sub;
-  String _pending = '';
+
+  /// Espressif's vendor id. The XIAO ESP32-S3 enumerates as 303A:1001 in USB-Serial/JTAG
+  /// mode and 303A:4001 when a sketch opens USBCDC itself.
+  static const espressifVendorId = 0x303A;
 
   static Future<List<UsbDevice>> devices() => UsbSerial.listDevices();
 
+  /// The board, if exactly one plausible one is attached. Espressif first, then anything
+  /// else that enumerated, so a DevKitC on a bridge chip still works.
+  static UsbDevice? pick(List<UsbDevice> devices) {
+    if (devices.isEmpty) return null;
+    return devices.firstWhere((d) => d.vid == espressifVendorId,
+        orElse: () => devices.first);
+  }
+
   static Future<UsbLink> open(UsbDevice device) async {
-    // Auto-detect first. The ESP32-S3's own vendor ID is missing from some driver tables, so
-    // fall back to plain CDC, which is what its USB-Serial/JTAG port really is.
-    var port = await device.create();
+    // Auto-detect first; fall back to plain CDC, which is what USB-Serial/JTAG really is.
+    UsbPort? port;
+    try {
+      port = await device.create();
+    } on Exception {
+      port = null;
+    }
     port ??= await device.create(UsbSerial.CDC);
     if (port == null) {
-      throw StateError('No serial driver for ${device.productName ?? 'this device'}');
+      throw StateError('No serial driver for ${device.productName ?? 'this device'} '
+          '(${device.vid?.toRadixString(16)}:${device.pid?.toRadixString(16)}).');
     }
     if (!await port.open()) {
-      throw StateError('Could not open the port. Was USB permission denied?');
+      // open() returns false both when the permission dialog was refused and when another
+      // app holds the device. The caller shows this to the user as is.
+      throw StateError('Could not open the port: USB permission was denied, or another '
+          'app has the board open.');
     }
     // What a desktop serial monitor does on open. On an ESP32, DTR and RTS together mean
-    // "run normally"; RTS on its own holds the chip in reset.
+    // "run normally": RTS asserted while DTR is not holds the chip in reset, so the order
+    // here matters.
     await port.setDTR(true);
     await port.setRTS(true);
     await port.setPortParameters(
@@ -52,20 +81,26 @@ class UsbLink implements Link {
   }
 
   void _start() {
-    _sub = _port.inputStream?.listen(
+    final input = _port.inputStream;
+    if (input == null) {
+      _lines.addError(StateError('The port opened but has no input stream.'));
+      return;
+    }
+    _sub = input.listen(
       (data) {
-        _pending += latin1.decode(data);
-        var nl = _pending.indexOf('\n');
-        while (nl >= 0) {
-          _lines.add(_pending.substring(0, nl).replaceAll('\r', ''));
-          _pending = _pending.substring(nl + 1);
-          nl = _pending.indexOf('\n');
+        for (final line in _assembler.add(data)) {
+          if (!_lines.isClosed) _lines.add(line);
         }
-        // Noise with no newline in it: don't let the buffer grow forever.
-        if (_pending.length > 4096) _pending = '';
       },
-      onError: _lines.addError,
-      onDone: _lines.close,
+      onError: (Object e) {
+        if (!_lines.isClosed) _lines.addError(e);
+      },
+      onDone: () {
+        final rest = _assembler.flush();
+        if (rest != null && !_lines.isClosed) _lines.add(rest);
+        if (!_lines.isClosed) _lines.close();
+      },
+      cancelOnError: false,
     );
   }
 
@@ -79,118 +114,67 @@ class UsbLink implements Link {
   @override
   Future<void> close() async {
     await _sub?.cancel();
-    await _port.close();
-    await _lines.close();
+    try {
+      await _port.close();
+    } catch (_) {
+      // The cable is already out: nothing to close.
+    }
+    if (!_lines.isClosed) await _lines.close();
   }
 }
 
-/// A stand-in for the board that prints exactly what 17_stream prints, so every line still
-/// goes through the real parser. For showing the app without hardware, and as a demo-day
-/// fallback if the rig misbehaves.
-///
-/// It models a coloured tablet: transmission absorbance rises first-order to a plateau, while
-/// cloudiness spikes as the tablet breaks apart and then clears as it dissolves.
-class DemoLink implements Link {
-  DemoLink({Duration tick = const Duration(seconds: 1), int seed = 7})
-      : _rng = Random(seed) {
-    _timer = Timer.periodic(tick, (_) => _emit());
-    scheduleMicrotask(() {
-      _note('17_stream ready. Fast channel = green LED. Stirrer 100%. Temperature probe: demo');
-      _note('commands: b blank, z mark t=0, a toggle auto t=0, s stop, m stirrer');
-    });
+/// The simulator, over TCP. Developer-only: `python3 hardware/sim/fake_board.py --tcp 9000`,
+/// then point the app at the host running it. Same bytes, same parser, no board.
+class TcpLink implements Link {
+  TcpLink._(this._socket, this.label) {
+    _sub = _socket.listen(
+      (data) {
+        for (final line in _assembler.add(Uint8List.fromList(data))) {
+          if (!_lines.isClosed) _lines.add(line);
+        }
+      },
+      onError: (Object e) {
+        if (!_lines.isClosed) _lines.addError(e);
+      },
+      onDone: () {
+        final rest = _assembler.flush();
+        if (rest != null && !_lines.isClosed) _lines.add(rest);
+        if (!_lines.isClosed) _lines.close();
+      },
+      cancelOnError: false,
+    );
   }
 
+  final Socket _socket;
   @override
-  String get label => 'Demo';
-
-  final Random _rng;
-  late final Timer _timer;
+  final String label;
   final _lines = StreamController<String>.broadcast();
+  final _assembler = LineAssembler();
+  late final StreamSubscription<List<int>> _sub;
 
-  static const _clearT = 2460.0; // the real rig's resting transmission, mV
-  static const _clearS = 180.0;
-  static const _aInf = 0.42, _k = 1 / 90.0; // plateau absorbance, rate (1/s)
-  static const _sweepBase = {'red': 900.0, 'yellow': 1300.0, 'green': 2460.0, 'blue': 1700.0};
-  // How strongly each colour is absorbed relative to green: a yellow compound eats blue.
-  static const _sweepGain = {'red': 0.05, 'yellow': 0.2, 'green': 0.6, 'blue': 2.2};
-
-  double? _blankT, _blankS;
-  int _tick = 0;
-  int? _zeroTick, _blankTick;
-  bool _stir = true, _auto = true;
-  Map<String, double?> _sweep = {for (final c in _sweepBase.keys) c: null};
-
-  double get _elapsed => _zeroTick == null ? -1 : (_tick - _zeroTick!).toDouble();
-  double _noise(double sd) => (_rng.nextDouble() + _rng.nextDouble() - 1) * sd;
-
-  void _emit() {
-    _tick++;
-    // Auto t=0, as the firmware does it: the tablet lands a few seconds after the blank.
-    if (_auto && _zeroTick == null && _blankTick != null && _tick - _blankTick! == 6) {
-      _zeroTick = _tick;
-      _note('t = 0 detected from the transmission drop');
-    }
-    final t = _elapsed;
-    final absT = t < 0 ? 0.0 : _aInf * (1 - exp(-_k * t));
-    final cloud = t < 0 ? 0.0 : 0.30 * (t / 40) * exp(1 - t / 40) + 0.04 * (1 - exp(-_k * t));
-    final trans = _clearT * pow(10, -absT) + _noise(4);
-    final scat = _clearS * pow(10, cloud) + _noise(2);
-
-    final swept = _tick % 10 == 0;
-    if (swept) {
-      _sweep = {
-        for (final e in _sweepBase.entries)
-          e.key: e.value * pow(10, -absT * _sweepGain[e.key]!) + _noise(5)
-      };
-    }
-    double? ab(double? blank, double now) =>
-        blank == null ? null : double.parse((log(blank / now) / ln10).toStringAsFixed(4));
-
-    _lines.add(jsonEncode({
-      't': double.parse(t.toStringAsFixed(1)),
-      'trans': trans.roundToDouble(),
-      'scat': scat.roundToDouble(),
-      'absT': ab(_blankT, trans),
-      'absS': ab(_blankS, scat),
-      'tC': double.parse((37.0 + _noise(0.05)).toStringAsFixed(2)),
-      'sweep': {for (final e in _sweep.entries) e.key: e.value?.roundToDouble()},
-      'stir': _stir ? 100 : 0,
-      'swept': swept,
-    }));
+  static Future<TcpLink> connect(String host, int port,
+      {Duration timeout = const Duration(seconds: 5)}) async {
+    final socket = await Socket.connect(host, port, timeout: timeout);
+    socket.setOption(SocketOption.tcpNoDelay, true);
+    return TcpLink._(socket, 'sim $host:$port');
   }
-
-  void _note(String text) => _lines.add('# $text');
 
   @override
   Stream<String> get lines => _lines.stream;
 
   @override
   Future<void> send(String command) async {
-    switch (command) {
-      case 'b':
-        _blankT = _clearT;
-        _blankS = _clearS;
-        _blankTick = _tick;
-        _note('blank stored: transmission ${_clearT.round()} mV, scatter ${_clearS.round()} mV');
-      case 'z':
-        _zeroTick = _tick;
-        _note('t = 0 marked');
-      case 'a':
-        _auto = !_auto;
-        _note('auto t=0 ${_auto ? 'on' : 'off'}');
-      case 's':
-        _zeroTick = null;
-        _blankTick = null;
-        _note('run stopped');
-      case 'm':
-        _stir = !_stir;
-        _note(_stir ? 'stirrer on' : 'stirrer off');
-    }
+    _socket.add(ascii.encode(command));
+    await _socket.flush();
   }
 
   @override
   Future<void> close() async {
-    _timer.cancel();
-    await _lines.close();
+    await _sub.cancel();
+    try {
+      await _socket.close();
+    } catch (_) {}
+    _socket.destroy();
+    if (!_lines.isClosed) await _lines.close();
   }
 }
