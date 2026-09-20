@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from typing import Any
 
 from backend.config import Settings
-from backend.scans.compare import pair_mismatches
-from backend.scans.models import ScanReport
+from backend.deepgram.lead import lead_from_context
 from backend.deepgram.prompt import build_playground_prompt
+from backend.research.contract import to_scan_context
 
 
 def _named(name: str | None, strength: str | None) -> str | None:
@@ -11,77 +13,41 @@ def _named(name: str | None, strength: str | None) -> str | None:
     return cleaned or None
 
 
-def _bottle_name(report: ScanReport) -> str | None:
-    if report.bottle is None:
+def _bottle_name(bottle: dict[str, Any] | None) -> str | None:
+    if not bottle:
         return None
-    return _named(
-        report.bottle.observation.generic_name or report.bottle.observation.brand_name,
-        report.bottle.observation.strength,
-    )
+    return _named(bottle.get("generic_name") or bottle.get("brand_name"), bottle.get("strength"))
 
 
-def _imprint_name(report: ScanReport) -> str | None:
-    if report.imprint is None or report.imprint.research is None:
+def _imprint_name(imprint: dict[str, Any] | None) -> str | None:
+    if not imprint:
         return None
-    return _named(
-        report.imprint.research.facts.generic_name or report.imprint.research.facts.name,
-        report.imprint.research.facts.strength,
-    )
-
-
-def _pill_name(report: ScanReport) -> str | None:
-    if report.pill is None:
+    candidates = imprint.get("candidates") or []
+    if not candidates:
         return None
-    pill_name = report.pill.hardware.pill_type
-    strength = None
-    if report.pill.research is not None:
-        pill_name = (
-            report.pill.research.facts.generic_name
-            or report.pill.research.facts.name
-            or pill_name
-        )
-        strength = report.pill.research.facts.strength
-    return _named(pill_name, strength)
+    first = candidates[0]
+    return _named(first.get("generic_name"), first.get("strength"))
 
 
-def _conflict_line(report: ScanReport) -> str:
-    bottle_imprint, bottle_pill, imprint_pill = pair_mismatches(
-        report.bottle, report.imprint, report.pill
-    )
-    aside = (
-        "so set this pill aside and ask a pharmacist to check it with the bottle."
-    )
-    if bottle_imprint and bottle_pill and imprint_pill:
-        return (
-            "The bottle label, imprint lookup, and hardware analysis all name "
-            f"different medications, {aside}"
-        )
-    if bottle_imprint and bottle_pill:
-        return (
-            "The bottle label disagrees with the imprint lookup and the hardware "
-            f"analysis, {aside}"
-        )
-    if bottle_pill and imprint_pill:
-        return (
-            "The hardware analysis disagrees with the bottle label and the imprint "
-            f"lookup, {aside}"
-        )
-    if bottle_imprint and imprint_pill:
-        return (
-            "The imprint lookup disagrees with the bottle label and the hardware "
-            f"analysis, {aside}"
-        )
-    return f"Those three results do not match, {aside}"
+def _pill_name(hardware: dict[str, Any] | None) -> str | None:
+    if not hardware:
+        return None
+    candidate = hardware.get("candidate")
+    if not candidate:
+        return None
+    return _named(candidate.get("generic_name"), None)
 
 
-def greeting_from_scan(report: ScanReport) -> str:
+def greeting_from_scan(doc: dict[str, Any]) -> str:
+    context = to_scan_context(doc)
     lines = ["Hi, I'm Peel."]
-    if report.demo:
+    if context.get("demo"):
         lines.append("These findings are a simulated demo.")
 
-    bottle = _bottle_name(report)
-    imprint = _imprint_name(report)
-    pill = _pill_name(report)
+    bottle = _bottle_name(context.get("bottle"))
+    imprint = _imprint_name(context.get("imprint"))
+    pill = _pill_name(context.get("hardware"))
+    observed = (context.get("imprint") or {}).get("observed_text") if context.get("imprint") else None
 
     if bottle:
         lines.append(f"Bottle: the label says {bottle}.")
@@ -90,10 +56,8 @@ def greeting_from_scan(report: ScanReport) -> str:
 
     if imprint:
         lines.append(f"Imprint: the marking lookup returned {imprint}.")
-    elif report.imprint is not None and report.imprint.observation.imprint:
-        lines.append(
-            f"Imprint: the marking is {report.imprint.observation.imprint}, with no drug name yet."
-        )
+    elif observed:
+        lines.append(f"Imprint: the marking is {observed}, with no drug name yet.")
     else:
         lines.append("Imprint: no marking lookup yet.")
 
@@ -102,22 +66,14 @@ def greeting_from_scan(report: ScanReport) -> str:
     else:
         lines.append("Pill: no hardware analysis yet.")
 
-    if report.finding == "conflict":
-        lines.append(_conflict_line(report))
-    elif report.finding == "quality_concern":
-        lines.append(
-            "The names agree, but the hardware analysis flagged the contents as off. Set this pill aside and ask a pharmacist to check it."
-        )
-    elif report.finding == "agree":
-        lines.append("Those three results name the same medication. That is not a safety guarantee.")
-    elif report.finding == "inconclusive":
-        lines.append("There is not enough agreeing evidence yet to call this a match or a mismatch.")
-    else:
-        lines.append("I can walk you through this pill check once the scan is ready.")
+    lead = lead_from_context(context)
+    if lead:
+        lines.append(lead)
     return " ".join(lines)
 
 
-def keyterms_from_scan(report: ScanReport) -> list[str]:
+def keyterms_from_scan(doc: dict[str, Any]) -> list[str]:
+    context = to_scan_context(doc)
     terms: list[str] = []
 
     def add(value: str | None) -> None:
@@ -125,31 +81,23 @@ def keyterms_from_scan(report: ScanReport) -> list[str]:
         if cleaned and cleaned not in terms:
             terms.append(cleaned)
 
-    if report.bottle is not None:
-        add(report.bottle.observation.brand_name)
-        add(report.bottle.observation.generic_name)
-        add(report.bottle.observation.strength)
-        add(report.bottle.observation.imprint_on_label)
-        if report.bottle.research is not None:
-            add(report.bottle.research.facts.name)
-            add(report.bottle.research.facts.generic_name)
-            add(report.bottle.research.facts.expected_imprint)
-    if report.imprint is not None:
-        add(report.imprint.observation.imprint)
-        if report.imprint.research is not None:
-            add(report.imprint.research.facts.name)
-            add(report.imprint.research.facts.generic_name)
-            add(report.imprint.research.facts.expected_imprint)
-    if report.pill is not None:
-        add(report.pill.hardware.pill_type)
-        if report.pill.research is not None:
-            add(report.pill.research.facts.name)
-            add(report.pill.research.facts.generic_name)
+    bottle = context.get("bottle") or {}
+    add(bottle.get("brand_name"))
+    add(bottle.get("generic_name"))
+    add(bottle.get("strength"))
+    imprint = context.get("imprint") or {}
+    add(imprint.get("observed_text"))
+    for candidate in imprint.get("candidates") or []:
+        add(candidate.get("generic_name"))
+        add(candidate.get("strength"))
+    hardware = context.get("hardware") or {}
+    candidate = hardware.get("candidate") or {}
+    add(candidate.get("generic_name"))
     return terms
 
 
 def reports_url(settings: Settings, scan_id: str) -> str:
-    return f"{settings.public_api_base_url.rstrip('/')}/scans/{scan_id}/reports"
+    return f"{settings.public_api_base_url.rstrip('/')}/deepgram/{scan_id}/reports"
 
 
 def draft_concern_report_function(url: str) -> dict[str, Any]:
@@ -177,8 +125,9 @@ def draft_concern_report_function(url: str) -> dict[str, Any]:
     }
 
 
-def build_voice_agent_settings(report: ScanReport, settings: Settings) -> dict[str, Any]:
-    prompt = build_playground_prompt(report).prompt
+def build_voice_agent_settings(doc: dict[str, Any], settings: Settings) -> dict[str, Any]:
+    scan_id = str(doc.get("scan_id") or "")
+    prompt = build_playground_prompt(doc).prompt
     return {
         "type": "Settings",
         "mip_opt_out": True,
@@ -192,7 +141,7 @@ def build_voice_agent_settings(report: ScanReport, settings: Settings) -> dict[s
                     "type": "deepgram",
                     "model": "nova-3",
                     "smart_format": True,
-                    "keyterms": keyterms_from_scan(report),
+                    "keyterms": keyterms_from_scan(doc),
                 }
             },
             "think": {
@@ -202,7 +151,7 @@ def build_voice_agent_settings(report: ScanReport, settings: Settings) -> dict[s
                     "temperature": 0.3,
                 },
                 "prompt": prompt,
-                "functions": [draft_concern_report_function(reports_url(settings, report.scan_id))],
+                "functions": [draft_concern_report_function(reports_url(settings, scan_id))],
             },
             "speak": {
                 "provider": {
@@ -210,6 +159,6 @@ def build_voice_agent_settings(report: ScanReport, settings: Settings) -> dict[s
                     "model": "aura-2-thalia-en",
                 }
             },
-            "greeting": greeting_from_scan(report),
+            "greeting": greeting_from_scan(doc),
         },
     }

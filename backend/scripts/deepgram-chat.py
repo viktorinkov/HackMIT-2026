@@ -16,6 +16,8 @@ import asyncio
 import json
 import os
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -38,6 +40,7 @@ CASES: tuple[tuple[str, str, str | None, str | None, str | None], ...] = (
     ("mismatch_all", "All-channel mismatch", "≠", "≠", "≠"),
     ("suspected_degradation", "Quality concern", None, None, None),
     ("nitroglycerin", "Degraded", None, None, None),
+    ("fake", "Fake pill", None, None, None),
     ("pending", "Incomplete scan", None, None, None),
 )
 CASE_OPTIONS: tuple[tuple[str, str], ...] = tuple((name, label) for name, label, *_ in CASES)
@@ -46,6 +49,158 @@ ALIASES = {
     "degraded": "nitroglycerin",
 }
 OPENED = {name: label for name, label, *_ in CASES}
+_SPECTRUM = [0.1] * 16
+CASE_PAYLOADS: dict[str, dict] = {
+    "mismatch": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "strength": "500 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-B", "confidence": 0.9},
+        "hardware": {
+            "status": "real",
+            "spectrum": _SPECTRUM,
+            "pill_type": "Ibuprofen",
+            "degraded": False,
+            "confidence": 0.92,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "mismatch_bottle_pill": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "strength": "500 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-A", "confidence": 0.9},
+        "hardware": {
+            "status": "real",
+            "spectrum": _SPECTRUM,
+            "pill_type": "Ibuprofen",
+            "degraded": False,
+            "confidence": 0.92,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "mismatch_pill_imprint": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "ibuprofen",
+            "strength": "200 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-B", "confidence": 0.9},
+        "hardware": {
+            "status": "real",
+            "spectrum": _SPECTRUM,
+            "pill_type": "Ibuprofen",
+            "degraded": False,
+            "confidence": 0.92,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "mismatch_all": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "strength": "500 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-C", "confidence": 0.9},
+        "hardware": {
+            "status": "real",
+            "spectrum": _SPECTRUM,
+            "pill_type": "Naproxen",
+            "degraded": False,
+            "confidence": 0.92,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "suspected_degradation": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "strength": "500 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-A", "confidence": 0.9},
+        "hardware": {
+            "status": "substandard",
+            "spectrum": _SPECTRUM,
+            "pill_type": "acetaminophen",
+            "degraded": True,
+            "confidence": 0.78,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "nitroglycerin": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "nitroglycerin",
+            "strength": "0.4 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-N", "confidence": 0.9},
+        "hardware": {
+            "status": "substandard",
+            "spectrum": _SPECTRUM,
+            "pill_type": "nitroglycerin",
+            "degraded": True,
+            "confidence": 0.78,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "fake": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "strength": "500 mg",
+            "form": "tablet",
+            "confidence": 0.9,
+        },
+        "imprint": {"is_pill": True, "imprint": "DEMO-A", "confidence": 0.9},
+        "hardware": {
+            "status": "fake",
+            "spectrum": _SPECTRUM,
+            "pill_type": "Ibuprofen",
+            "degraded": False,
+            "confidence": 0.88,
+        },
+        "hardware_model": "mock-spectrometry",
+    },
+    "pending": {
+        "device_id": "deepgram-chat",
+        "demo": True,
+        "bottle": {
+            "is_medication_container": True,
+            "generic_name": "acetaminophen",
+            "confidence": 0.9,
+        },
+    },
+}
 
 
 def _load_dotenv() -> None:
@@ -74,8 +229,12 @@ def _request(method: str, url: str, payload: dict | None = None) -> dict:
     if payload is not None:
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        sys.exit(f"{method} {url} -> {exc.code} {body}")
 
 
 def _resolve_case(raw: str, options: tuple[tuple[str, str], ...]) -> str | None:
@@ -120,6 +279,7 @@ def _print_cases() -> None:
             extra = {
                 "suspected_degradation": "names agree · quality flag",
                 "nitroglycerin": "names agree · hardware degraded",
+                "fake": "hardware reported fake",
                 "pending": "no channels",
             }.get(_name, "")
             print(f"{prefix:<38}{extra}")
@@ -130,6 +290,8 @@ def _print_cases() -> None:
 
 
 def _pick_case(preset: str | None) -> str:
+    if preset and preset.startswith("scan-"):
+        return preset
     if preset:
         picked = _resolve_case(preset, CASE_OPTIONS)
         if picked:
@@ -141,12 +303,33 @@ def _pick_case(preset: str | None) -> str:
     return _ask("Case", CASE_OPTIONS)
 
 
+def _wait_ready(api: str, scan_id: str, timeout: float = 90) -> dict:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        scan = _request("GET", f"{api}/scans/{scan_id}")
+        if scan.get("status") in {"partial", "complete"} and scan.get("research"):
+            return scan
+        if scan.get("status") == "error":
+            sys.exit(f"scan {scan_id} failed")
+        time.sleep(2)
+    sys.exit(f"scan {scan_id} is not ready")
+
+
 def _open_results_chat(api: str, fixture: str) -> dict:
-    scan = _request("POST", f"{api}/scans?fixture={fixture}")
-    session = _request("POST", f"{api}/deepgram/session", {"scan_id": scan["scan_id"]})
+    if fixture.startswith("scan-"):
+        scan_id = fixture
+    else:
+        payload = CASE_PAYLOADS.get(fixture)
+        if payload is None:
+            sys.exit(f"Unknown case {fixture!r}. Pass a scan- id or a case name.")
+        scan = _request("POST", f"{api}/scans", payload)
+        scan_id = scan["scan_id"]
+        if fixture != "pending":
+            _wait_ready(api, scan_id)
+    session = _request("POST", f"{api}/deepgram/session", {"scan_id": scan_id})
     if session.get("authorization") != "Token" or "access_token" in session:
         sys.exit("Session is not the Flutter Token handoff")
-    print(f"Opened {OPENED.get(fixture, fixture)}")
+    print(f"Opened {OPENED.get(fixture, fixture)} ({scan_id})")
     return session
 
 
@@ -306,7 +489,9 @@ def main() -> None:
         print("From backend/: uv run --with websockets python scripts/deepgram-chat.py")
         return
     smoke = os.environ.get("PEEL_SMOKE") == "1"
-    preset = args[0] if args else (os.environ.get("FIXTURE") if smoke else None)
+    preset = args[0] if args else (
+        os.environ.get("SCAN_ID") or (os.environ.get("FIXTURE") if smoke else None)
+    )
     api = _peel_api()
     while True:
         fixture = _pick_case(preset)

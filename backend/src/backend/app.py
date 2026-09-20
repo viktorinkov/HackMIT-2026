@@ -3,13 +3,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pymongo.errors import PyMongoError
 
 from backend.drug_facts import router as drug_facts_router
 from backend.drug_facts.elastic import close_elastic_store
 from backend.config import get_settings
+from backend.deepgram.router import router as deepgram_router
+from backend.deepgram.store import close_report_store
 from backend.knowledge.client import close_es, get_es
 from backend.knowledge.indices import ensure_indices
 from backend.knowledge.router import router as knowledge_router
+from backend.mongo import close_mongo
 from backend.photo_identification import router as photo_identification_router
 from backend.pill import router as pill_router
 from backend.research.agent_builder import close_agent_builder
@@ -31,6 +36,8 @@ async def lifespan(_app: FastAPI):
     yield
     await cancel_research(_app)
     await close_agent_builder()
+    await close_report_store()
+    await close_mongo()
     await close_es()
     await close_elastic_store()
 
@@ -47,6 +54,12 @@ app.include_router(drug_facts_router)
 app.include_router(pill_router)
 app.include_router(scans_router)
 app.include_router(knowledge_router)
+app.include_router(deepgram_router)
+
+
+@app.exception_handler(PyMongoError)
+async def mongodb_unavailable(_request, _exc: PyMongoError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": "MongoDB is unreachable"})
 
 
 @app.get("/")
@@ -77,6 +90,10 @@ def root() -> dict[str, object]:
             "ndc": "/knowledge/ndc/{ndc}",
             "pill": "/knowledge/pill?imprint=",
             "stats": "/knowledge/stats",
+        },
+        "deepgram": {
+            "session": "POST /deepgram/session",
+            "reports": "/deepgram/{scan_id}/reports",
         },
     }
 
