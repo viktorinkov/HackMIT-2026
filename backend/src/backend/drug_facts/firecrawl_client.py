@@ -10,6 +10,8 @@ from backend.drug_facts.models import DrugFactsError
 
 IMPRINT_DOMAINS = ("drugs.com", "dailymed.nlm.nih.gov")
 BOTTLE_DOMAINS = ("dailymed.nlm.nih.gov", "drugs.com", "www.accessdata.fda.gov")
+# Hardware identity is a drug name, not an imprint code: same label sources as the bottle.
+PILL_DOMAINS = BOTTLE_DOMAINS
 
 _SEARCH_LIMIT = 3
 _SEARCH_TIMEOUT_MS = 60_000

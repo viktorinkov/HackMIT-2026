@@ -24,6 +24,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("ELASTICSEARCH_URL", "ELASTICSEARCH_HOST"),
     )
     elasticsearch_api_key: str = ""
+    deepgram_api_key: str = ""
+    deepgram_websocket_url: str = "wss://agent.deepgram.com/v1/agent/converse"
 
     # Kibana hosts Agent Builder. Blank derives it from the Elasticsearch URL.
     kibana_url: str = ""

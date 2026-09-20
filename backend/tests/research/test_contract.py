@@ -1,6 +1,6 @@
 """`to_scan_context` against the real ElevenLabs fixtures.
 
-The agent is configured against `docs/elevenlabs/demo-contexts.json`, so these
+The agent is configured against `demo-contexts.json` in this directory, so these
 tests treat the fixtures as the contract: every key and status enum a fixture
 uses must come out of a scan document that mirrors it.
 """
@@ -23,8 +23,7 @@ from backend.research.contract import (
 )
 from backend.research.models import SAFE_NO_FINDINGS_TEXT, ResearchReport, Verdict
 
-DOCS = Path(__file__).resolve().parents[3] / "docs" / "elevenlabs"
-FIXTURES = json.loads((DOCS / "demo-contexts.json").read_text())
+FIXTURES = json.loads((Path(__file__).parent / "demo-contexts.json").read_text())
 
 BOTTLE_KEYS = {
     "status", "generic_name", "brand_name", "strength", "form",

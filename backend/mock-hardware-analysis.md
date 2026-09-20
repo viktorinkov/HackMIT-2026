@@ -12,7 +12,7 @@ Photo identification (imprint, shape, color, bottle label) is a separate step. T
 
 ## What the mock should return
 
-The important field for the rest of the pipeline (judge / ElevenLabs / case table) is the contents status:
+The important field for the rest of the pipeline (judge / Deepgram agent / case table) is the contents status:
 
 | Status | Meaning |
 | --- | --- |

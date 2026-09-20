@@ -13,7 +13,15 @@ PILLS_INDEX = "peel-pills"
 NDC_INDEX = "peel-ndc"
 WEB_PAGES_INDEX = "peel-web-pages"
 SCANS_INDEX = "peel-scans"
-ALL_INDICES = (REGULATORY_INDEX, PILLS_INDEX, NDC_INDEX, WEB_PAGES_INDEX, SCANS_INDEX)
+REPORTS_INDEX = "peel-reports"
+ALL_INDICES = (
+    REGULATORY_INDEX,
+    PILLS_INDEX,
+    NDC_INDEX,
+    WEB_PAGES_INDEX,
+    SCANS_INDEX,
+    REPORTS_INDEX,
+)
 
 # One embedding model everywhere (matches the existing peel-drug-facts index).
 INFERENCE_ID = ".jina-embeddings-v5-text-small"
@@ -206,6 +214,20 @@ class Scan:
     NORM_GENERIC_NAME = "norm.generic_name"
     RESEARCH_VERDICT = "research.verdict"
     RESEARCH_RISK_LEVEL = "research.risk_level"
+
+
+class Report:
+    """peel-reports: one document per Submit tap, joined to a scan by scan_id.
+
+    Only the three provenance answers live here; the scan is never copied.
+    """
+
+    REPORT_ID = "report_id"
+    SCAN_ID = "scan_id"
+    PURCHASED_ON = "purchased_on"
+    PURCHASE_LOCATION = "purchase_location"
+    SELLER = "seller"
+    CREATED_AT = "created_at"
 
 
 # Controlled values shared by seed adapters, search and the agent tools.

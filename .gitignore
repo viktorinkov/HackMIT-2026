@@ -37,5 +37,10 @@ local.properties
 .DS_Store
 Thumbs.db
 
+# design folder
+design/
+# docs folder
+docs/
+
 # Seed corpus cache (raw downloads + normalized JSONL)
 backend/data/

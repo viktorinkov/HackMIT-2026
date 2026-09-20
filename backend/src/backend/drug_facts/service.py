@@ -7,6 +7,7 @@ from backend.drug_facts.elastic import ElasticStore, SearchKind, get_elastic_sto
 from backend.drug_facts.firecrawl_client import (
     BOTTLE_DOMAINS,
     IMPRINT_DOMAINS,
+    PILL_DOMAINS,
     FirecrawlClient,
     get_firecrawl_client,
 )
@@ -20,9 +21,11 @@ from backend.drug_facts.queries import (
     bottle_search_query,
     imprint_search_query,
     normalize_query,
+    pill_search_query,
 )
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
+from backend.pill import PillHardwareResult
 
 FACTS_MODEL = "gpt-4o"
 FACTS_INSTRUCTIONS = """\
@@ -65,6 +68,28 @@ class ResearchService:
                 status_code=400,
             )
         return await self._research("bottle", query, BOTTLE_DOMAINS)
+
+    async def research_pill(self, result: PillHardwareResult) -> DrugFactsResearch:
+        # Fake contents have no trusted identity to look up. Unknown is also
+        # not an identity: a low-confidence spectrum must not get DailyMed facts.
+        # Substandard still has a matched type; look up that type's label facts.
+        if result.status == "fake":
+            raise DrugFactsError(
+                "Hardware classified this pill as fake; contents facts are not looked up.",
+                status_code=400,
+            )
+        if result.status == "unknown":
+            raise DrugFactsError(
+                "Hardware did not identify a pill type to research.",
+                status_code=400,
+            )
+        query = pill_search_query(result)
+        if not query:
+            raise DrugFactsError(
+                "Need a hardware pill_type to research contents facts.",
+                status_code=400,
+            )
+        return await self._research("pill", query, PILL_DOMAINS)
 
     async def _research(
         self,

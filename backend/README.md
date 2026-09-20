@@ -521,6 +521,19 @@ of which side did the fetching.
 | `GET /scans/{scan_id}/context?as_string=` | The ElevenLabs `scan_context` handoff — `to_scan_context()` as a dict, or (with `as_string=true`) `{"scan_context": "<json string>"}`, because ElevenLabs dynamic variables must be strings. The `hardware` block carries both the derived `status`/`degradation` and the device's raw `reported_status`, so a "fake" reading with no identified pill type still reads as more than merely inconclusive. |
 | `POST /scans/{scan_id}/research` | Re-run research. `{"force": true}` cancels any in-flight run and restarts; otherwise 409 if one is already running, 503 if the pipeline module isn't loaded. |
 
+### `reports/router.py`
+
+A report is the three optional provenance answers (`purchased_on`, `purchase_location`,
+`seller`) joined to a scan by `scan_id`; nothing from the scan is copied. Peel collects them in
+the voice chat and calls the client-side `draft_report` function, which reaches the app as a
+`FunctionCallRequest`; the app shows a preview and only the Submit button writes. Deepgram never
+calls these routes. See [`docs/deepgram/INTEGRATION.md`](../docs/deepgram/INTEGRATION.md).
+
+| Endpoint | Notes |
+|---|---|
+| `POST /scans/{scan_id}/reports` | The Submit button. 201 with the stored `Report`; every tap is a new `report_id`. 404 if the scan is missing. Written with `refresh=False`, so render the confirmation from the response. |
+| `GET /scans/{scan_id}/reports` | `{"results": [...]}` for this scan, newest first (search on `scan_id`; can lag a submit by about a second). |
+
 `ScanCreate` (`scans/models.py`) bounds every field an oversized payload could inflate:
 `hardware.spectrum` to `MAX_SPECTRUM_LEN` (4096) floats, `bottle.visible_warnings` to
 `MAX_VISIBLE_WARNINGS` (50) items of `MAX_WARNING_LEN` (500) characters each, every other
@@ -790,3 +803,69 @@ curl -s localhost:8000/scans -X POST -H 'content-type: application/json' -d '{
   Reddit post is never evidence, at the cost of missing genuinely useful crowd reports there.
 - **No authentication.** `device_id` is an arbitrary client string with no verification, and CORS
   is wide open (`allow_origins=["*"]`) — fine for a hackathon demo, not for production.
+
+## Runpod deployment
+
+- Pod: `peel-fastapi` (`<pod-id>`), `US-CA-2`.
+- CPU: `cpu3g`, 4 vCPUs, 16 GB RAM, 10 GB container disk. Compute: $0.16/hour at deployment; container storage is additional.
+- Persistent network volume: `peel-fastapi-data` (`xylsp3iw1j`), 20 GB high-performance storage, mounted at `/workspace`.
+- Image: `runpod/base:1.0.2-ubuntu2404`.
+- API: https://<pod-id>-8000.proxy.runpod.net
+- Interactive documentation: https://<pod-id>-8000.proxy.runpod.net/docs
+- Application directory: `/workspace/peel/backend` (clone of the `runpod-deepgram` branch).
+
+The app uses `scripts/runpod-start.sh` to install uv 0.12.15, select managed
+Python 3.13, install locked runtime dependencies, and run Uvicorn on
+`0.0.0.0:8000` without development reload. Runpod exposes `8000/http` and `22/tcp`.
+The network volume is mounted at `/workspace`, so the app, credentials, and Python
+environment survive container replacement. The pod's saved container command is:
+
+```bash
+bash -lc 'bash /start.sh & until test -f /workspace/peel/backend/scripts/runpod-start.sh; do sleep 2; done; exec bash /workspace/peel/backend/scripts/runpod-start.sh'
+```
+
+There is no `.env` on the pod. Credentials come from Runpod secrets, injected
+as environment variables when the container boots. The pod env maps each variable
+to a secret of the same name, for example
+`OPENAI_API_KEY={{ RUNPOD_SECRET_OPENAI_API_KEY }}`. Secrets in use:
+`OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `ELASTICSEARCH_URL`,
+`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`. (`PUBLIC_API_BASE_URL` is still mapped on the pod
+but nothing reads it any more; only `scripts/deepgram-chat.py` uses it locally.) Rotating a secret takes effect on the
+next pod start. Editing the pod env replaces the container, so keep the app on the
+network volume.
+
+The deployed API currently has no client authentication. `/pill` still returns
+mock spectrometry. External service calls require valid OpenAI, Firecrawl,
+and Elasticsearch credentials.
+
+Check the running API from your computer:
+
+```bash
+curl --fail https://<pod-id>-8000.proxy.runpod.net/health
+```
+
+```bash
+curl --fail https://<pod-id>-8000.proxy.runpod.net/pill \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"unknown"}'
+```
+
+Open the existing pod's SSH terminal:
+
+```bash
+ssh -tt -i ~/.ssh/id_ed25519 <pod-id>-644119c5@ssh.runpod.io
+```
+
+Then inspect the server log:
+
+```bash
+tail -n 50 /workspace/peel/backend/server.log
+```
+
+Manage restarts and terminate the deployment in the Runpod console:
+https://console.runpod.io/pods
+
+The pod is left running so the API stays available. Terminating it deletes its
+container disk; the network volume remains and continues billing. For complete
+cleanup, terminate the pod first, then delete `peel-fastapi-data` from the Runpod
+Storage page. Deleting that volume permanently deletes the deployed files.
