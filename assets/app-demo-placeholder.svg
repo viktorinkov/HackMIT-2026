@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="810" viewBox="0 0 1440 810" role="img" aria-label="Placeholder for a video of the Peel app">
+  <rect width="1440" height="810" fill="#F6F1E8"/>
+  <rect x="48" y="48" width="1344" height="714" rx="28" fill="none" stroke="#C4B8A5" stroke-width="4" stroke-dasharray="18 14"/>
+  <circle cx="720" cy="330" r="56" fill="none" stroke="#C4B8A5" stroke-width="4"/>
+  <polygon points="708,300 748,330 708,360" fill="#C4B8A5"/>
+  <text x="720" y="430" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="40" fill="#3D2C1E">App demo</text>
+  <text x="720" y="484" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="22" fill="#7A6A58">Replace with a video of the Peel app</text>
+</svg>
