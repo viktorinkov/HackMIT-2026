@@ -19,11 +19,13 @@ from backend.knowledge.fields import (
     NDC_INDEX,
     PILLS_INDEX,
     REGULATORY_INDEX,
+    REPORTS_INDEX,
     SCANS_INDEX,
     WEB_PAGES_INDEX,
     Ndc,
     Pill,
     Reg,
+    Report,
     Scan,
     Web,
 )
@@ -36,6 +38,7 @@ RAW: dict[str, Any] = {"type": "object", "enabled": False}
 # Kept in _source only: never searched, never aggregated.
 STORED_KW: dict[str, Any] = {"type": "keyword", "index": False, "doc_values": False}
 STORED_TEXT: dict[str, Any] = {"type": "text", "index": False}
+GEO: dict[str, Any] = {"type": "geo_point"}
 KW_TXT: dict[str, Any] = {**KW, "fields": {"txt": {"type": "text"}}}
 TEXT_KW: dict[str, Any] = {
     "type": "text",
@@ -321,12 +324,35 @@ def _scans() -> dict[str, Any]:
     }
 
 
+def _reports() -> dict[str, Any]:
+    location = {
+        "label": TEXT_KW,
+        "city": KW,
+        "region": KW,
+        "country": KW,
+        "coordinates": GEO,
+    }
+    return {
+        Report.REPORT_ID: KW,
+        Report.SCAN_ID: KW,
+        Report.CONCERN_TYPE: KW,
+        Report.SUMMARY: TEXT,
+        Report.USER_DESCRIPTION: STORED_TEXT,
+        Report.SELLER: TEXT_KW,
+        Report.PURCHASED_ON: DATE,
+        Report.PURCHASE_LOCATION: {"properties": location},
+        Report.SNAPSHOT: RAW,
+        Report.CREATED_AT: DATE,
+    }
+
+
 _BUILDERS = {
     REGULATORY_INDEX: _regulatory,
     PILLS_INDEX: _pills,
     NDC_INDEX: _ndc,
     WEB_PAGES_INDEX: _web_pages,
     SCANS_INDEX: _scans,
+    REPORTS_INDEX: _reports,
 }
 
 

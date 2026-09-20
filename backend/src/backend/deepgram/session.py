@@ -111,10 +111,12 @@ def problem_from_scan(doc: dict[str, Any]) -> str:
 def fill_concern_report(doc: dict[str, Any], body: ConcernReportCreate) -> ConcernReportCreate:
     context = to_scan_context(doc)
     return ConcernReportCreate(
+        purchased_on=body.purchased_on,
+        purchase_location=body.purchase_location,
+        seller=_clean_report_field(body.seller),
         concern_type=_clean_report_field(body.concern_type) or concern_type_from_context(context),
         summary=_clean_report_field(body.summary) or lead_from_context(context) or "Scan concern",
         user_description=_clean_report_field(body.user_description) or problem_from_scan(doc),
-        symptoms=_clean_report_field(body.symptoms),
     )
 
 
@@ -150,18 +152,46 @@ def draft_concern_report_function(url: str) -> dict[str, Any]:
     return {
         "name": "draft_concern_report",
         "description": (
-            "Save a concern report for the current scan after the user confirms "
-            "they want to file. The problem is already filled from this scan. "
-            "Do not ask the user to describe it. Call with no arguments unless "
-            "the user volunteered symptoms."
+            "Save a concern report for the current scan. The scan id and the "
+            "problem are already filled from this scan — do not ask the user "
+            "to describe the problem, and do not send a scan id. Ask at most "
+            "the three optional provenance questions, one at a time, then call. "
+            "Omit any field the user does not know. An empty call is valid."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "concern_type": {"type": "string"},
-                "summary": {"type": "string"},
-                "user_description": {"type": "string"},
-                "symptoms": {"type": "string"},
+                "purchased_on": {
+                    "type": "string",
+                    "description": (
+                        "Calendar date they bought this medicine, as YYYY-MM-DD. "
+                        "An approximate day is fine. Omit if unknown."
+                    ),
+                },
+                "purchase_location": {
+                    "type": "object",
+                    "description": (
+                        "Where they bought it. Fill label with the place as they "
+                        "said it, plus city, region, and country when they named "
+                        "them. Omit if unknown."
+                    ),
+                    "properties": {
+                        "label": {"type": "string"},
+                        "city": {"type": "string"},
+                        "region": {
+                            "type": "string",
+                            "description": "State, province, or region",
+                        },
+                        "country": {"type": "string"},
+                    },
+                },
+                "seller": {
+                    "type": "string",
+                    "description": (
+                        "Name of the person or shop they bought it from. "
+                        "Omit if unknown."
+                    ),
+                },
             },
             "required": [],
         },

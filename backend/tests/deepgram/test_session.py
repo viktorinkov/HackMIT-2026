@@ -96,6 +96,9 @@ def test_voice_settings_include_the_greeting_and_the_prompt() -> None:
         "/deepgram/scan-1/reports"
     )
     assert payload["agent"]["think"]["functions"][0]["parameters"]["required"] == []
+    properties = payload["agent"]["think"]["functions"][0]["parameters"]["properties"]
+    assert set(properties) == {"purchased_on", "purchase_location", "seller"}
+    assert "scan_id" not in properties
 
 
 def test_fill_concern_report_uses_the_scan_problem() -> None:
@@ -108,13 +111,26 @@ def test_fill_concern_report_uses_the_scan_problem() -> None:
         "Pill: the hardware analysis reports the contents as ibuprofen. "
         "The label and the reference records do not agree."
     )
-    assert filled.symptoms is None
+    assert filled.purchased_on is None
+    assert filled.purchase_location is None
+    assert filled.seller is None
 
 
-def test_fill_concern_report_keeps_symptoms_the_user_gave() -> None:
+def test_fill_concern_report_keeps_provenance_the_user_gave() -> None:
+    from datetime import date
+
+    from backend.deepgram.models import PurchaseLocation
+
     filled = fill_concern_report(
         complete_scan(),
-        ConcernReportCreate(symptoms="Dizzy after one tablet."),
+        ConcernReportCreate(
+            purchased_on=date(2026, 3, 12),
+            purchase_location=PurchaseLocation(label="CVS on Mass Ave", city="Cambridge"),
+            seller="CVS Pharmacy",
+        ),
     )
     assert filled.concern_type == "mismatch"
-    assert filled.symptoms == "Dizzy after one tablet."
+    assert filled.purchased_on == date(2026, 3, 12)
+    assert filled.purchase_location is not None
+    assert filled.purchase_location.city == "Cambridge"
+    assert filled.seller == "CVS Pharmacy"

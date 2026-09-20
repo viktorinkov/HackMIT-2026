@@ -19,7 +19,7 @@ from backend.deepgram.session import (
     opening_messages_from_scan,
     problem_from_scan,
 )
-from backend.deepgram.store import MemoryReportStore, get_report_store
+from backend.deepgram.store import ReportStore, get_report_store
 from backend.knowledge.client import KnowledgeError
 from backend.research.contract import to_scan_context
 from backend.scans.store import ScanStore, get_scan_store
@@ -29,7 +29,7 @@ READY_STATUSES = frozenset({"complete", "partial"})
 router = APIRouter(prefix="/deepgram", tags=["deepgram"])
 
 StoreDep = Annotated[ScanStore, Depends(get_scan_store)]
-ReportsDep = Annotated[MemoryReportStore, Depends(get_report_store)]
+ReportsDep = Annotated[ReportStore, Depends(get_report_store)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
@@ -81,11 +81,16 @@ async def create_concern_report(
         concern_type=filled.concern_type or "other",
         summary=filled.summary or "Scan concern",
         user_description=filled.user_description or problem_from_scan(doc),
-        symptoms=filled.symptoms,
+        seller=filled.seller,
+        purchased_on=filled.purchased_on,
+        purchase_location=filled.purchase_location,
         snapshot=to_scan_context(doc),
         created_at=datetime.now(UTC),
     )
-    return await reports.add(report)
+    try:
+        return await reports.add(report)
+    except KnowledgeError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.get("/{scan_id}/reports", response_model=list[ConcernReport])
@@ -95,7 +100,10 @@ async def list_concern_reports(
     reports: ReportsDep,
 ) -> list[ConcernReport]:
     await _require_scan(store, scan_id)
-    return await reports.list(scan_id)
+    try:
+        return await reports.list(scan_id)
+    except KnowledgeError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 async def _require_scan(store: ScanStore, scan_id: str) -> dict[str, Any]:

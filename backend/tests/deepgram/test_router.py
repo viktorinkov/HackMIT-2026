@@ -106,14 +106,22 @@ def test_create_report_stores_the_scan_context(
     response = client.post(
         "/deepgram/scan-1/reports",
         json={
-            "concern_type": "wrong_pill",
-            "summary": "The names do not match.",
-            "user_description": "The bottle and the imprint disagree.",
+            "purchased_on": "2026-03-12",
+            "purchase_location": {
+                "label": "CVS on Mass Ave",
+                "city": "Cambridge",
+                "region": "MA",
+                "country": "US",
+            },
+            "seller": "CVS Pharmacy",
         },
     )
     assert response.status_code == 200
     body = response.json()
     assert body["scan_id"] == "scan-1"
+    assert body["purchased_on"] == "2026-03-12"
+    assert body["purchase_location"]["city"] == "Cambridge"
+    assert body["seller"] == "CVS Pharmacy"
     assert body["snapshot"]["scan_id"] == "scan-1"
     assert body["snapshot"]["bottle"]["generic_name"] == "acetaminophen"
     listed = client.get("/deepgram/scan-1/reports").json()
@@ -121,19 +129,31 @@ def test_create_report_stores_the_scan_context(
     assert listed[0]["report_id"] == body["report_id"]
 
 
+def test_create_report_keeps_scan_id_from_the_path(client: TestClient) -> None:
+    response = client.post(
+        "/deepgram/scan-1/reports",
+        json={"scan_id": "scan-other", "seller": "a friend"},
+    )
+    assert response.status_code == 200
+    assert response.json()["scan_id"] == "scan-1"
+    assert response.json()["seller"] == "a friend"
+
+
 def test_create_report_unwraps_a_deepgram_payload(client: TestClient) -> None:
     response = client.post(
         "/deepgram/scan-1/reports",
         json={
             "arguments": {
-                "concern_type": "quality",
-                "summary": "Looks off.",
-                "user_description": "Color is wrong.",
+                "purchased_on": "2026-03-12",
+                "seller": "CVS Pharmacy",
             }
         },
     )
     assert response.status_code == 200
-    assert response.json()["concern_type"] == "quality"
+    body = response.json()
+    assert body["purchased_on"] == "2026-03-12"
+    assert body["seller"] == "CVS Pharmacy"
+    assert body["concern_type"] == "mismatch"
 
 
 def test_create_report_autofills_the_problem_from_the_scan(client: TestClient) -> None:
@@ -145,6 +165,9 @@ def test_create_report_autofills_the_problem_from_the_scan(client: TestClient) -
     assert body["user_description"].startswith("Bottle: the label says acetaminophen 500 mg.")
     assert "Imprint:" in body["user_description"]
     assert "Pill:" in body["user_description"]
+    assert body["purchased_on"] is None
+    assert body["purchase_location"] is None
+    assert body["seller"] is None
 
 
 def test_create_report_autofills_an_empty_deepgram_call(client: TestClient) -> None:
