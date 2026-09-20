@@ -1,0 +1,164 @@
+/// Mocked backend data. The real app talks to the Peel FastAPI backend;
+/// for the demo every result below is static.
+enum ScanVerdict { match, mismatch, unconfirmed, degradation }
+
+/// The three photo captures of the scan flow.
+enum ScanStep { bottle, imprint, pill }
+
+class RecognitionRow {
+  const RecognitionRow(this.label, this.value,
+      {required this.step, this.detail});
+
+  final String label;
+  final String value;
+  final ScanStep step;
+  final String? detail;
+}
+
+class ScanResult {
+  const ScanResult({
+    required this.verdict,
+    required this.finding,
+    required this.findingDetail,
+    required this.medicine,
+    required this.rows,
+    required this.facts,
+    required this.sideEffects,
+  });
+
+  final ScanVerdict verdict;
+  final String finding;
+  final String findingDetail;
+  final String medicine;
+  final List<RecognitionRow> rows;
+  final List<String> facts;
+  final List<String> sideEffects;
+
+  bool get canReport => verdict != ScanVerdict.match;
+}
+
+const _facts = [
+  'Helps ease minor aches and pain.',
+  'Lowers fever for a short time.',
+  'Oral tablet.',
+  'Bottle medicine · DailyMed',
+];
+
+const _sideEffects = [
+  'Rash, blisters, or red skin can be serious. Stop taking it and get medical help now.',
+  'Stop taking it and contact a doctor if new symptoms, redness, or swelling appear.',
+];
+
+/// Stand-in for the vision + judge models in the backend.
+class MockBackend {
+  static const ScanResult matchResult = ScanResult(
+    verdict: ScanVerdict.match,
+    finding: 'Results match',
+    findingDetail: 'The bottle, the imprint and the pill agree.',
+    medicine: 'Acetaminophen · 500 mg',
+    rows: [
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'L484 · matches bottle',
+          step: ScanStep.imprint, detail: 'White · oval'),
+      RecognitionRow('Pill', 'Matches bottle', step: ScanStep.pill),
+    ],
+    facts: _facts,
+    sideEffects: _sideEffects,
+  );
+
+  static const ScanResult mismatchResult = ScanResult(
+    verdict: ScanVerdict.mismatch,
+    finding: 'Pill and label differ',
+    findingDetail: 'The imprint on the pill belongs to a different medicine.',
+    medicine: 'Acetaminophen · 500 mg',
+    rows: [
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'I-2 · does not match bottle',
+          step: ScanStep.imprint, detail: 'Orange · round'),
+      RecognitionRow('Pill', 'Does not match bottle', step: ScanStep.pill),
+    ],
+    facts: _facts,
+    sideEffects: _sideEffects,
+  );
+
+  static const ScanResult unconfirmedResult = ScanResult(
+    verdict: ScanVerdict.unconfirmed,
+    finding: 'Could not confirm',
+    findingDetail: 'The imprint photo was not clear enough to read.',
+    medicine: 'Acetaminophen · 500 mg',
+    rows: [
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'Not readable',
+          step: ScanStep.imprint, detail: 'Blurry photo'),
+      RecognitionRow('Pill', 'Not confirmed', step: ScanStep.pill),
+    ],
+    facts: _facts,
+    sideEffects: _sideEffects,
+  );
+
+  static const ScanResult degradationResult = ScanResult(
+    verdict: ScanVerdict.degradation,
+    finding: 'Degradation',
+    findingDetail: 'The device readings are outside the expected range.',
+    medicine: 'Acetaminophen · 500 mg',
+    rows: [
+      RecognitionRow('Bottle', 'Acetaminophen · 500 mg',
+          step: ScanStep.bottle),
+      RecognitionRow('Imprint', 'L484 · matches bottle',
+          step: ScanStep.imprint, detail: 'White · oval'),
+      RecognitionRow('Pill', 'Colour and surface changed',
+          step: ScanStep.pill),
+    ],
+    facts: _facts,
+    sideEffects: _sideEffects,
+  );
+
+  static const List<ScanResult> all = [
+    matchResult,
+    mismatchResult,
+    unconfirmedResult,
+    degradationResult,
+  ];
+
+  /// Mocked recognition: the demo always lands on the mismatch story so the
+  /// report flow is reachable. Tap the finding card to cycle the other states.
+  static ScanResult evaluate() => mismatchResult;
+
+  static ScanResult next(ScanResult current) {
+    final index = all.indexOf(current);
+    return all[(index + 1) % all.length];
+  }
+
+  static const String chatSuggestion = 'I have a question about this pill.';
+
+  static String chatPrompt(ScanVerdict verdict) => switch (verdict) {
+        ScanVerdict.match =>
+          'All three checks match. What would you like to ask?',
+        ScanVerdict.mismatch =>
+          'The pill does not match the bottle. What would you like to ask?',
+        ScanVerdict.unconfirmed =>
+          'I could not confirm the pill. What would you like to ask?',
+        ScanVerdict.degradation =>
+          'The pill looks degraded. What would you like to ask?',
+      };
+
+  static String reply(ScanVerdict verdict, String question) =>
+      switch (verdict) {
+        ScanVerdict.match =>
+          'The imprint L484 belongs to acetaminophen 500 mg, the same medicine '
+              'as the bottle. Follow the dose on the label.',
+        ScanVerdict.mismatch =>
+          'The imprint on your pill reads I-2, which belongs to ibuprofen '
+              '200 mg, not the acetaminophen on the bottle. Do not take it, '
+              'and report the bottle so someone can check it.',
+        ScanVerdict.unconfirmed =>
+          'The imprint photo was too blurry to read. Take it again in better '
+              'light, or report the bottle if the pill still looks wrong.',
+        ScanVerdict.degradation =>
+          'The device readings are outside the expected range, so the pill may '
+              'have spoiled. Do not take it, and report the bottle.',
+      };
+}
