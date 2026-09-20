@@ -7,8 +7,10 @@ import 'package:waveform_flutter/waveform_flutter.dart';
 import '../services/voice_service.dart';
 import '../theme/peel_theme.dart';
 
-/// Scrolling bar waveform for the voice screen.
+/// Bar waveform for the voice screen.
 ///
+/// The band is always full width: it starts as a flat baseline and the bars
+/// rise in place as amplitudes arrive, instead of sweeping in from one side.
 /// Each state gets its own colour and motion so you can tell who is talking
 /// without reading the label: orange jitter while you speak, a slow grey pulse
 /// while Peel thinks, a steady teal swell while Peel answers.
@@ -24,54 +26,46 @@ class PeelVoiceWaveform extends StatefulWidget {
 class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   static const _tick = Duration(milliseconds: 70);
   static const _height = 132.0;
-  static const _barSpace = 8.0;
-  // Long enough for the baseline bars to finish animating in and be seen.
+  static const _barWidth = 4.0;
+  static const _barGap = 4.0;
   static const _flatHold = Duration(milliseconds: 500);
 
   final _random = Random();
-  final _amplitudes = StreamController<Amplitude>.broadcast();
+  final _levels = <double>[];
   Timer? _timer;
   int _frame = 0;
+  DateTime _flatUntil = DateTime.now().add(_flatHold);
 
   @override
   void initState() {
     super.initState();
-    _flatten();
+    _timer = Timer.periodic(_tick, (_) => setState(_advance));
   }
 
   @override
   void didUpdateWidget(PeelVoiceWaveform oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.state != widget.state) _flatten();
-  }
-
-  /// Fills the band with baseline bars and holds them there, so the wave
-  /// starts as a flat line across the full width and rises in place rather
-  /// than scrolling in from the right.
-  void _flatten() {
-    _timer?.cancel();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final bars = (MediaQuery.of(context).size.width / _barSpace).ceil();
-      for (var i = 0; i < bars; i++) {
-        _amplitudes.add(Amplitude(current: 0, max: 100));
-      }
-      _timer = Timer(_flatHold, _run);
-    });
-  }
-
-  void _run() {
-    _timer = Timer.periodic(_tick, (_) {
-      _frame++;
-      _amplitudes.add(Amplitude(current: _level * 100, max: 100));
-    });
+    if (oldWidget.state != widget.state) {
+      _levels.fillRange(0, _levels.length, 0);
+      _flatUntil = DateTime.now().add(_flatHold);
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _amplitudes.close();
     super.dispose();
+  }
+
+  void _advance() {
+    if (_levels.isEmpty) return;
+    _frame++;
+    final amplitude = DateTime.now().isBefore(_flatUntil)
+        ? Amplitude(current: 0, max: 100)
+        : Amplitude(current: _level * 100, max: 100);
+    _levels
+      ..removeAt(0)
+      ..add(amplitude.current / amplitude.max);
   }
 
   double get _level {
@@ -94,49 +88,32 @@ class _PeelVoiceWaveformState extends State<PeelVoiceWaveform> {
   Widget build(BuildContext context) {
     return SizedBox(
       height: _height,
-      child: AnimatedWaveList(
-        // Restarting the list per state keeps old bars from being recoloured,
-        // so each state reads as its own wave.
-        key: ValueKey(widget.state),
-        stream: _amplitudes.stream,
-        barBuilder: (animation, amplitude) => _Bar(
-          animation: animation,
-          level: amplitude.current / amplitude.max,
-          color: _color,
-        ),
-      ),
-    );
-  }
-}
-
-class _Bar extends StatelessWidget {
-  const _Bar({
-    required this.animation,
-    required this.level,
-    required this.color,
-  });
-
-  final Animation<double> animation;
-  final double level;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizeTransition(
-      sizeFactor: animation,
-      axis: Axis.horizontal,
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          width: 4,
-          height: 8 + level * 104,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bars = (constraints.maxWidth / (_barWidth + _barGap)).floor();
+          if (bars != _levels.length) {
+            _levels
+              ..clear()
+              ..addAll(List<double>.filled(bars, 0));
+          }
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (final level in _levels)
+                AnimatedContainer(
+                  duration: _tick,
+                  curve: Curves.easeOut,
+                  width: _barWidth,
+                  height: 4 + level * 108,
+                  margin: const EdgeInsets.symmetric(horizontal: _barGap / 2),
+                  decoration: BoxDecoration(
+                    color: _color,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
