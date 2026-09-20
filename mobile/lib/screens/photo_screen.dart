@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../services/peel_api.dart';
 import '../services/photo_service.dart';
+import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
 
@@ -23,11 +25,13 @@ class PhotoScreen extends StatefulWidget {
     super.key,
     required this.title,
     required this.photo,
+    required this.step,
     required this.onReplaced,
   });
 
   final String title;
   final File photo;
+  final ScanStep step;
 
   /// Called as soon as a replacement is picked, so the caller is up to date
   /// even if the screen is then closed with the X.
@@ -37,6 +41,7 @@ class PhotoScreen extends StatefulWidget {
     BuildContext context, {
     required String title,
     required File photo,
+    required ScanStep step,
     required ValueChanged<File> onReplaced,
   }) {
     return Navigator.of(context).push<PhotoChoice>(
@@ -45,6 +50,7 @@ class PhotoScreen extends StatefulWidget {
         builder: (_) => PhotoScreen(
           title: title,
           photo: photo,
+          step: step,
           onReplaced: onReplaced,
         ),
       ),
@@ -57,13 +63,42 @@ class PhotoScreen extends StatefulWidget {
 
 class _PhotoScreenState extends State<PhotoScreen> {
   late File _photo = widget.photo;
+  bool _busy = false;
+  String? _error;
 
   Future<void> _pick() async {
     final file = await choosePhoto(context, title: widget.title);
     if (file == null || !mounted) return;
-    // Reported straight away, so closing with the X keeps the replacement.
     widget.onReplaced(file);
-    setState(() => _photo = file);
+    scanSession.clearVision(widget.step);
+    setState(() {
+      _photo = file;
+      _error = null;
+    });
+  }
+
+  Future<void> _use() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await scanSession.identifyPhoto(widget.step, _photo);
+      if (!mounted) return;
+      Navigator.of(context).pop(PhotoChoice(_photo));
+    } on PeelApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.message;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = error.toString();
+      });
+    }
   }
 
   @override
@@ -102,23 +137,35 @@ class _PhotoScreenState extends State<PhotoScreen> {
                   ),
                 ),
               ),
+              if (_error != null) ...[
+                const SizedBox(height: PeelSpace.x12),
+                Text(
+                  _error!,
+                  style: PeelText.body.copyWith(color: PeelColors.error),
+                ),
+              ],
               const SizedBox(height: PeelSpace.x16),
               PeelButton(
-                label: 'Use this photo',
-                onPressed: () => Navigator.of(context).pop(PhotoChoice(photo)),
+                label: _busy
+                    ? 'Reading…'
+                    : _error == null
+                        ? 'Use this photo'
+                        : 'Retry',
+                onPressed: _busy ? null : _use,
               ),
               const SizedBox(height: PeelSpace.x8),
               PeelButton(
                 label: 'Replace photo',
                 variant: PeelButtonVariant.secondary,
-                onPressed: _pick,
+                onPressed: _busy ? null : _pick,
               ),
               const SizedBox(height: PeelSpace.x8),
               PeelButton(
                 label: 'Remove photo',
                 variant: PeelButtonVariant.text,
-                onPressed: () =>
-                    Navigator.of(context).pop(const PhotoChoice(null)),
+                onPressed: _busy
+                    ? null
+                    : () => Navigator.of(context).pop(const PhotoChoice(null)),
               ),
             ],
           ),

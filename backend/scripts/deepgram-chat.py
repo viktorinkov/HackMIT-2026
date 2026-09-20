@@ -1,18 +1,26 @@
 #!/usr/bin/env python3
-"""Flutter Results chat, in a terminal.
+"""Flutter voice session, in a terminal.
 
-Same client path the app will use: Runpod POST /deepgram/session, then
-wss://agent.deepgram.com/v1/agent/converse with Authorization: Token.
-Typing here is Flutter's text chat. An 80 ms linear16 stream stands in
-for the open microphone so Deepgram does not close the listen socket.
+Same client path the app uses: POST /deepgram/session, then
+wss://agent.deepgram.com/v1/agent/converse. When the session carries a
+temporary token the socket opens with Authorization: Bearer <jwt>; when
+the backend could not mint one (grant_error) it falls back to
+Authorization: Token <DEEPGRAM_API_KEY>, the same fallback a demo build
+of the app has. Typing here stands in for speaking. An 80 ms linear16
+silence stream stands in for the open microphone.
 
-Reports work the way the app will: Peel's draft_report is a client-side
+The greeting already carries the three source lines, so nothing is
+injected after it. Warnings (provider fallbacks) and the per-turn
+LatencyReport are printed so you can see what Deepgram did.
+
+Reports work the way the app does: Peel's draft_report is a client-side
 function, so its FunctionCallRequest lands here and is printed as the
 preview screen. Nothing is stored until you type `submit`, which POSTs
 /scans/{scan_id}/reports. `reports` lists what has been filed.
 
 From backend/:
     uv run --with websockets python scripts/deepgram-chat.py
+    PEEL_ALLOW_LOCAL_API=1 API=http://127.0.0.1:8010 ...   # local backend
 """
 
 from __future__ import annotations
@@ -33,10 +41,15 @@ except ImportError:
     sys.exit("From backend/: uv run --with websockets python scripts/deepgram-chat.py")
 
 ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
-# 80 ms of linear16 / 24 kHz / mono — never a zero-length frame.
+# 80 ms of linear16 mono at the session's input rate — never a zero-length frame.
 FRAME_MS = 80
-SILENCE = bytes(24000 * 2 * FRAME_MS // 1000)
+DEFAULT_INPUT_RATE = 16000
 KEEPALIVE_EVERY = 8.0
+
+
+def _silence_for(settings: dict) -> bytes:
+    rate = ((settings.get("audio") or {}).get("input") or {}).get("sample_rate")
+    return bytes(int(rate or DEFAULT_INPUT_RATE) * 2 * FRAME_MS // 1000)
 
 # API fixture, menu label, B↔I, B↔P, I↔P (None = not a name-mismatch row).
 CASES: tuple[tuple[str, str, str | None, str | None, str | None], ...] = (
@@ -224,8 +237,9 @@ def _peel_api() -> str:
     api = (os.environ.get("API") or os.environ.get("PUBLIC_API_BASE_URL") or "").rstrip("/")
     if not api:
         sys.exit("Set API or PUBLIC_API_BASE_URL.")
-    if "127.0.0.1" in api or "localhost" in api:
-        sys.exit(f"Refusing {api}. The Flutter client talks to Runpod.")
+    local = "127.0.0.1" in api or "localhost" in api
+    if local and os.environ.get("PEEL_ALLOW_LOCAL_API") != "1":
+        sys.exit(f"Refusing {api}. The Flutter client talks to Runpod. Set PEEL_ALLOW_LOCAL_API=1 to test a local backend.")
     return api
 
 
@@ -401,50 +415,34 @@ def _open_results_chat(api: str, fixture: str) -> dict:
         if fixture != "pending":
             _wait_ready(api, scan_id)
     session = _request("POST", f"{api}/deepgram/session", {"scan_id": scan_id})
-    if session.get("authorization") != "Token" or "access_token" in session:
-        sys.exit("Session is not the Flutter Token handoff")
+    if session.get("authorization") not in {"Bearer", "Token"}:
+        sys.exit(f"Unexpected authorization scheme: {session.get('authorization')!r}")
     print(f"Opened {OPENED.get(fixture, fixture)} ({scan_id})")
     return session
 
 
-async def _hold_open(ws, send_lock: asyncio.Lock) -> None:
+def _auth_header(session: dict, api_key: str) -> str:
+    """Bearer with the backend-minted token, or the usage-key fallback."""
+    if session.get("authorization") == "Bearer" and session.get("access_token"):
+        print(f"Auth: temporary token (expires in {session.get('expires_in')} s)")
+        return f"Bearer {session['access_token']}"
+    reason = session.get("grant_error") or "no token in session"
+    if not api_key:
+        sys.exit(f"No temporary token ({reason}) and DEEPGRAM_API_KEY is not set.")
+    print(f"Auth: usage key fallback ({reason})")
+    return f"Token {api_key}"
+
+
+async def _hold_open(ws, send_lock: asyncio.Lock, silence: bytes) -> None:
     elapsed = 0.0
     while True:
         async with send_lock:
-            await ws.send(SILENCE)
+            await ws.send(silence)
             if elapsed >= KEEPALIVE_EVERY:
                 await ws.send(json.dumps({"type": "KeepAlive"}))
                 elapsed = 0.0
         await asyncio.sleep(FRAME_MS / 1000)
         elapsed += FRAME_MS / 1000
-
-
-async def _speak_opening(
-    ws,
-    send_lock: asyncio.Lock,
-    peel_done: asyncio.Event,
-    messages: object,
-) -> bool:
-    if not isinstance(messages, list) or not messages:
-        return True
-    for text in messages:
-        content = str(text).strip()
-        if not content:
-            continue
-        peel_done.clear()
-        async with send_lock:
-            await ws.send(
-                json.dumps(
-                    {
-                        "type": "InjectAgentMessage",
-                        "message": content,
-                        "behavior": "queue",
-                    }
-                )
-            )
-        if not await _wait_idle(peel_done, timeout=20):
-            return False
-    return True
 
 
 async def _wait_idle(event: asyncio.Event, timeout: float, settle: float = 0.8) -> bool:
@@ -464,9 +462,10 @@ async def _chat(session: dict, api_key: str, fixture: str, api: str) -> str:
     scan_id = str(session.get("scan_id") or "")
     reports_url = f"{api}/scans/{scan_id}/reports"
     state: dict = {"draft": None}
+    silence = _silence_for(session.get("settings") or {})
     async with websockets.connect(
         session["websocket_url"],
-        additional_headers={"Authorization": f"Token {api_key}"},
+        additional_headers={"Authorization": _auth_header(session, api_key)},
         open_timeout=20,
         max_size=None,
     ) as ws:
@@ -517,16 +516,14 @@ async def _chat(session: dict, api_key: str, fixture: str, api: str) -> str:
 
         reader = asyncio.create_task(_read())
         renderer = asyncio.create_task(_render())
-        keepalive = asyncio.create_task(_hold_open(ws, send_lock))
+        keepalive = asyncio.create_task(_hold_open(ws, send_lock, silence))
         loop = asyncio.get_running_loop()
         smoke = os.environ.get("PEEL_SMOKE") == "1"
         action = "quit"
         try:
-            await _wait_idle(peel_done, timeout=25)
-            if closed.is_set():
-                return action
-            if not await _speak_opening(ws, send_lock, peel_done, session.get("opening_messages")):
-                sys.exit("Peel: (no opening)")
+            # The greeting already carries the three source lines.
+            if not await _wait_idle(peel_done, timeout=40):
+                sys.exit("Peel: (no greeting)")
             if closed.is_set():
                 return action
             if smoke:
@@ -609,6 +606,15 @@ def _show(msg: dict) -> bool:
         return False
     if kind == "AgentAudioDone":
         return True
+    if kind == "Warning":
+        # Provider fallbacks show up here (SPEAK_REQUEST_FAILED, THINK_REQUEST_FAILED).
+        print(f"(warning {msg.get('code')}: {msg.get('description')})")
+        return False
+    if kind == "LatencyReport":
+        total = msg.get("total_latency")
+        if isinstance(total, (int, float)):
+            print(f"(latency {total:.2f} s)")
+        return False
     if kind == "Error":
         print(f"Peel: something went wrong ({msg.get('description') or msg})")
         return True
@@ -617,9 +623,8 @@ def _show(msg: dict) -> bool:
 
 def main() -> None:
     _load_dotenv()
+    # Only needed when the backend cannot mint a temporary token.
     api_key = os.environ.get("DEEPGRAM_API_KEY", "")
-    if not api_key:
-        sys.exit("DEEPGRAM_API_KEY missing — Flutter will use the same usage key")
     args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
     if "--help" in sys.argv or "-h" in sys.argv:
         _print_cases()

@@ -16,9 +16,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 <p align="center">
-  <img src="assets/hardware-placeholder.svg" alt="Placeholder for a photo of the Peel hardware" width="720">
-  <br>
-  <em>Hardware photo — coming soon</em>
+  <img src="assets/hardware.webp" alt="The Peel instrument: a low-cost optical dissolution tester with a status display" width="720">
 </p>
 
 <p align="center">
@@ -35,6 +33,7 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 - [Backend](#backend)
 - [Getting started](#getting-started)
 - [HTTP API](#http-api)
+- [Peel Voice Agent](#peel-voice-agent)
 - [Project layout](#project-layout)
 - [License](#license)
 
@@ -331,6 +330,12 @@ Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 | `GET` | `/knowledge/search` | Hybrid regulatory or web search |
 | `GET` | `/knowledge/stats` | Index counts |
 | `GET` | `/health` | Liveness |
+
+## Peel Voice Agent
+
+After Results, **Talk to Peel** opens a Deepgram Voice Agent session for that scan. One WebSocket runs STT, the LLM, and TTS. The app never ships the API key: `POST /deepgram/session` mints a temporary token. You can interrupt the greeting; keyterms come from this scan; the latency chip is Deepgram’s `total_latency`; Flux TTS falls back to Aura-2 if needed. A HIPAA BAA is Enterprise-only.
+
+The longer judge-facing write-up is [`docs/deepgram/WHY-DEEPGRAM.md`](docs/deepgram/WHY-DEEPGRAM.md).
 
 ## Project layout
 
