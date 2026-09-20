@@ -88,6 +88,39 @@ _GENERIC_NAME_TOKENS = frozenset(
     {"sodium", "hydrochloride", "tablets", "capsules", "usp"}
 )
 
+# A firm name is corroborating only through its distinctive word: legal suffixes
+# and the industry words below are shared by hundreds of unrelated companies, so
+# "Sun Pharmaceutical Industries" and "Zydus Pharmaceuticals" must not match.
+_MIN_FIRM_TOKEN = 4
+_GENERIC_FIRM_TOKENS = frozenset(
+    {
+        "inc",
+        "llc",
+        "ltd",
+        "limited",
+        "corp",
+        "corporation",
+        "co",
+        "company",
+        "plc",
+        "gmbh",
+        "pvt",
+        "usa",
+        "us",
+        "pharmaceutical",
+        "pharmaceuticals",
+        "pharma",
+        "laboratories",
+        "laboratory",
+        "labs",
+        "healthcare",
+        "health",
+        "international",
+        "industries",
+        "group",
+    }
+)
+
 _REG_TEXT_FIELDS = (
     f"{Reg.TITLE}^3",
     f"{Reg.DRUG_NAMES}.txt^2",
@@ -568,12 +601,35 @@ def _name_tokens(values: list[str] | None) -> set[str]:
     return tokens
 
 
+def _manufacturer_tokens(values: list[str] | None) -> set[str]:
+    """The distinctive words of a firm name ("accord", "zydus", "prinston")."""
+    tokens: set[str] = set()
+    for value in values or []:
+        text = normalize.clean_text(value)
+        if not text:
+            continue
+        flattened = "".join(c if c.isalnum() else " " for c in text.casefold())
+        for token in flattened.split():
+            if len(token) >= _MIN_FIRM_TOKEN and token not in _GENERIC_FIRM_TOKENS:
+                tokens.add(token)
+    return tokens
+
+
+def _same_manufacturer(source: dict[str, Any], firm_tokens: set[str]) -> bool:
+    """Do the label's firm and the record's own firm fields share a distinctive word?"""
+    recorded = _manufacturer_tokens(
+        _as_list(source.get(Reg.MANUFACTURER)) + _as_list(source.get(Reg.RECALLING_FIRM))
+    )
+    return bool(firm_tokens & recorded)
+
+
 def _corroborates(
     source: dict[str, Any],
     ndc9: str | None,
     drug_names: list[str] | None,
     *,
     ndc_fields: tuple[str, ...] = (Reg.NDC9, Reg.NDC_FROM_DESCRIPTION),
+    firm_tokens: set[str] | None = None,
 ) -> bool:
     """Does this record actually name the scanned product?
 
@@ -581,7 +637,9 @@ def _corroborates(
     strength's NDC onto every recall, so neither a lot term hit nor an `ndc9` hit
     identifies a product on its own. `ndc_fields` is therefore narrowed to
     `ndc_from_description` (the NDCs written in the recall's own text) wherever the
-    sibling list is what did the retrieving.
+    sibling list is what did the retrieving. `firm_tokens` (None = not required)
+    makes the name leg additionally require a firm match; an empty set never
+    matches, which is exactly right for a label that names no manufacturer.
     """
     if ndc9:
         for name in ndc_fields:
@@ -593,7 +651,9 @@ def _corroborates(
     recorded = _name_tokens(
         _as_list(source.get(Reg.DRUG_NAMES)) + _as_list(source.get(Reg.DRUG_NAMES_EXTRACTED))
     )
-    return bool(wanted & recorded)
+    if not wanted & recorded:
+        return False
+    return firm_tokens is None or _same_manufacturer(source, firm_tokens)
 
 
 def corroborates_product(
@@ -727,8 +787,16 @@ class KnowledgeSearch:
         *,
         ndc9: str | None = None,
         drug_names: list[str] | None = None,
+        manufacturer: str | None = None,
     ) -> list[Hit]:
-        """Recalls that name no lots at all, so every lot of the product is in scope."""
+        """Recalls that name no lots at all, so every lot of the product is in scope.
+
+        A drug name alone cannot promote a hit to `all_lots_product`: every maker of
+        a molecule shares its name, so a repackager's bulk-ingredient recall would
+        otherwise make every tablet of that molecule a `recall_match`. The product is
+        named only by the scan's `ndc9` in the recall's OWN text, or by a drug-name
+        overlap that the firm names corroborate too.
+        """
         names = normalized_names(drug_names)
         should: list[dict[str, Any]] = []
         if ndc9:
@@ -756,11 +824,16 @@ class KnowledgeSearch:
             "sort": [{Reg.SEVERITY_RANK: "desc"}, {Reg.RECENCY_DATE: "desc"}],
         }
         hits = await self._hits(self.regulatory, body, recency_field=Reg.RECENCY_DATE)
+        firm_tokens = _manufacturer_tokens(_as_list(manufacturer))
         for hit in hits:
             # The `ndc9` leg retrieves on openFDA's sibling list, so only the NDCs
             # written in the recall's own text can corroborate the product here.
             corroborated = _corroborates(
-                hit.source, ndc9, drug_names, ndc_fields=(Reg.NDC_FROM_DESCRIPTION,)
+                hit.source,
+                ndc9,
+                drug_names,
+                ndc_fields=(Reg.NDC_FROM_DESCRIPTION,),
+                firm_tokens=firm_tokens,
             )
             hit.match_kind = "all_lots_product" if corroborated else "all_lots_sibling"
         hits.sort(key=lambda hit: hit.match_kind != "all_lots_product")

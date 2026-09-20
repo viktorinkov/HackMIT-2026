@@ -87,8 +87,9 @@ corroborates this product (or no product context was available) and may support 
 while "lot_only_match" means the record names the same lot string for a DIFFERENT product: report \
 it as a caution telling the reader to compare the product name carefully, never as recall_match. \
 In all_lots_hits, "all_lots_product" may support recall_match, while "all_lots_sibling" was \
-reached only through openFDA's sibling-strength NDC list and is product-line evidence, worded \
-exactly like a product-line NDC recall and never recall_match.
+reached only through openFDA's sibling-strength NDC list or through a drug name another firm's \
+recall happens to share: it is product-line evidence, worded exactly like a product-line NDC \
+recall and never recall_match.
 - mismatch_found: the label, the imprint reference and the NDC directory disagree.
 - insufficient_evidence: nothing usable was read from the label or the pill.
 - no_adverse_findings: the searches ran and found nothing adverse. This is NOT a clean bill of \
@@ -368,7 +369,13 @@ class ResearchPipeline:
                 on_error=recall_lookup_failed,
             )
         lookups["all_lots_hits"] = await _try(
-            search.recalls_covering_all_lots(ndc9=norm.get("ndc9"), drug_names=product_names),
+            search.recalls_covering_all_lots(
+                ndc9=norm.get("ndc9"),
+                drug_names=product_names,
+                # An all-lots recall names this product only through the NDC in its
+                # own text or through name AND firm, never the drug name alone.
+                manufacturer=norm.get("manufacturer"),
+            ),
             [],
             on_error=recall_lookup_failed,
         )

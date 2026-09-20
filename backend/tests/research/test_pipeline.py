@@ -868,6 +868,17 @@ async def test_the_lot_lookup_carries_the_product_context() -> None:
     assert search.kwargs["recalls_covering_all_lots"]["drug_names"] == ["levothyroxine"]
 
 
+async def test_the_all_lots_lookup_carries_the_manufacturer() -> None:
+    search = FakeSearch()
+    pipeline, _ = build(search=search)
+
+    await pipeline.run(SCAN_ID)
+
+    # Without the firm, any recall sharing the molecule's name would be read as a
+    # recall of this bottle.
+    assert search.kwargs["recalls_covering_all_lots"]["manufacturer"] == "Accord"
+
+
 async def test_a_failed_lot_lookup_is_never_reported_as_nothing_found() -> None:
     search = FakeSearch(
         recalls_by_lot=KnowledgeError("search on peel-regulatory failed: 503", status_code=503)

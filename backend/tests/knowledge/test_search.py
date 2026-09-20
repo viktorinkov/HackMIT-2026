@@ -506,18 +506,117 @@ async def test_all_lots_sibling_when_only_the_openfda_ndc_list_carries_the_ndc()
     assert {"term": {Reg.NDC_FROM_DESCRIPTION: "713510026"}} in should
 
 
-async def test_all_lots_product_when_the_recall_text_names_the_ndc() -> None:
+async def test_an_ndc_written_in_the_recalls_own_text_still_names_the_product_without_any_manufacturer() -> None:
     es = _FakeEs([_reg_source(**{Reg.NDC_FROM_DESCRIPTION: ["713510026"], Reg.NDC9: []})])
     hits = await _search(es).recalls_covering_all_lots(ndc9="713510026", drug_names=[])
     assert _kinds(hits) == ["all_lots_product"]
 
 
-async def test_all_lots_product_when_the_drug_names_overlap() -> None:
-    es = _FakeEs([_reg_source(**{Reg.NDC9: [], Reg.NDC_FROM_DESCRIPTION: []})])
+async def test_an_all_lots_recall_names_the_product_when_the_manufacturers_share_a_distinctive_token() -> None:
+    es = _FakeEs(
+        [
+            _reg_source(
+                **{
+                    Reg.NDC9: [],
+                    Reg.NDC_FROM_DESCRIPTION: [],
+                    Reg.MANUFACTURER: "Accord Healthcare, Inc.",
+                }
+            )
+        ]
+    )
     hits = await _search(es).recalls_covering_all_lots(
-        ndc9=None, drug_names=["Levothyroxine Sodium 100 mcg"]
+        ndc9=None,
+        drug_names=["Levothyroxine Sodium 100 mcg"],
+        manufacturer="Accord Healthcare Inc.",
     )
     assert _kinds(hits) == ["all_lots_product"]
+
+
+async def test_an_all_lots_recall_of_another_firms_bulk_ingredient_is_only_a_sibling_for_an_accord_tablet() -> None:
+    # fda-enf-D-761-2015: a Toronto repackager's levothyroxine API in bags and
+    # drums. It shares the molecule's name with every levothyroxine tablet ever
+    # made, and nothing else — an Accord bottle is not in its scope.
+    attix = _reg_source(
+        **{
+            Reg.RECORD_ID: "fda-enf-D-761-2015",
+            Reg.NDC9: [],
+            Reg.NDC_FROM_DESCRIPTION: [],
+            Reg.DRUG_NAMES: [],
+            Reg.DRUG_NAMES_EXTRACTED: ["levothyroxine sodium"],
+            Reg.MANUFACTURER: "Attix Pharmaceuticals",
+            Reg.RECALLING_FIRM: "Attix Pharmaceuticals",
+        }
+    )
+    hits = await _search(_FakeEs([attix])).recalls_covering_all_lots(
+        ndc9="167290457",
+        drug_names=["Levothyroxine Sodium 200 mcg"],
+        manufacturer="Accord Healthcare",
+    )
+    assert _kinds(hits) == ["all_lots_sibling"]
+
+
+async def test_an_all_lots_recall_matched_by_name_alone_is_never_the_product_when_the_label_names_no_manufacturer() -> None:
+    # fda-enf-D-1016-2015: a compounding pharmacy's ibuprofen 10% cream. A plain
+    # ibuprofen tablet with no NDC and no firm on the label has nothing to
+    # corroborate with, so the name overlap alone cannot promote it.
+    cream = _reg_source(
+        **{
+            Reg.RECORD_ID: "fda-enf-D-1016-2015",
+            Reg.NDC9: [],
+            Reg.NDC_FROM_DESCRIPTION: [],
+            Reg.DRUG_NAMES: ["ibuprofen"],
+            Reg.MANUFACTURER: "Health Innovations Pharmacy",
+        }
+    )
+    hits = await _search(_FakeEs([cream])).recalls_covering_all_lots(
+        ndc9=None, drug_names=["Ibuprofen 200 mg"], manufacturer=None
+    )
+    assert _kinds(hits) == ["all_lots_sibling"]
+    # A blank firm on the label is no different from none at all.
+    hits = await _search(_FakeEs([cream])).recalls_covering_all_lots(
+        ndc9=None, drug_names=["Ibuprofen 200 mg"], manufacturer="   "
+    )
+    assert _kinds(hits) == ["all_lots_sibling"]
+
+
+async def test_legal_and_generic_company_words_never_corroborate_a_manufacturer() -> None:
+    zydus = _reg_source(
+        **{
+            Reg.NDC9: [],
+            Reg.NDC_FROM_DESCRIPTION: [],
+            Reg.DRUG_NAMES: ["levothyroxine sodium"],
+            Reg.MANUFACTURER: "Zydus Pharmaceuticals (USA) Inc.",
+        }
+    )
+    hits = await _search(_FakeEs([zydus])).recalls_covering_all_lots(
+        ndc9=None,
+        drug_names=["Levothyroxine Sodium 100 mcg"],
+        manufacturer="Sun Pharmaceutical Industries Ltd",
+    )
+    assert _kinds(hits) == ["all_lots_sibling"]
+
+
+async def test_the_recalling_firm_corroborates_when_the_manufacturer_field_is_empty() -> None:
+    source = _reg_source(
+        **{
+            Reg.NDC9: [],
+            Reg.NDC_FROM_DESCRIPTION: [],
+            Reg.DRUG_NAMES: ["levothyroxine sodium"],
+            Reg.RECALLING_FIRM: "Accord Healthcare Inc",
+        }
+    )
+    hits = await _search(_FakeEs([source])).recalls_covering_all_lots(
+        ndc9=None, drug_names=["Levothyroxine Sodium"], manufacturer="Accord Healthcare"
+    )
+    assert _kinds(hits) == ["all_lots_product"]
+
+
+async def test_the_lot_lookup_still_corroborates_on_the_drug_name_alone() -> None:
+    # The all-lots firm requirement must not leak into `recalls_by_lot`: an exact
+    # lot string plus a name overlap is a much stronger signal on its own.
+    es = _FakeEs([_reg_source(**{Reg.NDC9: [], Reg.NDC_FROM_DESCRIPTION: []})])
+    hits = await _search(es).recalls_by_lot("D2402430", drug_names=["Levothyroxine Sodium"])
+    assert _kinds(hits) == ["exact_lot"]
 
 
 async def test_all_lots_dedupes_by_event_keeping_the_product_record() -> None:

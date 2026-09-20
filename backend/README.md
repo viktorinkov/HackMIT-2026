@@ -350,14 +350,20 @@ it's fresh.
 **Lot corroboration.** A lot string is unique per manufacturer only, and the corpus also carries
 extraction artefacts ("MG30", "080615"), so a bare term hit on `lot_numbers` is a collision as
 often as a match. `recalls_by_lot(lot, *, ndc9=None, drug_names=None)` therefore classifies every
-hit *after* retrieval with the same corroboration check `recalls_covering_all_lots` uses, exposed
-publicly as `corroborates_product()` for tests and future callers: a hit whose
+hit *after* retrieval with a corroboration check exposed publicly as `corroborates_product()`
+for tests and future callers: a hit whose
 `ndc9`/`ndc_from_description` or `drug_names`/`drug_names_extracted` token-overlaps the scanned
 product — or one where the label gave no product context to check against at all — keeps
 `match_kind = "exact_lot"`; a lot-string collision with a *different* product is downgraded to
-`"lot_only_match"`. `recalls_covering_all_lots` (recalls that name no lots at all, so the entire
-product line is in scope) applies the same test and tags `"all_lots_product"` vs
-`"all_lots_sibling"` (reached only through openFDA's sibling-strength NDC list). Both methods sort
+`"lot_only_match"`. `recalls_covering_all_lots(*, ndc9=None, drug_names=None, manufacturer=None)`
+(recalls that name no lots at all, so the entire product line is in scope) tags
+`"all_lots_product"` only when the scanned `ndc9` appears in the recall's own
+`ndc_from_description`, or when the drug names overlap **and** the label's manufacturer shares a
+distinctive token with the record's `manufacturer`/`recalling_firm` (casefolded, legal and
+industry words like `inc`/`pharmaceuticals`/`labs` dropped, ≥4 characters left to match).
+Everything else — a drug name alone, or a label naming no manufacturer — is `"all_lots_sibling"`,
+because every maker of a molecule shares its name, so one repackager's bulk-ingredient recall
+would otherwise make every tablet of that molecule a recall match. Both methods sort
 corroborated hits first and *then* dedupe by `event_id`, so a corroborated record — not an
 uncorroborated sibling that happens to share the same recall event — is the one kept.
 
