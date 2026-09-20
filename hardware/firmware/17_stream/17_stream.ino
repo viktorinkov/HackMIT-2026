@@ -94,6 +94,10 @@ bool  stirring = true;
 bool  diagPending = false;
 unsigned long loopMaxUs = 0;
 uint32_t radioFail = 0, radioDrift = 0;
+// When the face last said anything to us. Broadcast ESP-NOW is not acknowledged, so a send
+// that returns ESP_OK proves only that the packet left this board; this is the one piece of
+// evidence we have that something is listening.
+unsigned long lastHeardFromFace = 0;
 unsigned long stirChangedMs = 0;
 float motorTransBefore = NAN, motorTransAfter = NAN;
 float motorScatBefore = NAN, motorScatAfter = NAN;
@@ -170,16 +174,30 @@ long diodeMv(int pin) {
   return v / 20;
 }
 
-// Peak to peak across 12 readings, each already a ~100 ms average, so room light's 120 Hz
-// ripple is averaged out and what is left is the sensor's own noise.
-long noiseMv(int pin) {
-  long lo = 4096, hi = 0;
+// Peak to peak across 12 windows, each a 100 ms average. avgMv is 24 samples, about 4 ms,
+// which is a fraction of a mains cycle: room light's 120 Hz ripple would come out as the
+// sensor's own noise and the 60 mV threshold in BASELINES.md is measured against 100 ms
+// means. Both sensors share the windows, so this costs 1.2 s rather than 2.4 s.
+void noiseMv(int pinA, int pinB, long& outA, long& outB) {
+  long loA = 4096, hiA = 0, loB = 4096, hiB = 0;
   for (int i = 0; i < 12; i++) {
-    long v = avgMv(pin);
-    if (v < lo) lo = v;
-    if (v > hi) hi = v;
+    long sumA = 0, sumB = 0, n = 0;
+    unsigned long until = millis() + 100;
+    while ((long)(millis() - until) < 0) {
+      sumA += analogReadMilliVolts(pinA);
+      sumB += analogReadMilliVolts(pinB);
+      n++;
+      delayMicroseconds(150);
+    }
+    if (n == 0) n = 1;
+    long a = sumA / n, b = sumB / n;
+    if (a < loA) loA = a;
+    if (a > hiA) hiA = a;
+    if (b < loB) loB = b;
+    if (b > hiB) hiB = b;
   }
-  return hi - lo;
+  outA = hiA - loA;
+  outB = hiB - loB;
 }
 
 void printMvOrNull(float v) {
@@ -188,11 +206,12 @@ void printMvOrNull(float v) {
 
 const char* resetReason();
 
-// Costs about a second of the fast channel: the LEDs have to be off and then released to
-// measure anything, which is why this happens on request and not on a timer.
+// Costs about two seconds of the fast channel: 1.2 s of noise windows, then the LEDs have
+// to be off and released to measure their drops. Hence on request, never on a timer.
 void emitDiag() {
   allLedsOff(); delay(SETTLE_MS);
-  long nT = noiseMv(SENS_T), nS = noiseMv(SENS_S);
+  long nT = 0, nS = 0;
+  noiseMv(SENS_T, SENS_S, nT, nS);
   long drops[NLED];
   for (int i = 0; i < NLED; i++) drops[i] = diodeMv(LED_PINS[i]);
   fastLedOn();
@@ -211,8 +230,10 @@ void emitDiag() {
   Serial.printf(",\"probe\":{\"present\":%s,\"count\":%d,\"addr\":",
                 haveProbe ? "true" : "false", probeCount);
   if (probeAddr[0]) Serial.printf("\"%s\"}", probeAddr); else Serial.print("null}");
-  Serial.printf(",\"radio\":{\"ch\":%d,\"fail\":%u,\"drift\":%u}",
+  Serial.printf(",\"radio\":{\"ch\":%d,\"fail\":%u,\"drift\":%u,\"heard\":",
                 NOW_CHANNEL, (unsigned)radioFail, (unsigned)radioDrift);
+  if (lastHeardFromFace) Serial.printf("%lu}", millis() - lastHeardFromFace);
+  else Serial.print("null}");
   // Both channels moving together across a stirrer toggle means the motor is talking to the
   // sensors, through the supply or through the light path. The host compares these four.
   Serial.printf(",\"motor\":{\"stir\":%d,\"transBefore\":", stirring ? STIR_PCT : 0);
@@ -273,10 +294,12 @@ void nowSendReading(float elapsed, float t, float s, float aT, float aS, float t
   }
   p.stir = stirring ? STIR_PCT : 0;
   p.flags = (sweptThisLine ? 1 : 0) | (haveBlank ? 2 : 0) | (autoZero ? 4 : 0) | (stirring ? 8 : 0);
+  // ESP_OK here means queued for transmission, nothing more: broadcasts get no ack.
   if (esp_now_send(BCAST, (const uint8_t *)&p, sizeof(p)) != ESP_OK) radioFail++;
 }
 
 void onNowRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+  if (len >= 1) lastHeardFromFace = millis();
   // one ASCII letter, the same alphabet the USB commands use
   if (len >= 1 && data[0] >= 'a' && data[0] <= 'z') handleCommand((char)data[0]);
 }

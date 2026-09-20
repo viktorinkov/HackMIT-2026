@@ -156,7 +156,7 @@ void main() {
     tearDown(() => dir.deleteSync(recursive: true));
 
     test('one file per session, holding everything the board said', () async {
-      final log = await SessionLog.open(directory: dir, now: DateTime(2026, 5, 1, 9, 30, 15));
+      final log = SessionLog.open(directory: dir, now: DateTime(2026, 5, 1, 9, 30, 15));
       expect(log.file.path, endsWith('peel-2026-05-01T09-30-15.000.jsonl'));
 
       final at = DateTime(2026, 5, 1, 9, 30, 16);
@@ -188,8 +188,8 @@ void main() {
 
     test('two connections in the same second get a file each', () async {
       final at = DateTime(2026, 5, 1, 9, 30, 15);
-      final first = await SessionLog.open(directory: dir, now: at);
-      final second = await SessionLog.open(directory: dir, now: at);
+      final first = SessionLog.open(directory: dir, now: at);
+      final second = SessionLog.open(directory: dir, now: at);
       await first.close();
       await second.close();
 
@@ -199,9 +199,21 @@ void main() {
       }
     });
 
+    test('the first line of the run is in the log, not lost to opening it', () async {
+      final logged = Session(watchUsb: false, logging: true, logDirectory: dir);
+      addTearDown(logged.dispose);
+      await logged.connectTo(link);
+      link.say(_data);
+      await settle();
+      final log = logged.log!;
+      await log.close();
+
+      expect(await log.read(), contains('"kind":"reading"'));
+    });
+
     test('the log survives the disconnect that closed it, so the run can be read back',
         () async {
-      final log = await SessionLog.open(directory: dir);
+      final log = SessionLog.open(directory: dir);
       final logged = Session(watchUsb: false, logging: false);
       addTearDown(logged.dispose);
       await logged.connectTo(link);
@@ -217,7 +229,7 @@ void main() {
     });
 
     test('faults are written when they are raised and again when they clear', () async {
-      final log = await SessionLog.open(directory: dir);
+      final log = SessionLog.open(directory: dir);
       final logged = Session(
         watchUsb: false,
         logging: false,
@@ -227,11 +239,11 @@ void main() {
       await logged.connectTo(link);
       logged.log = log;
 
-      link.say('{"t":1.0,"trans":10,"scat":10,"tempC":22.0,"swept":0}');
-      await settle();
-      for (var i = 2; i < 9; i++) {
+      // Spread out, because SENSOR_UNPOWERED wants five seconds of floor readings and not
+      // merely five readings.
+      for (var i = 1; i < 10; i++) {
         link.say('{"t":$i.0,"trans":10,"scat":10,"tempC":22.0,"swept":0}');
-        await settle(10);
+        await settle(600);
       }
       await settle(200);
       expect(logged.faults.map((f) => f.id), contains('SENSOR_UNPOWERED'));

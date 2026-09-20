@@ -57,6 +57,10 @@ class Thresholds {
   /// consecutive reads; with the radio on it moves by up to +-1.5 C (`BASELINES.md`).
   static const tempJitterC = 0.5;
 
+  /// The measured line period, 1.016 s (`BASELINES.md`). Used as slack when asking whether
+  /// a window of lines really covers the time a fault is supposed to persist for.
+  static const reportPeriod = Duration(milliseconds: 1016);
+
   /// STREAM_STALE. The report period is 1.016 s and the longest healthy gap ever seen is
   /// 2.18 s, during the stirrer's start ramp.
   static const streamStale = Duration(seconds: 3);

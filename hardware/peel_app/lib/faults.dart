@@ -189,13 +189,23 @@ Iterable<Fault> _reset(History h, DateTime now) sync* {
   final at = h.restarts.last;
   if (now.difference(at) > const Duration(seconds: 30)) return;
   final reason = h.diag?.resetReason;
-  final id = h.resetDuringRun ? 'BOARD_RESET_MIDRUN' : 'BROWNOUT_RESET';
+  // A reset the board itself blames on software is not a power problem, and sending someone
+  // to the supply for a PANIC or a watchdog wastes their afternoon. Only a board that says
+  // BROWNOUT, or one that has not said anything yet, gets the supply diagnosis.
+  final supply = reason == null || reason == 'BROWNOUT' || reason == 'POWERON';
+  final id = h.resetDuringRun
+      ? 'BOARD_RESET_MIDRUN'
+      : supply
+          ? 'BROWNOUT_RESET'
+          : 'BOARD_RESET';
   yield Fault(
       id,
       Severity.severe,
       h.resetDuringRun
           ? 'The board restarted during a run: the blank and t = 0 are gone.'
-          : 'The board restarted: the supply probably sagged.',
+          : supply
+              ? 'The board restarted: the supply probably sagged.'
+              : 'The board restarted, and reports $reason: the firmware, not the supply.',
       {
         'banners': h.banners.length,
         'restarts': h.restarts.length,
@@ -204,13 +214,20 @@ Iterable<Fault> _reset(History h, DateTime now) sync* {
       });
 }
 
+/// Whether [window] really spans [over], rather than being the two or three lines that
+/// happen to have arrived since the port opened. One report period of slack, because the
+/// oldest line inside a 5 s window is about 4 s old, never exactly 5.
+bool _covers(List<Sample> window, Duration over, DateTime now) =>
+    window.length >= 2 &&
+    now.difference(window.first.at) >= over - Thresholds.reportPeriod;
+
 // ---------------------------------------------------------------- the two light sensors
 Iterable<Fault> _sensors(History h, DateTime now) sync* {
   for (final channel in const ['trans', 'scat']) {
     double value(Reading r) => channel == 'trans' ? r.transMv : r.scatMv;
 
     final floorWindow = h.unswept(Thresholds.sensorFloorFor, now).toList();
-    if (floorWindow.length >= 3 &&
+    if (_covers(floorWindow, Thresholds.sensorFloorFor, now) &&
         floorWindow.every((s) => value(s.reading) < Thresholds.sensorFloorMv)) {
       yield Fault('SENSOR_UNPOWERED', Severity.severe,
           'The $channel sensor reads below the ADC floor: check VCC, GND and SIG.', {
@@ -222,7 +239,7 @@ Iterable<Fault> _sensors(History h, DateTime now) sync* {
     }
 
     final satWindow = h.unswept(Thresholds.sensorSaturatedFor, now).toList();
-    if (satWindow.length >= 2 &&
+    if (_covers(satWindow, Thresholds.sensorSaturatedFor, now) &&
         satWindow.every((s) => value(s.reading) > Thresholds.sensorSaturatedMv)) {
       yield Fault('SENSOR_SATURATED', Severity.severe,
           'The $channel sensor is pinned at full scale.', {
@@ -396,9 +413,13 @@ Iterable<Fault> _radio(History h, DateTime now) sync* {
   }
   final failures = diag?.radioSendFailures;
   if (failures != null && failures >= Thresholds.radioSendFailures) {
+    // A send that succeeds only reached the radio's queue: ESP-NOW broadcasts are never
+    // acknowledged, so the phone cannot tell a listening face from an absent one. Failures
+    // are still real, and `heard` says whether the face has ever answered.
     yield Fault('RADIO_DOWN', Severity.warning,
-        'ESP-NOW sends are failing: the BOX-3 face is probably not hearing the board.', {
+        'The board cannot get packets onto the air: ESP-NOW sends are failing.', {
       'sendFailures': failures,
+      'heardFromFaceMsAgo': diag?.radioHeardMs,
       'threshold': '>= ${Thresholds.radioSendFailures} failed sends',
     });
   }

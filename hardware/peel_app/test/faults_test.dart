@@ -86,6 +86,13 @@ void main() {
     expect(b.faults.first.evidence['channel'], 'trans');
     // Two lines is not yet evidence of anything.
     expect((Board()..data(trans: 12, count: 2)).problems, isEmpty);
+    // Neither is a burst of lines: five seconds of floor readings means five seconds, not
+    // five readings a few hundred milliseconds apart.
+    expect(
+      (Board()..data(trans: 12, count: 6, every: const Duration(milliseconds: 200)))
+          .problems,
+      isEmpty,
+    );
   });
 
   test('SENSOR_SATURATED: pinned at full scale', () {
@@ -212,6 +219,16 @@ void main() {
       ..diag('"reset":"BROWNOUT"');
     expect(b.problems, {'BROWNOUT_RESET'});
     expect(b.faults.first.evidence['resetReason'], 'BROWNOUT');
+  });
+
+  test('BOARD_RESET: a firmware reset is not a supply problem', () {
+    final b = Board()
+      ..line('# 17_stream ready.')
+      ..data(count: 3)
+      ..line('# 17_stream ready.')
+      ..diag('"reset":"PANIC"');
+    expect(b.problems, {'BOARD_RESET'});
+    expect(b.faults.first.message, contains('PANIC'));
   });
 
   test('BOARD_RESET_MIDRUN: the same thing during a run', () {

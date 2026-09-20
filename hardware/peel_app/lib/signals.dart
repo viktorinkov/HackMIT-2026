@@ -91,6 +91,7 @@ class Diag {
     this.radioChannel,
     this.radioSendFailures,
     this.radioDriftCorrections,
+    this.radioHeardMs,
     this.motorTransBeforeMv,
     this.motorTransAfterMv,
     this.motorScatBeforeMv,
@@ -132,6 +133,11 @@ class Diag {
   final int? radioChannel;
   final int? radioSendFailures;
   final int? radioDriftCorrections;
+
+  /// How long ago the BOX-3 face last said anything to the board, in milliseconds; null if
+  /// it never has. Broadcast ESP-NOW is unacknowledged, so this is the only evidence the
+  /// phone gets that the far end exists at all.
+  final int? radioHeardMs;
 
   /// Both sensors' means for 1 s before and after the last stirrer toggle, measured by the
   /// firmware itself.
@@ -266,6 +272,7 @@ Diag _diag(Map<dynamic, dynamic> d) {
     radioChannel: radio == null ? null : _num(radio['ch'])?.round(),
     radioSendFailures: radio == null ? null : _num(radio['fail'])?.round(),
     radioDriftCorrections: radio == null ? null : _num(radio['drift'])?.round(),
+    radioHeardMs: radio == null ? null : _num(radio['heard'])?.round(),
     motorTransBeforeMv: motor == null ? null : _num(motor['transBefore']),
     motorTransAfterMv: motor == null ? null : _num(motor['transAfter']),
     motorScatBeforeMv: motor == null ? null : _num(motor['scatBefore']),

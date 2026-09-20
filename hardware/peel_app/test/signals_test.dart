@@ -92,7 +92,7 @@ void main() {
             '"diode":{"ir":246,"red":547,"yellow":624,"green":1208,"blue":1510,"violet":1763},'
             '"noise":{"trans":44,"scat":44},'
             '"probe":{"present":true,"count":1,"addr":"28FF641E8C1A03C7"},'
-            '"radio":{"ch":1,"fail":3,"drift":0},'
+            '"radio":{"ch":1,"fail":3,"drift":0,"heard":1200},'
             '"motor":{"stir":100,"transBefore":2460,"transAfter":2610,'
             '"scatBefore":180,"scatAfter":330}}}') as DiagLine)
         .diag;
@@ -101,6 +101,7 @@ void main() {
     expect(d.diodeMv['violet'], 1763);
     expect(d.probeAddress, '28FF641E8C1A03C7');
     expect(d.radioSendFailures, 3);
+    expect(d.radioHeardMs, 1200);
     expect(d.motorTransShiftMv, 150);
     expect(d.motorScatShiftMv, 150);
   });
@@ -110,6 +111,7 @@ void main() {
     expect(d.firmware, '17_stream');
     expect(d.diodeMv, isEmpty);
     expect(d.probePresent, isNull);
+    expect(d.radioHeardMs, isNull);
     expect(d.motorTransShiftMv, isNull);
   });
 
