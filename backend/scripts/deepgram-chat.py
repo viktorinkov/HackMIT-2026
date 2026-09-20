@@ -37,12 +37,15 @@ CASES: tuple[tuple[str, str, str | None, str | None, str | None], ...] = (
     ("mismatch_bottle_pill", "Bottle-pill mismatch", "=", "≠", "≠"),
     ("mismatch_pill_imprint", "Pill-imprint mismatch", "≠", "=", "≠"),
     ("mismatch_all", "All-channel mismatch", "≠", "≠", "≠"),
-    ("suspected_degradation", "Quality concern · suspected", None, None, None),
-    ("nitroglycerin", "Quality concern · detected", None, None, None),
+    ("suspected_degradation", "Quality concern", None, None, None),
+    ("nitroglycerin", "Degraded", None, None, None),
     ("pending", "Incomplete scan", None, None, None),
 )
 CASE_OPTIONS: tuple[tuple[str, str], ...] = tuple((name, label) for name, label, *_ in CASES)
-ALIASES = {"mismatch_bottle": "mismatch"}
+ALIASES = {
+    "mismatch_bottle": "mismatch",
+    "degraded": "nitroglycerin",
+}
 OPENED = {name: label for name, label, *_ in CASES}
 
 
@@ -118,8 +121,8 @@ def _print_cases() -> None:
         prefix = f"  {index}. {label}"
         if bottle_imprint is None:
             extra = {
-                "suspected_degradation": "names agree · hardware suspected",
-                "nitroglycerin": "names agree · hardware detected",
+                "suspected_degradation": "names agree · quality flag",
+                "nitroglycerin": "names agree · hardware degraded",
                 "pending": "no channels",
             }.get(_name, "")
             print(f"{prefix:<38}{extra}")
