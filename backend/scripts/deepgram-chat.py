@@ -6,6 +6,11 @@ wss://agent.deepgram.com/v1/agent/converse with Authorization: Token.
 Typing here is Flutter's text chat. An 80 ms linear16 stream stands in
 for the open microphone so Deepgram does not close the listen socket.
 
+Reports work the way the app will: Peel's draft_report is a client-side
+function, so its FunctionCallRequest lands here and is printed as the
+preview screen. Nothing is stored until you type `submit`, which POSTs
+/scans/{scan_id}/reports. `reports` lists what has been filed.
+
 From backend/:
     uv run --with websockets python scripts/deepgram-chat.py
 """
@@ -19,6 +24,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from functools import partial
 from pathlib import Path
 
 try:
@@ -223,7 +229,9 @@ def _peel_api() -> str:
     return api
 
 
-def _request(method: str, url: str, payload: dict | None = None) -> dict:
+def _request(
+    method: str, url: str, payload: dict | None = None, *, fatal: bool = True
+) -> dict | None:
     data = None if payload is None else json.dumps(payload).encode()
     headers = {"User-Agent": "peel-flutter-cli/1"}
     if payload is not None:
@@ -234,7 +242,73 @@ def _request(method: str, url: str, payload: dict | None = None) -> dict:
             return json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         body = exc.read().decode()
-        sys.exit(f"{method} {url} -> {exc.code} {body}")
+        message = f"{method} {url} -> {exc.code} {body}"
+        if fatal:
+            sys.exit(message)
+        print(message)
+        return None
+
+
+def _describe_draft(draft: dict) -> list[str]:
+    location = draft.get("purchase_location")
+    if isinstance(location, dict):
+        parts = [location.get(key) for key in ("city", "region", "country")]
+        place = ", ".join(str(part) for part in parts if part)
+        label = location.get("label")
+        location_text = " · ".join(text for text in (label, place) if text) or "—"
+    else:
+        location_text = str(location) if location else "—"
+    return [
+        f"  purchased_on:      {draft.get('purchased_on') or '—'}",
+        f"  purchase_location: {location_text}",
+        f"  seller:            {draft.get('seller') or '—'}",
+    ]
+
+
+def _print_report(report: dict) -> None:
+    print(f"  {report.get('report_id')}  filed {report.get('created_at')}")
+    for line in _describe_draft(report):
+        print(f"  {line}")
+
+
+async def _handle_function_call(ws, send_lock: asyncio.Lock, msg: dict, state: dict) -> None:
+    """The app's job: open the preview, then tell Peel it is open. Nothing is stored."""
+    for call in msg.get("functions") or []:
+        if not call.get("client_side"):
+            continue
+        name = call.get("name")
+        try:
+            args = json.loads(call.get("arguments") or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        if not isinstance(args, dict):
+            args = {}
+        if name != "draft_report":
+            content = json.dumps({"error": f"unknown function {name}"})
+        else:
+            state["draft"] = args
+            print("Peel drafted a report; the app would open the preview now:")
+            for line in _describe_draft(args):
+                print(line)
+            print("Type submit to POST it, or keep talking to change a field.")
+            content = json.dumps(
+                {
+                    "status": "preview_open",
+                    "fields": args,
+                    "note": "The user reviews, edits, and submits in the app.",
+                }
+            )
+        async with send_lock:
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "FunctionCallResponse",
+                        "id": call.get("id"),
+                        "name": name,
+                        "content": content,
+                    }
+                )
+            )
 
 
 def _resolve_case(raw: str, options: tuple[tuple[str, str], ...]) -> str | None:
@@ -386,7 +460,10 @@ async def _wait_idle(event: asyncio.Event, timeout: float, settle: float = 0.8) 
             return True
 
 
-async def _chat(session: dict, api_key: str, fixture: str) -> str:
+async def _chat(session: dict, api_key: str, fixture: str, api: str) -> str:
+    scan_id = str(session.get("scan_id") or "")
+    reports_url = f"{api}/scans/{scan_id}/reports"
+    state: dict = {"draft": None}
     async with websockets.connect(
         session["websocket_url"],
         additional_headers={"Authorization": f"Token {api_key}"},
@@ -427,6 +504,12 @@ async def _chat(session: dict, api_key: str, fixture: str) -> str:
                 if isinstance(raw, bytes):
                     continue
                 msg = json.loads(raw)
+                if msg.get("type") == "FunctionCallRequest":
+                    await _handle_function_call(ws, send_lock, msg, state)
+                    continue
+                if msg.get("type") == "FunctionCallCancelled":
+                    print("Peel: (draft cancelled; the user kept talking)")
+                    continue
                 if _show(msg):
                     peel_done.set()
                     if msg.get("type") == "Error":
@@ -466,7 +549,7 @@ async def _chat(session: dict, api_key: str, fixture: str) -> str:
                     sys.exit("Audio timeout after follow-up")
                 print("idle+follow-up ok")
                 return action
-            print("Ask Peel, or type case / quit.")
+            print("Ask Peel, or type submit / reports / case / quit.")
             while not closed.is_set():
                 try:
                     line = await loop.run_in_executor(None, lambda: input("You: "))
@@ -481,6 +564,28 @@ async def _chat(session: dict, api_key: str, fixture: str) -> str:
                 if text in {"case", "switch", "menu"}:
                     action = "switch"
                     break
+                if text == "submit":
+                    # The Submit button: the only thing that writes a report.
+                    body = state["draft"] or {}
+                    if state["draft"] is None:
+                        print("No draft yet; submitting with every field blank.")
+                    stored = await loop.run_in_executor(
+                        None, partial(_request, "POST", reports_url, body, fatal=False)
+                    )
+                    if stored:
+                        print("Submitted:")
+                        _print_report(stored)
+                        state["draft"] = None
+                    continue
+                if text == "reports":
+                    listed = await loop.run_in_executor(
+                        None, partial(_request, "GET", reports_url, fatal=False)
+                    )
+                    results = (listed or {}).get("results") or []
+                    print(f"{len(results)} report(s) for {scan_id}")
+                    for report in results:
+                        _print_report(report)
+                    continue
                 peel_done.clear()
                 async with send_lock:
                     await ws.send(
@@ -529,7 +634,7 @@ def main() -> None:
         fixture = _pick_case(preset)
         preset = None
         session = _open_results_chat(api, fixture)
-        action = asyncio.run(_chat(session, api_key, fixture))
+        action = asyncio.run(_chat(session, api_key, fixture, api))
         if smoke or action != "switch" or not sys.stdin.isatty():
             break
 

@@ -521,6 +521,19 @@ of which side did the fetching.
 | `GET /scans/{scan_id}/context?as_string=` | The ElevenLabs `scan_context` handoff — `to_scan_context()` as a dict, or (with `as_string=true`) `{"scan_context": "<json string>"}`, because ElevenLabs dynamic variables must be strings. The `hardware` block carries both the derived `status`/`degradation` and the device's raw `reported_status`, so a "fake" reading with no identified pill type still reads as more than merely inconclusive. |
 | `POST /scans/{scan_id}/research` | Re-run research. `{"force": true}` cancels any in-flight run and restarts; otherwise 409 if one is already running, 503 if the pipeline module isn't loaded. |
 
+### `reports/router.py`
+
+A report is the three optional provenance answers (`purchased_on`, `purchase_location`,
+`seller`) joined to a scan by `scan_id`; nothing from the scan is copied. Peel collects them in
+the voice chat and calls the client-side `draft_report` function, which reaches the app as a
+`FunctionCallRequest`; the app shows a preview and only the Submit button writes. Deepgram never
+calls these routes. See [`docs/deepgram/INTEGRATION.md`](../docs/deepgram/INTEGRATION.md).
+
+| Endpoint | Notes |
+|---|---|
+| `POST /scans/{scan_id}/reports` | The Submit button. 201 with the stored `Report`; every tap is a new `report_id`. 404 if the scan is missing. Written with `refresh=False`, so render the confirmation from the response. |
+| `GET /scans/{scan_id}/reports` | `{"results": [...]}` for this scan, newest first (search on `scan_id`; can lag a submit by about a second). |
+
 `ScanCreate` (`scans/models.py`) bounds every field an oversized payload could inflate:
 `hardware.spectrum` to `MAX_SPECTRUM_LEN` (4096) floats, `bottle.visible_warnings` to
 `MAX_VISIBLE_WARNINGS` (50) items of `MAX_WARNING_LEN` (500) characters each, every other
@@ -816,7 +829,8 @@ as environment variables when the container boots. The pod env maps each variabl
 to a secret of the same name, for example
 `OPENAI_API_KEY={{ RUNPOD_SECRET_OPENAI_API_KEY }}`. Secrets in use:
 `OPENAI_API_KEY`, `FIRECRAWL_API_KEY`, `ELASTICSEARCH_URL`,
-`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`, `PUBLIC_API_BASE_URL`. Rotating a secret takes effect on the
+`ELASTICSEARCH_API_KEY`, `DEEPGRAM_API_KEY`. (`PUBLIC_API_BASE_URL` is still mapped on the pod
+but nothing reads it any more; only `scripts/deepgram-chat.py` uses it locally.) Rotating a secret takes effect on the
 next pod start. Editing the pod env replaces the container, so keep the app on the
 network volume.
 
