@@ -20,9 +20,11 @@ Peel is an open-source medicine check for places where a tablet and its packagin
 </p>
 
 <p align="center">
-  <img src="assets/app-demo-placeholder.svg" alt="Placeholder for a video of the Peel app" width="720">
+  <a href="https://youtu.be/Yiu2wGKJ6AM">
+    <img src="https://img.youtube.com/vi/Yiu2wGKJ6AM/hqdefault.jpg" alt="Watch the Peel app demo" width="720">
+  </a>
   <br>
-  <em>App demo — coming soon</em>
+  <em><a href="https://youtu.be/Yiu2wGKJ6AM">Watch the Peel app demo</a></em>
 </p>
 
 ## Table of contents
