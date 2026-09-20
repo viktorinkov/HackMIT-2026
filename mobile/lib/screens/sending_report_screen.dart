@@ -38,22 +38,19 @@ class _SendingReportScreenState extends State<SendingReportScreen> {
   Widget build(BuildContext context) {
     return PeelScaffold(
       fill: true,
+      padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
       content: [
-        Text(_sent ? 'Report sent' : 'Sending report', style: PeelText.title),
-        const SizedBox(height: PeelSpace.x8),
-        Text(
-          _sent
-              ? 'Thank you. Someone will look at this bottle.'
-              : 'Your report and scan photos are on their way.',
-          style: PeelText.body,
-        ),
-        const SizedBox(height: PeelSpace.x24),
+        PeelStageHeader(title: _sent ? 'Report sent' : 'Sending report'),
+        PeelRiveSlot(stage: _sent ? PeelStage.complete : PeelStage.research),
+        const SizedBox(height: PeelSpace.x16),
         Flexible(
-          child: Center(
-            child: PeelRiveSlot(
-              stage: _sent ? PeelStage.complete : PeelStage.research,
-              aspectRatio: 13 / 12,
-            ),
+          child: Text(
+            _sent
+                ? 'Thank you. Someone will look at this bottle.'
+                : 'Your report and scan photos are on their way.',
+            style: PeelText.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

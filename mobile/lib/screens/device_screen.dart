@@ -100,14 +100,21 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
     return PeelScaffold(
       fill: true,
+      padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
       content: [
-        Text(copy.title, style: PeelText.brand),
-        const SizedBox(height: PeelSpace.x8),
-        Text(copy.body, style: PeelText.body),
-        const SizedBox(height: PeelSpace.x24),
-        Flexible(child: Center(child: PeelRiveSlot(stage: _stage))),
+        PeelStageHeader(title: copy.title),
+        PeelRiveSlot(stage: _stage),
         const SizedBox(height: PeelSpace.x16),
         const ScanSteps(current: ScanStep.pill),
+        const SizedBox(height: PeelSpace.x8),
+        Flexible(
+          child: Text(
+            copy.body,
+            style: PeelText.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
       actions: [
         if (_phase != DevicePhase.complete)

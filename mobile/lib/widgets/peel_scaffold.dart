@@ -11,15 +11,18 @@ class PeelScaffold extends StatelessWidget {
     this.actions = const [],
     this.topBar,
     this.fill = false,
+    this.padding,
   });
 
   final List<Widget> content;
   final List<Widget> actions;
   final Widget? topBar;
 
-  /// Lays the content out inside the viewport instead of scrolling it, so a
-  /// flexible child shrinks rather than sliding under the pinned actions.
+  /// Lays the content out inside the viewport instead of scrolling it, so the
+  /// shared Rive slot keeps its size instead of scrolling out of view.
   final bool fill;
+
+  final EdgeInsets? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +34,13 @@ class PeelScaffold extends StatelessWidget {
             if (topBar != null) topBar!,
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  PeelSpace.x24,
-                  PeelSpace.x16,
-                  PeelSpace.x24,
-                  PeelSpace.x24,
-                ),
+                padding: padding ??
+                    const EdgeInsets.fromLTRB(
+                      PeelSpace.x24,
+                      PeelSpace.x16,
+                      PeelSpace.x24,
+                      PeelSpace.x24,
+                    ),
                 child: fill
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -69,6 +73,47 @@ class PeelScaffold extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Figma's "Shared scan header" (364x176): a fixed block above the shared
+/// Rive slot, so the slot starts at the same y on every screen of the flow
+/// and the artboard neither moves nor resizes across navigation.
+class PeelStageHeader extends StatelessWidget {
+  const PeelStageHeader({super.key, required this.title, this.trailing});
+
+  static const height = 176.0;
+  static const _titleHeight = 136.0;
+
+  final String title;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.only(top: PeelSpace.x24),
+        child: SizedBox(
+          height: _titleHeight,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: PeelText.brand,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (trailing != null) trailing!,
+            ],
+          ),
         ),
       ),
     );

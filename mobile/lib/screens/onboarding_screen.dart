@@ -15,20 +15,17 @@ class OnboardingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PeelScaffold(
       fill: true,
+      padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
       content: const [
-        Text('Peel', style: PeelText.brand),
-        SizedBox(height: PeelSpace.x8),
-        Text(
-          'Check a pill against its bottle in three short steps.',
-          style: PeelText.body,
-        ),
-        SizedBox(height: PeelSpace.x24),
+        PeelStageHeader(title: 'Peel'),
+        PeelRiveSlot(stage: PeelStage.bottleScan),
+        SizedBox(height: PeelSpace.x16),
         Flexible(
-          child: Center(
-            child: PeelRiveSlot(
-              stage: PeelStage.bottleScan,
-              aspectRatio: 13 / 12,
-            ),
+          child: Text(
+            'Check a pill against its bottle in three short steps.',
+            style: PeelText.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

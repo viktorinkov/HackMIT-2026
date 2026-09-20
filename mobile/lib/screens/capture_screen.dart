@@ -2,48 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../rive/peel_rive_stage.dart';
 import '../rive/peel_rive_widgets.dart';
-import '../services/photo_service.dart';
 import '../state/scan_session.dart';
 import '../theme/peel_theme.dart';
 import '../widgets/peel_button.dart';
 import '../widgets/peel_scaffold.dart';
-import '../widgets/photo_slot.dart';
 import '../widgets/scan_steps.dart';
 import 'device_screen.dart';
+import 'photo_screen.dart';
 
 class CaptureCopy {
-  const CaptureCopy({
-    required this.title,
-    required this.instruction,
-    required this.placeholder,
-    required this.action,
-  });
+  const CaptureCopy({required this.title, required this.action});
 
   final String title;
-  final String instruction;
-  final String placeholder;
   final String action;
 }
 
 const _copy = {
-  ScanStep.bottle: CaptureCopy(
-    title: 'Scan bottle',
-    instruction: 'Hold the bottle label flat and take a photo of it.',
-    placeholder: 'Bottle comes to screen and the phone takes a picture of it',
-    action: 'Scan bottle',
-  ),
-  ScanStep.imprint: CaptureCopy(
-    title: 'Scan imprint',
-    instruction: 'Place the pill so the letters and numbers face the camera.',
-    placeholder: 'Pill turns until the imprint faces the camera',
-    action: 'Scan imprint',
-  ),
-  ScanStep.pill: CaptureCopy(
-    title: 'Scan pill',
-    instruction: 'Take one more photo of the whole pill.',
-    placeholder: 'Pill rests on the tray while the phone takes a picture',
-    action: 'Scan pill',
-  ),
+  ScanStep.bottle: CaptureCopy(title: 'Scan bottle', action: 'Scan bottle'),
+  ScanStep.imprint: CaptureCopy(title: 'Scan imprint', action: 'Scan imprint'),
+  ScanStep.pill: CaptureCopy(title: 'Scan pill', action: 'Scan pill'),
 };
 
 class CaptureScreen extends StatefulWidget {
@@ -64,10 +41,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ScanStep.pill => PeelStage.pillScan,
       };
 
-  Future<void> _pick() async {
-    final file = await choosePhoto(context, title: copy.title);
-    if (file == null) return;
-    scanSession.setPhoto(widget.step, file);
+  Future<void> _openPhoto() async {
+    final choice = await PhotoScreen.open(
+      context,
+      title: copy.title,
+      photo: scanSession.photoFor(widget.step),
+    );
+    if (choice == null) return;
+    scanSession.setPhoto(widget.step, choice.file);
     setState(() {});
   }
 
@@ -87,31 +68,28 @@ class _CaptureScreenState extends State<CaptureScreen> {
     final photo = scanSession.photoFor(widget.step);
     return PeelScaffold(
       fill: true,
+      padding: const EdgeInsets.symmetric(horizontal: PeelSpace.x24),
       content: [
-        Text(copy.title, style: PeelText.brand),
-        const SizedBox(height: PeelSpace.x8),
-        Text(copy.instruction, style: PeelText.body),
-        const SizedBox(height: PeelSpace.x24),
-        Flexible(
-          child: PhotoSlot(
-            photo: photo,
-            description: copy.placeholder,
-            empty: PeelRiveSlot(stage: stage),
-            onAdd: _pick,
-            onReplace: _pick,
-            onRemove: () {
-              scanSession.setPhoto(widget.step, null);
-              setState(() {});
-            },
-          ),
+        PeelStageHeader(
+          title: copy.title,
+          trailing: photo == null
+              ? null
+              : TextButton(
+                  onPressed: _openPhoto,
+                  child: Text(
+                    'View photo',
+                    style: PeelText.label.copyWith(color: PeelColors.deep),
+                  ),
+                ),
         ),
+        PeelRiveSlot(stage: stage),
         const SizedBox(height: PeelSpace.x16),
         ScanSteps(current: widget.step),
       ],
       actions: [
         PeelButton(
           label: photo == null ? copy.action : 'Continue',
-          onPressed: photo == null ? _pick : _continue,
+          onPressed: photo == null ? _openPhoto : _continue,
         ),
         if (Navigator.of(context).canPop())
           PeelButton(
