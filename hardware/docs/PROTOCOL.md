@@ -39,7 +39,7 @@ Two kinds of line. Anything else is noise: boot ROM output, fragments. Ignore it
 | `absT` | number (4 dp) or `null` | `log10(blank / now)` on the transmission channel. `null` until a blank is taken, or if either value is ≤ 1 mV. |
 | `absS` | number (4 dp) or `null` | Same formula, scatter channel. **Cloudier liquid scatters more light onto this sensor, so `absS` goes negative as turbidity rises.** The app plots `-absS` as "cloudiness". |
 | `tC` | number (2 dp) or `null` | DS18B20 temperature in °C. `null` when no probe answered at boot. |
-| `sweep` | object | Latest four-colour sweep: transmission mV under each LED, keys `red` `yellow` `green` `blue`. Each is `null` until the first sweep. Runs every `SWEEP_EVERY_MS = 10000`. |
+| `sweep` | object | Latest four-colour sweep: transmission mV under each LED, keys `red` `yellow` `green` `blue`. Each is `null` until the first sweep. Runs every `SWEEP_EVERY_MS`: 10 s with a TEMT6000 build, 30 s with the photoresistor build (`SENSOR_LDR`, the default), whose 700 ms settle per colour makes each sweep cost a few seconds of the fast channel. |
 | `stir` | integer | Stirrer PWM percent, or `0` when off. |
 | `swept` | boolean | `true` if a sweep ran during this second. The fast channel was disturbed, so a kinetics fit should drop this line. |
 

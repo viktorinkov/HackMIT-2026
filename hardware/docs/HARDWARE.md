@@ -79,3 +79,14 @@ Samsung Galaxy A16 (SM-A165M, Android 15, USB-C)
 - **Debugging while the phone hosts the board:** the phone's only USB port is busy, so use
   wireless debugging (Developer options → Wireless debugging → `adb pair`, then
   `adb connect`).
+
+## Build flags
+
+Both are `#define`s at the top of `17_stream.ino`, overridable with `--build-property "build.extra_flags=-D..."`:
+
+| flag | default | meaning |
+|---|---|---|
+| `SENSOR_LDR` | `1` | Photoresistor build: the sweep settles 700 ms per colour and runs every 30 s. Set `0` for a TEMT6000 rig. |
+| `FAST_LED` | `2` (green) | Which LED lights the fast channel. Use the colour the active absorbs: `3` (blue) for riboflavin. |
+
+The JSON line format does not change with either flag; the boot note reports the fast colour.

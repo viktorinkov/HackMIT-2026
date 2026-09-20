@@ -32,7 +32,12 @@ const int SENS_T = 8;                   // [XIAO D9]
 const int SENS_S = 9;                   // [XIAO D10]
 const int LED_PINS[4]   = { 3, 4, 5, 6 };   // [XIAO D2 D3 D4 D5]
 const char* LED_NAMES[4] = { "red", "yellow", "green", "blue" };
-const int FAST_LED = 2;                 // green: brightest on this rig, so best signal to noise
+// Which LED lights the fast channel. Green is brightest on this rig, so it is the default for
+// turbidity kinetics. For a coloured active use the colour it absorbs: riboflavin needs blue,
+// so build with -DFAST_LED=3.
+#ifndef FAST_LED
+#define FAST_LED 2
+#endif
 const int TEMP_PIN = 7;                 // [XIAO D8]
 #ifdef ARDUINO_XIAO_ESP32S3
 const int MOTOR    = 44;                // [XIAO D7] stirrer. 5V bus, see PEEL_BUILD_PLAN.txt
@@ -42,8 +47,20 @@ const int MOTOR    = 14;                // DevKitC: on the J1 header with every 
 
 const int   SAMPLES        = 24;        // averaged per reported value
 const int   SETTLE_MS      = 12;        // TEMT6000 is microseconds fast; 12 ms is generous
-const unsigned long REPORT_MS      = 1000;
+// The HackMIT build uses CdS photoresistors (docs/HARDWARE.md), which take ~600 ms to settle.
+// Only the sweep switches LEDs, so only the sweep pays for it, and it runs less often so the
+// fast channel loses fewer seconds.
+#ifndef SENSOR_LDR
+#define SENSOR_LDR 1
+#endif
+#if SENSOR_LDR
+const int   SWEEP_SETTLE_MS = 700;
+const unsigned long SWEEP_EVERY_MS = 30000;
+#else
+const int   SWEEP_SETTLE_MS = SETTLE_MS;
 const unsigned long SWEEP_EVERY_MS = 10000;
+#endif
+const unsigned long REPORT_MS      = 1000;
 const float DROP_FRACTION  = 0.06;      // auto t=0: a 6 percent fall in transmission
 const int   STIR_PCT       = 100;       // demo speed: flat out. For DATA runs use a fixed, modest
                                         // speed instead and keep it identical across every run.
@@ -99,14 +116,14 @@ float absorbance(float blank, float now) {
 
 // One pass through all four colours. Slow channel, for identity rather than kinetics.
 void doSweep() {
-  allLedsOff(); delay(SETTLE_MS);
+  allLedsOff(); delay(SWEEP_SETTLE_MS);
   long dark = avgMv(SENS_T);
   for (int i = 0; i < 4; i++) {
-    digitalWrite(LED_PINS[i], HIGH); delay(SETTLE_MS);
+    digitalWrite(LED_PINS[i], HIGH); delay(SWEEP_SETTLE_MS);
     sweep[i] = avgMv(SENS_T) - dark;
     digitalWrite(LED_PINS[i], LOW);
   }
-  fastLedOn(); delay(SETTLE_MS);
+  fastLedOn(); delay(SWEEP_SETTLE_MS);
   sweptThisLine = true;
 }
 
