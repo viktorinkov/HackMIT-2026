@@ -84,7 +84,7 @@ def root() -> dict[str, object]:
         },
         "deepgram": {
             "session": "POST /deepgram/session",
-            "reports": "/deepgram/{scan_id}/reports",
+            "reports": "POST /deepgram/{scan_id}/reports",
         },
     }
 

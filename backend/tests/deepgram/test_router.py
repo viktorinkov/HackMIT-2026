@@ -124,9 +124,6 @@ def test_create_report_stores_the_scan_context(
     assert body["seller"] == "CVS Pharmacy"
     assert body["snapshot"]["scan_id"] == "scan-1"
     assert body["snapshot"]["bottle"]["generic_name"] == "acetaminophen"
-    fetched = client.get("/deepgram/scan-1/reports").json()
-    assert fetched["report_id"] == body["report_id"]
-    assert fetched["seller"] == "CVS Pharmacy"
 
 
 def test_create_report_replaces_the_previous_filing(client: TestClient) -> None:
@@ -135,9 +132,6 @@ def test_create_report_replaces_the_previous_filing(client: TestClient) -> None:
     assert first.status_code == second.status_code == 200
     assert second.json()["report_id"] == first.json()["report_id"]
     assert second.json()["seller"] == "a friend"
-    fetched = client.get("/deepgram/scan-1/reports").json()
-    assert fetched["report_id"] == first.json()["report_id"]
-    assert fetched["seller"] == "a friend"
 
 
 def test_create_report_keeps_scan_id_from_the_path(client: TestClient) -> None:
@@ -187,12 +181,6 @@ def test_create_report_autofills_an_empty_deepgram_call(client: TestClient) -> N
     assert response.json()["concern_type"] == "mismatch"
 
 
-def test_reports_404_when_the_scan_is_missing(client: TestClient, stub: StubStore) -> None:
+def test_create_report_404s_when_the_scan_is_missing(client: TestClient, stub: StubStore) -> None:
     stub.doc = None
-    assert client.get("/deepgram/scan-x/reports").status_code == 404
-
-
-def test_reports_404_when_none_has_been_filed(client: TestClient) -> None:
-    response = client.get("/deepgram/scan-1/reports")
-    assert response.status_code == 404
-    assert response.json()["detail"] == "no report for scan-1"
+    assert client.post("/deepgram/scan-x/reports", json={}).status_code == 404
