@@ -76,10 +76,16 @@ class PeelRiveSlot extends StatefulWidget {
   /// screen and the artboard never resizes mid-flow.
   static Size sizeOf(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
-    final width = viewport.width - 2 * PeelSpace.x24;
-    final height = math.min(
-      width / PeelRiveStage.aspectRatio,
-      math.max(viewport.height - chrome, viewport.height * 0.35),
+    // The first frame can report an empty viewport; the slot rebuilds once the
+    // real metrics arrive.
+    if (viewport.isEmpty) return Size.zero;
+    final width = math.max(viewport.width - 2 * PeelSpace.x24, 0.0);
+    final height = math.max(
+      math.min(
+        width / PeelRiveStage.aspectRatio,
+        math.max(viewport.height - chrome, viewport.height * 0.35),
+      ),
+      0.0,
     );
     return Size(height * PeelRiveStage.aspectRatio, height);
   }
