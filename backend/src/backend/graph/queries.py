@@ -19,6 +19,7 @@ Two rules hold everywhere in this module:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from elasticsearch import ApiError, AsyncElasticsearch, NotFoundError, TransportError
@@ -27,9 +28,13 @@ from backend.knowledge.client import KnowledgeError
 from backend.knowledge.fields import (
     NDC_INDEX,
     REGULATORY_INDEX,
+    REPORTS_INDEX,
+    SCANS_INDEX,
     WEB_PAGES_INDEX,
     Ndc,
     Reg,
+    Report,
+    Scan,
     Web,
 )
 
@@ -38,6 +43,22 @@ from backend.knowledge.fields import (
 REC_SRC: dict[str, Any] = {"excludes": [Reg.RAW, Reg.BODY_SEMANTIC, Reg.BODY]}
 WEB_SRC: dict[str, Any] = {"excludes": [Web.RAW, Web.PAGE_SEMANTIC, Web.CONTENT]}
 NDC_SRC: dict[str, Any] = {"excludes": [Ndc.RAW]}
+
+# Another person's report is only ever counted, so only the join key is read:
+# no report_id, no purchase date, no free-text label, no coordinates. This is an
+# includes list rather than an excludes list precisely so a new field on the
+# report mapping cannot become readable here by being added.
+REPORT_SRC: dict[str, Any] = {"includes": [Report.SCAN_ID]}
+# The same rule one hop on: the scan behind another person's report is read for
+# the three things a crowd count needs and nothing else. `device_id` is here
+# because a count of report rows is not a count of people — two taps of Submit,
+# or two scans by one person, are one reporter — and because it is the only way
+# to keep a heavy user's own older scans out of their own crowd count. It is
+# grouped on inside `graph.expand` and never reaches a node, a label or a
+# response; what leaves the backend is the size of the group, never its key.
+CROWD_SCAN_SRC: dict[str, Any] = {
+    "includes": [Scan.DEVICE_ID, Scan.RESEARCH_VERDICT, Scan.DEMO]
+}
 
 # Severity first, then recency, then the id: a total order, so two identical
 # requests return the same page and a cluster count means the same thing twice.
@@ -57,6 +78,17 @@ EVENT_SIBLINGS = 12
 NDC_SIBLINGS = 12
 WEB_PAGES_PER_LOT = 10
 LATEST_PER_REGULATOR = 6
+REPORTS_PER_ANCHOR = 200
+CROWD_SCANS = 200
+
+# The keyword sub-field `indices.TEXT_KW` puts on a free-text field.
+KW = "kw"
+
+# `purchase_location` is a plain object; these three leaves are keywords, and
+# they are the only ones a graph query is ever allowed to name.
+LOCATION_CITY = f"{Report.PURCHASE_LOCATION}.city"
+LOCATION_REGION = f"{Report.PURCHASE_LOCATION}.region"
+LOCATION_COUNTRY = f"{Report.PURCHASE_LOCATION}.country"
 
 # `KW_TXT` fields are keywords with a `.txt` analysed sub-field. A salt-stripped
 # key never equals the stored keyword ("levothyroxine" vs "levothyroxine
@@ -66,6 +98,10 @@ TXT = "txt"
 
 def txt(field: str) -> str:
     return f"{field}.{TXT}"
+
+
+def kw(field: str) -> str:
+    return f"{field}.{KW}"
 
 
 def clamp(limit: int | None) -> int:
@@ -175,6 +211,83 @@ def build_ndc_siblings(
                 ]
             }
         },
+    }
+
+
+# --------------------------------------------------------------------------- reports
+
+
+def _excluding_scans(scan_ids: Sequence[str]) -> list[dict[str, Any]]:
+    """This device's own scans, kept out of every crowd count."""
+    ids = [scan_id for scan_id in dict.fromkeys(scan_ids or ()) if scan_id]
+    return [{"terms": {Report.SCAN_ID: ids}}] if ids else []
+
+
+def build_reports_by_seller(
+    variants: Sequence[str],
+    *,
+    exclude_scan_ids: Sequence[str] = (),
+    size: int = REPORTS_PER_ANCHOR,
+) -> dict[str, Any]:
+    """Other people's reports naming this exact seller text.
+
+    `seller` is analysed text with a `.kw` keyword sub-field, and only the
+    keyword is matched: an analysed match would join "Riverside Pharmacy" to
+    every other pharmacy in the index.
+    """
+    names = [name for name in dict.fromkeys(variants or ()) if name]
+    query: dict[str, Any] = {
+        "bool": {
+            "filter": [{"terms": {kw(Report.SELLER): names}}],
+            "must_not": _excluding_scans(exclude_scan_ids),
+        }
+    }
+    return {
+        "size": max(1, size),
+        "track_total_hits": True,
+        "_source": REPORT_SRC,
+        "query": query,
+    }
+
+
+def build_reports_by_place(
+    *,
+    city: str | None = None,
+    region: str | None = None,
+    country: str | None = None,
+    exclude_scan_ids: Sequence[str] = (),
+    size: int = REPORTS_PER_ANCHOR,
+) -> dict[str, Any]:
+    """Other people's reports naming the same city/region/country. `label` is
+    never a filter: it is free text one person typed, not a place."""
+    filters = [
+        {"term": {field: value}}
+        for field, value in (
+            (LOCATION_CITY, city),
+            (LOCATION_REGION, region),
+            (LOCATION_COUNTRY, country),
+        )
+        if value
+    ]
+    query: dict[str, Any] = {
+        "bool": {"filter": filters, "must_not": _excluding_scans(exclude_scan_ids)}
+    }
+    return {
+        "size": max(1, size),
+        "track_total_hits": True,
+        "_source": REPORT_SRC,
+        "query": query,
+    }
+
+
+def build_crowd_scans(scan_ids: Sequence[str], *, size: int = CROWD_SCANS) -> dict[str, Any]:
+    """One lookup for the scans another person's reports point at."""
+    ids = [scan_id for scan_id in dict.fromkeys(scan_ids or ()) if scan_id]
+    return {
+        "size": max(1, min(len(ids) or 1, size)),
+        "track_total_hits": False,
+        "_source": CROWD_SCAN_SRC,
+        "query": {"terms": {Scan.SCAN_ID: ids}},
     }
 
 
@@ -288,3 +401,29 @@ class GraphQueries:
         self, labeler_name: str, generic_name: str
     ) -> tuple[list[dict[str, Any]], int]:
         return await self.search(NDC_INDEX, build_ndc_siblings(labeler_name, generic_name))
+
+    async def reports_by_seller(
+        self, variants: Sequence[str], *, exclude_scan_ids: Sequence[str] = ()
+    ) -> tuple[list[dict[str, Any]], int]:
+        return await self.search(
+            REPORTS_INDEX,
+            build_reports_by_seller(variants, exclude_scan_ids=exclude_scan_ids),
+        )
+
+    async def reports_by_place(
+        self,
+        *,
+        city: str | None = None,
+        region: str | None = None,
+        country: str | None = None,
+        exclude_scan_ids: Sequence[str] = (),
+    ) -> tuple[list[dict[str, Any]], int]:
+        return await self.search(
+            REPORTS_INDEX,
+            build_reports_by_place(
+                city=city, region=region, country=country, exclude_scan_ids=exclude_scan_ids
+            ),
+        )
+
+    async def crowd_scans(self, scan_ids: Sequence[str]) -> tuple[list[dict[str, Any]], int]:
+        return await self.search(SCANS_INDEX, build_crowd_scans(scan_ids))

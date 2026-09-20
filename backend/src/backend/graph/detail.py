@@ -17,6 +17,13 @@ unless it truly falls outside what this device knows (design-data-api.md §6):
   edge to this exact record (the same predicate the safety invariant uses:
   `evidence.qualifying_lot_hits` / `_qualifying_all_lots`); otherwise the
   panel says plainly that the record is shown for context only.
+* **`seller:` / `place:`** — a note about a report this person filed, never
+  about the seller. The copy says where it came from, that Peel has not
+  checked it and that it says nothing about what the seller did; a seller
+  never gets a badge. Every number on these notes is this person's own: a
+  note is rebuilt from this device's scans and reports on each request, so no
+  other person's count is in reach. Other people's reports arrive as the
+  `cluster:` node `/graph/expand` mints, whose own note is counts only.
 * **everything else** (`medicine`, `product`, `lot`, `manufacturer`,
   `regulator`, `country`, `web_page`, `imprint`, `topic`, ...) — derived from
   this device's own PERSONAL GRAPH (`graph.builder.graph_from_scans` over
@@ -52,6 +59,7 @@ from backend.graph.models import (
 )
 from backend.graph.models import node_id as _make_node_id
 from backend.graph.queries import GraphQueries
+from backend.graph.reports_graph import attach_reports
 from backend.knowledge import normalize
 from backend.knowledge.client import KnowledgeError
 from backend.knowledge.fields import Reg, Scan
@@ -70,6 +78,9 @@ MAX_LINKED_SOURCES = 6
 DEFAULT_NOTICE = "This detail is drawn from what was searched, not a guarantee about this medicine."
 DEFAULT_RECORD_NEXT_STEP = "Shown for context. This record does not name the lot on your label."
 CONTEXT_NOTICE = "This id is not part of your personal graph; shown for context only."
+# `keys.cluster_key(parent, "reports")` — the crowd cluster an expansion mints.
+# It never lives in the personal graph, so its note is authored, not derived.
+REPORT_CLUSTER_SUFFIX = "|reports"
 
 _PREFIX_TO_TYPE: dict[str, str] = {prefix: node_type for node_type, prefix in ID_PREFIX.items()}
 
@@ -113,6 +124,10 @@ RELATION_LABELS: dict[str, str] = {
     "cited": "Cited in your scan report",
     "identifies_as": "Possible match from the imprint",
     "conflicts_with": "Label and pill reference disagree",
+    "bought_from": "Where you said you bought it",
+    "bought_in": "Where you said you bought it",
+    "located_in": "Located in",
+    "also_reported": "Other people's reports",
     "more": "More like this",
 }
 
@@ -128,6 +143,9 @@ SUBTITLES: dict[str, str] = {
     "country": "Country",
     "imprint": "Imprint read from the pill",
     "topic": "Reason given in recall records",
+    "seller": "Named in your report as where you bought it",
+    "place": "The place you named in your report",
+    "report_cluster": "Counts from other people's reports",
 }
 BADGES: dict[str, str] = {
     "recall": "Named in a recall",
@@ -163,6 +181,21 @@ BODY_TEXT: dict[str, str] = {
         "candidate products but does not confirm one on its own."
     ),
     "topic": "This is the reason a recall or alert record in your graph gives for existing.",
+    # A report is one person's account. None of this copy may read as a finding
+    # about the seller, and none of it may read as an assurance either.
+    "seller": (
+        "This comes from a report you filed. Peel has not checked it, and it says "
+        "nothing about what the seller did."
+    ),
+    "place": (
+        "This is the city or country you gave in a report you filed. Peel has not "
+        "checked it, and it says nothing about the medicines sold there."
+    ),
+    "report_cluster": (
+        "Other people filed reports naming the same place of purchase. Peel shows how "
+        "many, and nothing else about them: no dates, no locations, no scans. Peel has "
+        "not checked any of these reports, and they say nothing about what anyone did."
+    ),
 }
 PROPERTY_LABELS: dict[str, str] = {
     "lot": "Lot as read",
@@ -179,6 +212,10 @@ PROPERTY_LABELS: dict[str, str] = {
     "shape": "Shape",
     "colors": "Colors",
     "topic_records": "Records giving this reason",
+    "your_reports": "Reports you filed",
+    "purchased_on": "You said you bought it",
+    "purchased_between": "You said you bought it between",
+    "place": "Place",
 }
 
 _LOT_UNCORROBORATED_KINDS = frozenset({"lot_only_match", "lot_listed"})
@@ -440,6 +477,17 @@ def _setting(ctx: GraphContext, name: str, default: int) -> int:
     return int(value) if value is not None else default
 
 
+async def _own_reports(ctx: GraphContext, scan_ids: list[str]) -> list[dict[str, Any]]:
+    """This device's own purchase reports, or none. Additive, never fatal."""
+    loader = getattr(ctx, "report_docs", None)
+    if loader is None or not scan_ids:
+        return []
+    try:
+        return list(await loader(scan_ids))
+    except Exception:  # noqa: BLE001 - a note panel without sellers is still a note panel
+        return []
+
+
 async def _load_personal(ctx: GraphContext, device_id: str) -> _Personal | None:
     scan_limit = _setting(ctx, "scan_limit", 50)
     max_nodes = _setting(ctx, "max_nodes", 600)
@@ -452,12 +500,30 @@ async def _load_personal(ctx: GraphContext, device_id: str) -> _Personal | None:
     docs_by_scan = {
         str(doc.get(Scan.SCAN_ID)): doc for doc in docs if isinstance(doc, dict) and doc.get(Scan.SCAN_ID)
     }
+    scan_ids = list(docs_by_scan)
+    nodes, links = attach_reports(
+        nodes, links, await _own_reports(ctx, scan_ids), scan_ids
+    )
     return _Personal(nodes={node.id: node for node in nodes}, links=links, docs_by_scan=docs_by_scan)
+
+
+def _report_cluster_detail(full_id: str) -> NodeDetail:
+    """The `also_reported` cluster: counts only, and copy that says so."""
+    return NodeDetail(
+        id=full_id,
+        type="cluster",
+        title="Other people's reports",
+        subtitle=SUBTITLES["report_cluster"],
+        body=BODY_TEXT["report_cluster"],
+        notice=DEFAULT_NOTICE,
+    )
 
 
 async def _graph_derived_detail(
     ctx: GraphContext, node_type: str, key: str, full_id: str, *, device_id: str | None
 ) -> NodeDetail:
+    if node_type == "cluster" and key.endswith(REPORT_CLUSTER_SUFFIX):
+        return _report_cluster_detail(full_id)
     personal = await _load_personal(ctx, device_id) if device_id else None
     node = personal.nodes.get(full_id) if personal else None
     if node is None:
@@ -770,6 +836,50 @@ def _topic_draft(node: GraphNode, touching: list[tuple[GraphLink, str]], persona
     return _Draft(subtitle=SUBTITLES["topic"], properties=properties, body=BODY_TEXT["topic"])
 
 
+def _purchase_properties(node: GraphNode) -> list[DetailProperty]:
+    """Dates and counts from this person's own reports; never the free text."""
+    first = node.attrs.get("first_purchased_on")
+    last = node.attrs.get("last_purchased_on")
+    when = None
+    span = None
+    if first and last and first != last:
+        span = f"{_pretty_date(first)} – {_pretty_date(last)}"
+    elif first or last:
+        when = _pretty_date(first or last)
+    reports = node.attrs.get("reports") or node.count
+    return _properties(
+        ("reports", PROPERTY_LABELS["your_reports"], str(reports) if reports else None),
+        ("purchased_on", PROPERTY_LABELS["purchased_on"], when),
+        ("purchased_between", PROPERTY_LABELS["purchased_between"], span),
+    )
+
+
+def _seller_draft(node: GraphNode, touching: list[tuple[GraphLink, str]], personal: _Personal) -> _Draft:
+    place = None
+    for _link, other_id in touching:
+        other = personal.nodes.get(other_id)
+        if other is not None and other.type == "place":
+            place = other.label
+            break
+    properties = [
+        *_purchase_properties(node),
+        *_properties(("place", PROPERTY_LABELS["place"], place or node.sublabel)),
+    ]
+    # A seller never gets a badge. A badge is a verdict, and there is none here.
+    # Nor does the note state a crowd count: a note is rebuilt from this
+    # device's own scans and its own reports every time it is opened, so there
+    # is no other person's number in reach here. Other people's reports are a
+    # `cluster:` node minted by `/graph/expand`, with a note of its own.
+    return _Draft(
+        subtitle=SUBTITLES["seller"], properties=properties, body=BODY_TEXT["seller"]
+    )
+
+
+def _place_draft(node: GraphNode, touching: list[tuple[GraphLink, str]], personal: _Personal) -> _Draft:
+    properties = _purchase_properties(node)
+    return _Draft(subtitle=SUBTITLES["place"], properties=properties, body=BODY_TEXT["place"])
+
+
 def _default_draft(node: GraphNode, touching: list[tuple[GraphLink, str]], personal: _Personal) -> _Draft:
     return _Draft(subtitle=node.sublabel)
 
@@ -784,6 +894,8 @@ _TYPE_BUILDERS: dict[str, Any] = {
     "web_page": _web_page_draft,
     "imprint": _imprint_draft,
     "topic": _topic_draft,
+    "seller": _seller_draft,
+    "place": _place_draft,
 }
 
 

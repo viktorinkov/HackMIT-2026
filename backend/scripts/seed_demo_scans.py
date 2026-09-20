@@ -5,6 +5,8 @@ index, at zero paid cost.
     uv run python scripts/seed_demo_scans.py --yes            # actually write
     uv run python scripts/seed_demo_scans.py --only 1,4,7     # a subset of scenarios
     uv run python scripts/seed_demo_scans.py --force --yes    # re-create over an existing match
+    uv run python scripts/seed_demo_scans.py --reports        # dry run of the demo purchase reports
+    uv run python scripts/seed_demo_scans.py --reports --yes  # file them against the demo scans
     uv run python scripts/seed_demo_scans.py --purge --yes    # delete every peel-graph-demo scan
 
 The default is a **dry run**: it prints, per scenario, the `ScanCreate` payload
@@ -25,6 +27,12 @@ reads and writes (`peel-scans`, `peel-regulatory`, `peel-web-pages`, ...) are
 the only network calls this script ever makes; `firecrawl_enabled` is left
 exactly as `.env` set it, so `KnowledgeSearch.search_web` can still surface
 pages a *previous, real* scan already cached, at zero additional cost.
+
+`--reports` is a second, independent phase over the same demo device: it files
+a handful of invented purchase reports (`peel-reports`) against demo scans that
+already exist, so the Atlas graph has sellers and places to draw. Every seller
+name contains the word "Demo" and every one of them is fictional; the cities and
+countries are real ones that match each scenario's own country.
 """
 
 from __future__ import annotations
@@ -33,7 +41,7 @@ import argparse
 import asyncio
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 
@@ -42,11 +50,14 @@ from elasticsearch import ApiError, AsyncElasticsearch
 from backend.config import Settings, get_settings
 from backend.knowledge import normalize
 from backend.knowledge.client import KnowledgeError, build_client
-from backend.knowledge.fields import Reg, Scan, SCANS_INDEX
+from backend.knowledge.fields import REPORTS_INDEX, SCANS_INDEX, Reg, Scan
+from backend.knowledge.fields import Report as ReportFields
 from backend.knowledge.search import KnowledgeSearch
 from backend.photo_identification.bottle import BottlePhotoResult
 from backend.photo_identification.imprint import ImprintPhotoResult
 from backend.pill import HARDWARE_MODEL, PillHardwareResult
+from backend.reports.models import PurchaseLocation, Report
+from backend.reports.store import ElasticReportStore
 from backend.research import pipeline as pipeline_module
 from backend.research.agent_builder import AgentBuilderUnavailable
 from backend.research.pipeline import ResearchPipeline
@@ -57,6 +68,7 @@ from backend.scans.store import ScanStore
 
 DEVICE_ID = "peel-graph-demo"
 BACKDATE_DAYS = 21
+MAX_DEMO_SCANS = 200
 
 
 # --------------------------------------------------------------------------- stubs
@@ -477,6 +489,138 @@ def _scenarios() -> list[Scenario]:
     ]
 
 
+# --------------------------------------------------------------------------- reports
+
+
+@dataclass(frozen=True)
+class DemoReport:
+    """One invented purchase report, joined to a scenario by its number.
+
+    Nothing here is a real shop. Every `seller` carries the word "Demo" so that
+    no one can mistake a rehearsal pharmacy for an accusation about a real one;
+    the city, region and country are real and match the scenario's own country.
+    """
+
+    scenario: int
+    purchased_on: date
+    seller: str | None = None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+
+    @property
+    def location(self) -> PurchaseLocation | None:
+        if not any((self.city, self.region, self.country)):
+            return None
+        return PurchaseLocation(city=self.city, region=self.region, country=self.country)
+
+    def describe(self) -> str:
+        place = ", ".join(part for part in (self.city, self.region, self.country) if part)
+        return (
+            f"seller={self.seller!r} place={place or None!r} "
+            f"purchased_on={self.purchased_on.isoformat()!r}"
+        )
+
+
+def _demo_reports() -> list[DemoReport]:
+    return [
+        # The same shop on both levothyroxine bottles and on the older
+        # hydrochlorothiazide one: one seller node joining three scans.
+        DemoReport(1, date(2026, 8, 20), "Riverside Demo Pharmacy", "Columbus", "Ohio",
+                   "United States"),
+        DemoReport(2, date(2026, 9, 2), "Riverside Demo Pharmacy", "Columbus", "Ohio",
+                   "United States"),
+        DemoReport(6, date(2026, 6, 15), "Riverside Demo Pharmacy", "Columbus", "Ohio",
+                   "United States"),
+        # A seller with no place at all: the node exists, the place does not.
+        DemoReport(3, date(2026, 7, 9), "Demo Mail Order Depot"),
+        DemoReport(4, date(2026, 8, 30), "Pharmacie du Marché Demo", "Douala", "Littoral",
+                   "Cameroon"),
+        DemoReport(7, date(2026, 8, 5), "Demo Clinic Dispensary", "Columbus", "Ohio",
+                   "United States"),
+        DemoReport(11, date(2026, 8, 12), "High Street Demo Chemist", "Leeds", "England",
+                   "United Kingdom"),
+        # A place with no seller: the scan reaches the town directly.
+        DemoReport(12, date(2026, 7, 28), None, "Toronto", "Ontario", "Canada"),
+    ]
+
+
+async def _scans_by_signature(store: ScanStore) -> dict[tuple[Any, Any, Any], dict[str, Any]]:
+    docs, _ = await store.list(device_id=DEVICE_ID, limit=MAX_DEMO_SCANS)
+    out: dict[tuple[Any, Any, Any], dict[str, Any]] = {}
+    for doc in docs:
+        out.setdefault(_signature(doc.get(Scan.NORM) or {}), doc)
+    return out
+
+
+async def _already_filed(reports: ElasticReportStore, scan_id: str, seller: str | None) -> bool:
+    """Skip-if-exists by (scan_id, seller), so a re-run files nothing twice."""
+    try:
+        existing = await reports.list_for_scan(scan_id)
+    except KnowledgeError as exc:
+        print(f"  [WARN] could not list existing reports: {exc.message}")
+        return False
+    return any((report.seller or None) == seller for report in existing)
+
+
+async def _seed_reports(es: AsyncElasticsearch, settings: Settings, *, write: bool) -> int:
+    store = ScanStore(es, settings)
+    reports = ElasticReportStore(es)
+    scenarios = {scenario.number: scenario for scenario in _scenarios()}
+
+    try:
+        by_signature = await _scans_by_signature(store)
+    except Exception as exc:  # noqa: BLE001 - report and stop, never guess
+        print(f"Could not list the demo scans: {type(exc).__name__}: {exc}")
+        return 1
+
+    specs = _demo_reports()
+    print("=" * 78)
+    print(f"Peel Atlas demo reports — device_id={DEVICE_ID!r}, {len(specs)} report(s)")
+    print(f"mode: {'WRITE (--yes)' if write else 'DRY RUN (no writes; pass --yes to write)'}")
+    print("=" * 78)
+
+    filed = 0
+    for spec in specs:
+        scenario = scenarios.get(spec.scenario)
+        print(f"\n--- Report for scenario {spec.scenario}"
+              f"{': ' + scenario.title if scenario else ''} ---")
+        print(spec.describe())
+        if scenario is None:
+            print("status: SKIP — no such scenario")
+            continue
+        doc = by_signature.get(_signature(_norm_for(scenario)))
+        if doc is None:
+            print("status: SKIP — that demo scan does not exist yet "
+                  "(seed the scans first, with --yes)")
+            continue
+        scan_id = str(doc.get(Scan.SCAN_ID) or "")
+        if await _already_filed(reports, scan_id, spec.seller):
+            print(f"status: SKIP — already filed against scan_id={scan_id}")
+            continue
+        if not write:
+            print(f"status: would FILE against scan_id={scan_id}")
+            continue
+        stored = await reports.add(
+            Report(
+                scan_id=scan_id,
+                purchased_on=spec.purchased_on,
+                purchase_location=spec.location,
+                seller=spec.seller,
+                created_at=datetime.now(UTC),
+            )
+        )
+        filed += 1
+        print(f"  -> report_id={stored.report_id} scan_id={scan_id}")
+
+    print()
+    if not write:
+        print("Dry run complete. Nothing was written. Re-run with --yes once approved.")
+    else:
+        print(f"Write complete: {filed} report(s) filed.")
+    return 0
+
+
 # --------------------------------------------------------------------------- helpers
 
 
@@ -571,8 +715,128 @@ async def _existing_signatures(store: ScanStore) -> set[tuple[Any, Any, Any]]:
     return out
 
 
+def _demo_scan_query() -> dict[str, Any]:
+    return {
+        "bool": {"filter": [{"term": {Scan.DEVICE_ID: DEVICE_ID}}, {"term": {Scan.DEMO: True}}]}
+    }
+
+
+async def _demo_scan_ids(es: AsyncElasticsearch) -> list[str] | None:
+    """Every demo scan id, read-only. `None` means "could not tell".
+
+    Paged rather than capped: the purge deletes the scans by query but the
+    reports only by the ids listed here, so an id this misses is a demo report
+    that outlives its scan and stops being recognisable as rehearsal data.
+    """
+    out: list[str] = []
+    after: list[Any] | None = None
+    while True:
+        try:
+            response = await es.search(
+                index=SCANS_INDEX,
+                query=_demo_scan_query(),
+                size=MAX_DEMO_SCANS,
+                source={"includes": [Scan.SCAN_ID]},
+                sort=[{Scan.SCAN_ID: "asc"}],
+                track_total_hits=False,
+                **({"search_after": after} if after else {}),
+            )
+        except Exception as exc:  # noqa: BLE001 - report and stop, never guess
+            print(f"Could not list matching scans: {type(exc).__name__}: {exc}")
+            return None
+        hits = list(response["hits"]["hits"])
+        for hit in hits:
+            scan_id = str((hit.get("_source") or {}).get(Scan.SCAN_ID) or hit.get("_id") or "")
+            if scan_id:
+                out.append(scan_id)
+        if len(hits) < MAX_DEMO_SCANS:
+            return out
+        sort_values = hits[-1].get("sort")
+        if not sort_values:
+            # No cursor to page on: stop rather than loop on the same page.
+            print(f"Listed {len(out)} scan(s); the cluster returned no paging cursor.")
+            return out
+        after = list(sort_values)
+
+
+async def _report_count(es: AsyncElasticsearch, query: dict[str, Any]) -> int | None:
+    """How many reports match, or `None` when the cluster would not say."""
+    try:
+        response = await es.count(index=REPORTS_INDEX, query=query)
+    except Exception as exc:  # noqa: BLE001 - report and stop, never guess
+        print(f"Could not count matching reports: {type(exc).__name__}: {exc}")
+        return None
+    return int(response.get("count", 0))
+
+
+async def _purge_reports(es: AsyncElasticsearch, scan_ids: list[str]) -> int:
+    """Reports are joined to a scan by `scan_id` alone, so they go first: once
+    the scans are gone there is nothing left to select them by.
+
+    A report that outlives its scan is worse than one that is never deleted: it
+    is a demo report with no demo scan behind it, which no longer looks like
+    rehearsal data to anything that reads it. So a partial delete is a failure
+    here, and the caller must not go on to delete the scans — `delete_by_query`
+    reports `failures` and `version_conflicts` while still returning a `deleted`
+    count, so the count alone cannot tell the two apart.
+    """
+    query: dict[str, Any] = {"bool": {"filter": [{"terms": {ReportFields.SCAN_ID: scan_ids}}]}}
+    count = await _report_count(es, query)
+    if count is None:
+        return 1
+    print(f"peel-reports: {count} document(s) filed against those scans.")
+    if count == 0:
+        print("No reports to delete.")
+        return 0
+    try:
+        response = await es.delete_by_query(index=REPORTS_INDEX, query=query, refresh=True)
+    except ApiError as exc:
+        if exc.status_code in (401, 403):
+            print(
+                f"PERMISSION ERROR: the configured Elasticsearch API key cannot delete "
+                f"from {REPORTS_INDEX} ({exc.status_code}): {exc.message}"
+            )
+            return 1
+        print(f"Delete failed: {exc.message}")
+        return 1
+    except Exception as exc:  # noqa: BLE001
+        print(f"Delete failed: {type(exc).__name__}: {exc}")
+        return 1
+    print(f"Deleted {int(response.get('deleted', 0))} report(s).")
+
+    failures = list(response.get("failures") or [])
+    conflicts = int(response.get("version_conflicts", 0) or 0)
+    if failures:
+        print(f"{len(failures)} shard failure(s) during the report delete: {failures[0]}")
+    if conflicts:
+        print(f"{conflicts} version conflict(s) during the report delete.")
+
+    remaining = await _report_count(es, query)
+    if remaining is None:
+        return 1
+    if remaining:
+        print(
+            f"{remaining} report(s) still match. Re-run --purge --yes; the scans are "
+            "left in place so those reports can still be selected by scan_id."
+        )
+        return 1
+    if failures or conflicts:
+        print("Every matching report is gone despite the failures above.")
+    return 0
+
+
 async def _purge(es: AsyncElasticsearch) -> int:
-    query = {"bool": {"filter": [{"term": {Scan.DEVICE_ID: DEVICE_ID}}, {"term": {Scan.DEMO: True}}]}}
+    scan_ids = await _demo_scan_ids(es)
+    if scan_ids is None:
+        return 1
+    if scan_ids:
+        failed = await _purge_reports(es, scan_ids)
+        if failed:
+            return failed
+    else:
+        print("peel-reports: no demo scans, so no demo reports to delete.")
+
+    query = _demo_scan_query()
     try:
         count_response = await es.count(index=SCANS_INDEX, query=query)
     except Exception as exc:  # noqa: BLE001 - report and stop, never guess
@@ -625,6 +889,11 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--force", action="store_true", help="re-create a scenario even if one already exists"
     )
+    parser.add_argument(
+        "--reports",
+        action="store_true",
+        help="file the demo purchase reports against the demo scans instead of seeding scans",
+    )
     return parser.parse_args(argv)
 
 
@@ -654,6 +923,15 @@ async def run(argv: list[str] | None = None) -> int:
             return 1
         try:
             return await _purge(es)
+        finally:
+            await es.close()
+
+    if args.reports:
+        if es is None:
+            print(f"Cannot file reports: Elasticsearch is not reachable/configured ({es_error}).")
+            return 1
+        try:
+            return await _seed_reports(es, settings, write=args.yes)
         finally:
             await es.close()
 

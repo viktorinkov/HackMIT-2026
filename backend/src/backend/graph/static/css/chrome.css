@@ -577,6 +577,140 @@ body[data-embed="1"] .atlas-chip {
 }
 
 /* ---------------------------------------------------------------------
+ * Legend rows: the rail's collapsed Legend section is the only place the key
+ * lives. There is no floating panel: the canvas stays clear.
+ * ------------------------------------------------------------------- */
+.atlas-key-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.atlas-key-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.atlas-key-row-line {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.atlas-key-sub {
+  font-size: 10px;
+  color: var(--text-faint);
+  line-height: 1.3;
+}
+
+/* Every swatch sits in a fixed-width slot so the text column lines up. */
+.atlas-key-swatch {
+  flex: none;
+  width: 30px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.atlas-key-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.atlas-key-line {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.atlas-key-line--thin {
+  height: 1.5px;
+}
+
+/* The one moving row: a red-to-orange track with three particles travelling
+   along it, same direction as the scene's own photons (record -> your lot).
+   The global prefers-reduced-motion rule above collapses this to a static
+   frame, never fully off — the row still shows dots on a line. */
+.atlas-key-line--alert {
+  height: 4px;
+  background: linear-gradient(90deg, var(--sev-critical), var(--sev-high));
+  overflow: visible;
+}
+
+.atlas-key-particle {
+  /* background-color set inline from config.js's PARTICLE_COLOR (panels/key.js) */
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  animation: atlas-key-flow 1.8s linear infinite;
+}
+
+.atlas-key-particle:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.atlas-key-particle:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+@keyframes atlas-key-flow {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 4px);
+    opacity: 0;
+  }
+}
+
+/* Your own purchase report: a sand square (the seller node) with a short
+   sand line (the report edge) right after it. */
+.atlas-key-report-swatch {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.atlas-key-square {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.atlas-key-report-swatch .atlas-key-line {
+  width: 16px;
+}
+
+/* Selected: a hollow ring, coloured inline from config.js's SELECTION_RING —
+   the same white the scene puts around whatever is selected. */
+.atlas-key-ring {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--text);
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------
  * Toasts (#toasts)
  * ------------------------------------------------------------------- */
 #toasts {

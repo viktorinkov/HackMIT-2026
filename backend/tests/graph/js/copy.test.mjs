@@ -35,6 +35,10 @@ const CONFIG_JS_KEYS = [
   'link.lot_listed',
   'link.stated_manufacturer',
   'link.conflicts_with',
+  'link.bought_from',
+  'link.bought_in',
+  'link.located_in',
+  'link.also_reported',
 ];
 
 test('copy has every key config.js references', () => {
@@ -105,4 +109,34 @@ test('ui copy never uses an assurance word', () => {
   const banned = /\b(safe|genuine|verified|authentic)\b/i;
   const match = source.match(banned);
   assert.equal(match, null, `copy.js contains a banned assurance word: ${match && match[0]}`);
+});
+
+// A report is one person's unverified account, never evidence (graph/models.py
+// REPORT_KINDS). No string anywhere in copy.js may accuse a seller of anything
+// or claim an assurance the graph never gives.
+test('no string ever accuses a seller or alarms about a crowd report', () => {
+  const banned = /\b(fake|counterfeit|illegal|fraud|scam|guilty|unsafe|dangerous)\b/i;
+  for (const [key, value] of Object.entries(STRINGS)) {
+    const match = value.match(banned);
+    assert.equal(match, null, `${key} contains a banned word: ${match && match[0]}`);
+  }
+});
+
+test('the legend names every colour on screen', () => {
+  for (const key of [
+    'key.row_scan', 'key.row_alert', 'key.row_alert_sub',
+    'key.row_uncorroborated', 'key.row_relation', 'key.row_report', 'key.row_selected',
+  ]) {
+    assert.equal(hasKey(key), true, `copy.js is missing the key "${key}"`);
+  }
+});
+
+test('a crowd report link never claims to check or corroborate the seller', () => {
+  // link.bought_from / bought_in / located_in / also_reported must read as
+  // provenance, not as a finding: no "match", "corroborat*" or verdict word.
+  const reportKeys = ['link.bought_from', 'link.bought_in', 'link.located_in', 'link.also_reported'];
+  const findingish = /\b(match|corroborat\w*|recall|alert)\b/i;
+  for (const key of reportKeys) {
+    assert.doesNotMatch(STRINGS[key], findingish, key);
+  }
 });

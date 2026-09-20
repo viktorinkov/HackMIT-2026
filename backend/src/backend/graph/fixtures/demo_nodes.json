@@ -1520,5 +1520,231 @@
    "records": 403,
    "in_your_graph": 2
   }
+ },
+ "seller:riverside demo pharmacy|columbus|ohio|united-states": {
+  "id": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+  "type": "seller",
+  "title": "Riverside Demo Pharmacy",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Named in your report as where you bought it",
+  "properties": [
+   {
+    "key": "reports",
+    "label": "Reports you filed",
+    "value": "2"
+   },
+   {
+    "key": "purchased_between",
+    "label": "You said you bought it between",
+    "value": "Aug 20, 2026 – Sep 2, 2026"
+   },
+   {
+    "key": "place",
+    "label": "Place",
+    "value": "Columbus, United States"
+   }
+  ],
+  "body": "This comes from a report you filed. Peel has not checked it, and it says nothing about what the seller did.",
+  "backlinks": [
+   {
+    "node_id": "scan:demo-levo-d2402430",
+    "type": "scan",
+    "label": "Levothyroxine 200 mcg",
+    "relation": "Where you said you bought it",
+    "scan_id": "scan:demo-levo-d2402430"
+   },
+   {
+    "node_id": "scan:demo-levo-d2402999",
+    "type": "scan",
+    "label": "Levothyroxine 200 mcg",
+    "relation": "Where you said you bought it",
+    "scan_id": "scan:demo-levo-d2402999"
+   },
+   {
+    "node_id": "place:columbus|ohio|united-states",
+    "type": "place",
+    "label": "Columbus, United States",
+    "relation": "Located in"
+   },
+   {
+    "node_id": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+    "type": "cluster",
+    "label": "Named by 4 other people",
+    "relation": "Other people's reports"
+   }
+  ],
+  "counts": {
+   "reports": 2,
+   "scans": 2
+  },
+  "demo": true
+ },
+ "seller:pharmacie du marché demo|douala|littoral|cameroon": {
+  "id": "seller:pharmacie du marché demo|douala|littoral|cameroon",
+  "type": "seller",
+  "title": "Pharmacie du Marché Demo",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Named in your report as where you bought it",
+  "properties": [
+   {
+    "key": "reports",
+    "label": "Reports you filed",
+    "value": "1"
+   },
+   {
+    "key": "purchased_on",
+    "label": "You said you bought it",
+    "value": "Aug 30, 2026"
+   },
+   {
+    "key": "place",
+    "label": "Place",
+    "value": "Douala, Cameroon"
+   }
+  ],
+  "body": "This comes from a report you filed. Peel has not checked it, and it says nothing about what the seller did.",
+  "backlinks": [
+   {
+    "node_id": "scan:demo-healmoxy-h02605",
+    "type": "scan",
+    "label": "Healmoxy amoxicillin 500 mg",
+    "relation": "Where you said you bought it",
+    "scan_id": "scan:demo-healmoxy-h02605"
+   },
+   {
+    "node_id": "place:douala|littoral|cameroon",
+    "type": "place",
+    "label": "Douala, Cameroon",
+    "relation": "Located in"
+   }
+  ],
+  "counts": {
+   "reports": 1,
+   "scans": 1
+  },
+  "demo": true
+ },
+ "place:columbus|ohio|united-states": {
+  "id": "place:columbus|ohio|united-states",
+  "type": "place",
+  "title": "Columbus, United States",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "The place you named in your report",
+  "properties": [
+   {
+    "key": "reports",
+    "label": "Reports you filed",
+    "value": "2"
+   },
+   {
+    "key": "purchased_between",
+    "label": "You said you bought it between",
+    "value": "Aug 20, 2026 – Sep 2, 2026"
+   }
+  ],
+  "body": "This is the city or country you gave in a report you filed. Peel has not checked it, and it says nothing about the medicines sold there.",
+  "backlinks": [
+   {
+    "node_id": "seller:riverside demo pharmacy|columbus|ohio|united-states",
+    "type": "seller",
+    "label": "Riverside Demo Pharmacy",
+    "relation": "Located in"
+   },
+   {
+    "node_id": "country:united-states",
+    "type": "country",
+    "label": "United States",
+    "relation": "Located in"
+   }
+  ],
+  "counts": {
+   "reports": 2
+  },
+  "demo": true
+ },
+ "place:douala|littoral|cameroon": {
+  "id": "place:douala|littoral|cameroon",
+  "type": "place",
+  "title": "Douala, Cameroon",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "The place you named in your report",
+  "properties": [
+   {
+    "key": "reports",
+    "label": "Reports you filed",
+    "value": "1"
+   },
+   {
+    "key": "purchased_on",
+    "label": "You said you bought it",
+    "value": "Aug 30, 2026"
+   }
+  ],
+  "body": "This is the city or country you gave in a report you filed. Peel has not checked it, and it says nothing about the medicines sold there.",
+  "backlinks": [
+   {
+    "node_id": "seller:pharmacie du marché demo|douala|littoral|cameroon",
+    "type": "seller",
+    "label": "Pharmacie du Marché Demo",
+    "relation": "Located in"
+   },
+   {
+    "node_id": "country:cameroon",
+    "type": "country",
+    "label": "Cameroon",
+    "relation": "Located in"
+   }
+  ],
+  "counts": {
+   "reports": 1
+  },
+  "demo": true
+ },
+ "place:boston|massachusetts|united-states": {
+  "id": "place:boston|massachusetts|united-states",
+  "type": "place",
+  "title": "Boston, United States",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "The place you named in your report",
+  "properties": [
+   {
+    "key": "reports",
+    "label": "Reports you filed",
+    "value": "1"
+   },
+   {
+    "key": "purchased_on",
+    "label": "You said you bought it",
+    "value": "Aug 28, 2026"
+   }
+  ],
+  "body": "This is the city or country you gave in a report you filed. Peel has not checked it, and it says nothing about the medicines sold there.",
+  "backlinks": [
+   {
+    "node_id": "scan:demo-ibuprofen-i2",
+    "type": "scan",
+    "label": "Ibuprofen 200 mg",
+    "relation": "Where you said you bought it",
+    "scan_id": "scan:demo-ibuprofen-i2"
+   },
+   {
+    "node_id": "country:united-states",
+    "type": "country",
+    "label": "United States",
+    "relation": "Located in"
+   }
+  ],
+  "counts": {
+   "reports": 1
+  },
+  "demo": true
+ },
+ "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports": {
+  "id": "cluster:seller:riverside demo pharmacy|columbus|ohio|united-states|reports",
+  "type": "cluster",
+  "title": "Other people's reports",
+  "notice": "Peel checks published records only. It cannot tell you what is inside a tablet — if anything looks or feels wrong, ask a pharmacist.",
+  "subtitle": "Counts from other people's reports",
+  "body": "Other people filed reports naming the same place of purchase. Peel shows how many, and nothing else about them: no dates, no locations, no scans. Peel has not checked any of these reports, and they say nothing about what anyone did."
  }
 }

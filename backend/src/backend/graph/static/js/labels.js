@@ -6,6 +6,7 @@
 // view never becomes a wall of text.
 
 import { NODE_TYPES, typeOf } from './config.js';
+import { cleanText } from './safe.js';
 
 // px of projected radius at which a label starts to appear. Relaxed from 5: at the
 // fitted camera distance almost every node projects smaller than that.
@@ -68,7 +69,9 @@ export function createLabelLayer(host, { size = 40 } = {}) {
 
       const type = typeOf(c.node);
       const mono = !!type.mono;
-      const text = String(c.node.label || '');
+      // Labels can be text a person typed (a reported seller): strip control and bidi
+      // characters here too, like every other text path.
+      const text = cleanText(c.node.label, 60);
       if (!text) continue;
 
       let w = sizes.get(c.id);
@@ -97,7 +100,7 @@ export function createLabelLayer(host, { size = 40 } = {}) {
       if (slot.cls !== cls) { slot.el.className = cls; slot.cls = cls; }
       if (slot.text !== text) { slot.main.textContent = text; slot.text = text; }
 
-      const subText = c.showSub && c.node.sublabel ? String(c.node.sublabel) : '';
+      const subText = c.showSub && c.node.sublabel ? cleanText(c.node.sublabel, 80) : '';
       if (slot.subText !== subText) { slot.sub.textContent = subText; slot.subText = subText; }
 
       slot.el.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;

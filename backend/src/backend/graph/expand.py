@@ -1,6 +1,6 @@
 """`GET /graph/expand`: the neighbours of one node, with hard caps.
 
-Three rules decide everything here:
+Four rules decide everything here:
 
 * **Expansion never mints an alert.** `recalls_by_lot` stamps every hit
   `exact_lot` when the caller passes no product context at all, so a bare
@@ -14,6 +14,15 @@ Three rules decide everything here:
 * **One device never sees another's scans.** `scan:` expansion 404s for a
   foreign scan, and a foreign `scan_id` passed alongside a lot is treated as no
   context at all.
+* **A crowd is a count of people.** Expanding a `seller:` or `place:` from
+  someone's own report looks for other people's reports of the same shop or
+  town, and returns one `cluster:` node carrying how many *other people* filed
+  one and how many of them sat on a scan with findings — never a foreign
+  `scan_id` or `report_id`, never a date, never a free-text location. Below
+  `MIN_CROWD_REPORTS` it returns nothing at all, because "one other person"
+  about a village pharmacy names that person, and every published number is
+  suppressed on the same floor: a breakdown of 1 names somebody just as surely
+  as a total of 1 does.
 """
 
 from __future__ import annotations
@@ -40,9 +49,10 @@ from backend.graph.models import (
     link_id,
 )
 from backend.graph.queries import GraphQueries
+from backend.graph.reports_graph import REPORT_WEIGHT
 from backend.knowledge import normalize
 from backend.knowledge.client import KnowledgeError
-from backend.knowledge.fields import Ndc, Reg, Web
+from backend.knowledge.fields import Ndc, Reg, Report, Scan, Web
 
 if TYPE_CHECKING:  # pragma: no cover - the service module is another stream's
     from backend.graph.service import GraphContext
@@ -54,9 +64,17 @@ MAX_MEDICINES = 3
 MAX_SIBLINGS = 12
 MAX_LOT_RECORDS = 20
 
+# k-anonymity for the crowd count, counted in people rather than in rows. One
+# other person's report about a small-town seller identifies the person who
+# filed it, so it is not shown at all.
+MIN_CROWD_REPORTS = 2
+# The verdicts that make a scan "one with findings" in a crowd count. Neither
+# says anything about the seller; both are facts about somebody's own bottle.
+CROWD_FLAGGED_VERDICTS = frozenset({"recall_match", "mismatch_found"})
+
 _SEVERITIES = frozenset({"critical", "high", "moderate", "unknown"})
 _EXPANDABLE_TYPES = frozenset(
-    {"lot", "product", "record", "medicine", "manufacturer", "regulator", "country"}
+    {"lot", "product", "record", "medicine", "manufacturer", "regulator", "country", "seller"}
 )
 _FALSIFIED = "falsified_alert"
 # The one sentence that keeps a falsified alert from libelling its victim.
@@ -96,6 +114,11 @@ _WEIGHTS: dict[str, float] = {
     "lists_lot": 0.5,
     "published_by": 0.4,
     "more": 0.1,
+    # Report edges all weigh the same; see `graph.reports_graph`.
+    "bought_from": REPORT_WEIGHT,
+    "bought_in": REPORT_WEIGHT,
+    "located_in": REPORT_WEIGHT,
+    "also_reported": REPORT_WEIGHT,
 }
 
 
@@ -411,7 +434,12 @@ _ANCHOR_TYPES: dict[str, str] = {
     "pillref": "pill_ref",
     "topic": "topic",
     "cluster": "cluster",
+    "seller": "seller",
+    "place": "place",
 }
+# A seller/place key carries its place after the first "|"; the stand-in label
+# shows only the head of it, and never any part of a free-text location.
+_COMPOUND_KEY_TYPES = frozenset({"seller", "place"})
 
 
 def anchor_node(node_id: str) -> GraphNode:
@@ -431,6 +459,8 @@ def anchor_node(node_id: str) -> GraphNode:
         label = _KNOWN_ORGS.get(key, key)
     elif prefix == "country":
         label = country_label(key.replace("-", " ")) or key
+    elif node_type in _COMPOUND_KEY_TYPES:
+        label = key.split("|", 1)[0].replace("-", " ").title() or key
     else:
         label = key
     return GraphNode(
@@ -477,6 +507,8 @@ async def expand_node(
         "mfr": _expand_manufacturer,
         "reg": _expand_regulator,
         "country": _expand_country,
+        "seller": _expand_seller,
+        "place": _expand_place,
     }
     handler = handlers.get(prefix)
     if handler is None:
@@ -811,6 +843,217 @@ async def _expand_country(
             acc.add_node(reg)
             acc.add_link(make_link(node.id, "issued_by", reg.id, strong=True))
     add_cluster(acc, node_id, "records", total - len(hits), "records")
+
+
+# --------------------------------------------------------------------------- reports
+
+
+async def _own_graph(ctx: GraphContext, device_id: str | None) -> Any:
+    """This device's personal graph, or `None`. Never another device's."""
+    if not device_id:
+        return None
+    try:
+        return await ctx.personal(device_id)
+    except KnowledgeError:
+        # The crowd count is decoration on someone's own report; a scans
+        # outage is not a reason to fail the expansion.
+        return None
+
+
+def _own_scan_ids(graph: Any) -> list[str]:
+    return [
+        node.id.partition(":")[2]
+        for node in getattr(graph, "nodes", [])
+        if node.type == "scan" and node.id.partition(":")[2]
+    ]
+
+
+def _publishable_flagged(reporters: int, flagged: int) -> int | None:
+    """`flagged`, or `None` when publishing it would describe one person.
+
+    The floor applies to the breakdown and not only to the total. With three
+    other reporters and `flagged=1`, that 1 is one identifiable person's verdict
+    hung under a named shop in a named town; so is the lone `0` behind
+    `flagged=2`. A group of one on either side of the split is suppressed and
+    the cluster carries the total alone.
+    """
+    unflagged = reporters - flagged
+    if flagged and flagged < MIN_CROWD_REPORTS:
+        return None
+    if unflagged and unflagged < MIN_CROWD_REPORTS:
+        return None
+    return flagged
+
+
+def _crowd_cluster(
+    anchor: GraphNode, reporters: int, flagged: int | None, *, truncated: bool
+) -> GraphNode:
+    """Counts, and nothing that could name whoever filed them."""
+    more = "+" if truncated else ""
+    attrs: dict[str, Any] = {
+        "relation": "reports",
+        "parent": anchor.id,
+        "count": reporters,
+    }
+    if truncated:
+        # The page was capped, so the number is a floor. Said out loud, because
+        # a count with no qualifier reads as exact.
+        attrs["truncated"] = True
+    if flagged is not None:
+        attrs["flagged"] = flagged
+    return GraphNode(
+        id=f"cluster:{cluster_key(anchor.id, 'reports')}",
+        type="cluster",
+        label=clip_label(f"Named by {reporters:,}{more} other people"),
+        val=1.2,
+        personal=False,
+        expandable=False,
+        count=reporters,
+        demo=anchor.demo,
+        attrs=attrs,
+    )
+
+
+async def _crowd_counts(
+    ctx: GraphContext,
+    hits: list[dict[str, Any]],
+    *,
+    own: set[str],
+    own_device_id: str | None,
+    include_demo: bool,
+) -> tuple[int, int]:
+    """`(reporters, flagged)` from other people's reports — people, not rows.
+
+    Three things are not a crowd, and each is dropped here rather than counted:
+
+    * **Two rows from one person.** `POST /scans/{id}/reports` writes a document
+      per tap, so a double-tapped Submit is two rows, and one person's two scans
+      of the same bottle are two more. Rows are grouped by the device that owns
+      the scan behind them, so the floor in `MIN_CROWD_REPORTS` counts people.
+    * **A report whose scan cannot be read.** Its provenance is unknown — it may
+      be an orphaned demo report — and an unknown row must not become somebody
+      else's corroboration.
+    * **This device's own older scans.** `own` is drawn from the personal graph,
+      which stops at `scan_limit`; scan 51 and older would otherwise come back
+      as "other people". The device that owns the scan settles it exactly.
+
+    Demo scans are excluded the way `KnowledgeSearch.prior_scans` excludes them:
+    a re-seeded rehearsal device must never manufacture a crowd signal behind a
+    real seller. An anchor that is itself a demo node keeps them, because then
+    the whole neighbourhood is rehearsal data and says so.
+    """
+    scan_ids = [
+        scan_id
+        for scan_id in (
+            normalize.clean_text((hit.get("_source") or {}).get(Report.SCAN_ID))
+            for hit in hits
+        )
+        if scan_id and scan_id not in own
+    ]
+    if not scan_ids:
+        return 0, 0
+
+    scan_hits, _total = await _queries(ctx).crowd_scans(sorted(set(scan_ids)))
+    by_scan = {str(hit.get("_id")): dict(hit.get("_source") or {}) for hit in scan_hits}
+
+    # reporter -> did any of their scans carry a finding. The key never leaves
+    # this function; only the size of this mapping does.
+    reporters: dict[str, bool] = {}
+    for scan_id in scan_ids:
+        doc = by_scan.get(scan_id)
+        if doc is None:
+            continue
+        if bool(doc.get(Scan.DEMO)) and not include_demo:
+            continue
+        device = normalize.clean_text(doc.get(Scan.DEVICE_ID))
+        if own_device_id and device == own_device_id:
+            continue
+        research = doc.get(Scan.RESEARCH) or {}
+        verdict = normalize.clean_text(research.get("verdict"))
+        # A scan doc older than the `device_id` allow-list, or one written
+        # without it, still counts — as its own reporter, never as nobody.
+        reporter = device or f"scan:{scan_id}"
+        reporters[reporter] = reporters.get(reporter, False) or (
+            verdict in CROWD_FLAGGED_VERDICTS
+        )
+    return len(reporters), sum(1 for found in reporters.values() if found)
+
+
+async def _expand_report_node(
+    ctx: GraphContext,
+    acc: Accumulator,
+    node_id: str,
+    node_type: str,
+    *,
+    device_id: str | None,
+) -> None:
+    graph = await _own_graph(ctx, device_id)
+    found = next(
+        (node for node in getattr(graph, "nodes", []) if node.id == node_id), None
+    )
+    if found is None or found.type != node_type:
+        # Not one of this device's own report nodes: nothing to count against.
+        return
+    anchor = found.model_copy(deep=True)
+    acc.add_node(anchor)
+
+    own = set(_own_scan_ids(graph))
+    queries = _queries(ctx)
+    try:
+        if node_type == "seller":
+            variants = [
+                value
+                for value in (anchor.attrs.get("variants") or [])
+                if isinstance(value, str) and value
+            ]
+            if not variants:
+                return
+            hits, total = await queries.reports_by_seller(
+                variants, exclude_scan_ids=sorted(own)
+            )
+        else:
+            city = normalize.clean_text(anchor.attrs.get("city"))
+            region = normalize.clean_text(anchor.attrs.get("region"))
+            country = normalize.clean_text(anchor.attrs.get("country"))
+            if not (city or region or country):
+                return
+            hits, total = await queries.reports_by_place(
+                city=city, region=region, country=country, exclude_scan_ids=sorted(own)
+            )
+        reporters, flagged = await _crowd_counts(
+            ctx, hits, own=own, own_device_id=device_id, include_demo=anchor.demo
+        )
+    except KnowledgeError:
+        # The crowd count is decoration on somebody's own report, and
+        # `GraphContext.report_docs` already holds the same line: a reports
+        # index that is missing, rolled over or refusing queries costs the count
+        # and nothing else, never the expansion the person actually clicked.
+        return
+
+    if reporters < MIN_CROWD_REPORTS:
+        return
+    cluster = _crowd_cluster(
+        anchor,
+        reporters,
+        _publishable_flagged(reporters, flagged),
+        truncated=total > len(hits),
+    )
+    acc.add_node(cluster)
+    # Never strong, never an alert: this says people reported, not that anyone
+    # did anything.
+    acc.add_link(make_link(node_id, "also_reported", cluster.id, count=reporters))
+
+
+async def _expand_seller(
+    ctx: GraphContext, acc: Accumulator, node_id: str, key: str, *, device_id: str | None, **_: Any
+) -> None:
+    await _expand_report_node(ctx, acc, node_id, "seller", device_id=device_id)
+
+
+async def _expand_place(
+    ctx: GraphContext, acc: Accumulator, node_id: str, key: str, *, device_id: str | None, **_: Any
+) -> None:
+    await _expand_report_node(ctx, acc, node_id, "place", device_id=device_id)
 
 
 # --------------------------------------------------------------------------- scan

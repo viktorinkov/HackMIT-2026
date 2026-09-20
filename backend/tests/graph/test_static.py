@@ -25,6 +25,11 @@ static_app = pytest.importorskip("backend.graph.static_app")
 STATIC_DIR: Path = static_app.STATIC_DIR
 
 ASSURANCE_WORDS_RE = re.compile(r"\b(safe|genuine|verified|authentic)\b", re.IGNORECASE)
+# A report is one person's unverified account, never evidence (graph/models.py
+# REPORT_KINDS). No copy string may accuse a seller of anything either.
+ACCUSATION_WORDS_RE = re.compile(
+    r"\b(fake|counterfeit|illegal|fraud|scam|guilty|unsafe|dangerous)\b", re.IGNORECASE
+)
 HTML_REF_RE = re.compile(r'(?:src|href)\s*=\s*"([^"]+)"')
 STYLE_BLOCK_RE = re.compile(r"<style\b[^>]*>.*?</style>", re.IGNORECASE | re.DOTALL)
 BANNED_DOM_SINK_RE = re.compile(r"innerHTML|insertAdjacentHTML|outerHTML|document\.write")
@@ -79,6 +84,12 @@ def test_ui_copy_never_uses_assurance_words() -> None:
     for label, text in (("js/copy.js", copy_js), ("index.html", index_html_without_css)):
         match = ASSURANCE_WORDS_RE.search(text)
         assert match is None, f"{label} contains a banned assurance word: {match and match.group(0)!r}"
+
+
+def test_ui_copy_never_accuses_a_seller_or_alarms_about_a_crowd_report() -> None:
+    copy_js = (STATIC_DIR / "js" / "copy.js").read_text(encoding="utf-8")
+    match = ACCUSATION_WORDS_RE.search(copy_js)
+    assert match is None, f"js/copy.js contains a banned word: {match and match.group(0)!r}"
 
 
 def test_no_script_writes_html_from_data() -> None:

@@ -17,6 +17,7 @@ import pytest
 
 from backend.graph.models import (
     MAX_LABEL_CHARS,
+    REPORT_KINDS,
     ExpandResponse,
     GraphResponse,
     NodeDetail,
@@ -163,11 +164,15 @@ def test_no_fixture_string_ever_says_safe_genuine_or_verified() -> None:
 
 
 def test_no_fixture_carries_a_sensitive_label_field() -> None:
+    # The rule is about the *fields* `sanitize_bottle` drops, not about the
+    # words in them. A shop somebody names in their own purchase report may
+    # perfectly well be called "… Pharmacy"; that text is theirs, and it
+    # reaches the graph through `peel-reports`, never through a bottle label.
     for name in ("demo_graph.json", "demo_nodes.json", "demo_expansions.json",
                  "demo_search.json"):
         blob = (FIXTURES / name).read_text(encoding="utf-8").casefold()
         for key in SENSITIVE_KEYS:
-            assert key not in blob, (name, key)
+            assert f'"{key}":' not in blob, (name, key)
 
 
 def test_every_alert_edge_runs_from_a_lot_to_a_record(graph: GraphResponse) -> None:
@@ -234,6 +239,78 @@ def test_the_mismatch_scan_produces_a_conflicts_with_edge(graph: GraphResponse) 
     assert conflict.alert is False
 
 
+def test_no_report_edge_is_ever_strong_or_alerting(graph: GraphResponse) -> None:
+    edges = [link for link in graph.links if link.kind in REPORT_KINDS]
+    assert edges, "the demo graph should show where the medicines were bought"
+    for link in edges:
+        assert link.alert is False, link.id
+        assert link.strong is False, link.id
+
+
+def test_a_seller_is_never_styled_as_a_risk(graph: GraphResponse) -> None:
+    for node in graph.nodes:
+        if node.type in ("seller", "place"):
+            assert node.severity is None, node.id
+            assert node.verdict is None, node.id
+            assert node.risk_level is None, node.id
+            assert node.match_tier is None, node.id
+            assert node.demo is True, node.id
+    sellers = [node for node in graph.nodes if node.type == "seller"]
+    places = [node for node in graph.nodes if node.type == "place"]
+    assert len(sellers) == 2 and len(places) == 3
+    # One shop joins the two levothyroxine scans; that is the whole point of it.
+    riverside = next(node for node in sellers if "Riverside" in node.label)
+    assert len(riverside.scan_ids) == 2
+
+
+def test_a_purchase_country_merges_with_the_regulatory_country_node(
+    graph: GraphResponse,
+) -> None:
+    known = {node.id for node in graph.nodes}
+    country_edges = [
+        link for link in graph.links
+        if link.kind == "located_in" and link.target.startswith("country:")
+    ]
+    assert country_edges
+    for link in country_edges:
+        assert link.target in known, link.id
+    assert "country:cameroon" in {link.target for link in country_edges}
+
+
+def test_the_crowd_cluster_carries_counts_and_no_one_elses_scan(
+    graph: GraphResponse, details: dict[str, NodeDetail]
+) -> None:
+    cluster = next(
+        node for node in graph.nodes
+        if node.type == "cluster" and node.attrs.get("relation") == "reports"
+    )
+    assert cluster.count == 4
+    assert cluster.attrs["flagged"] == 2
+    assert cluster.scan_ids == []
+    # Every number the fixture shows is one the live code could publish: a
+    # group of one on either side of the flagged/unflagged split is suppressed
+    # (`expand._publishable_flagged`), and there is no per-medicine breakdown.
+    assert cluster.attrs["count"] - cluster.attrs["flagged"] >= 2
+    assert "medicines" not in cluster.attrs
+    assert cluster.id in details
+    note = details[cluster.id]
+    assert note.badges == []
+    assert note.properties == []
+    assert "has not checked" in (note.body or "")
+
+
+def test_the_seller_notes_never_say_anything_about_the_seller(
+    details: dict[str, NodeDetail]
+) -> None:
+    sellers = [detail for detail in details.values() if detail.type == "seller"]
+    assert sellers
+    for detail in sellers:
+        assert detail.badges == [], detail.id
+        assert detail.next_steps == [], detail.id
+        assert "report you filed" in (detail.body or ""), detail.id
+        assert "has not checked" in (detail.body or ""), detail.id
+
+
 def test_the_clean_scan_is_neutral_not_positive(graph: GraphResponse) -> None:
     clean = [node for node in graph.nodes if node.verdict == "no_adverse_findings"]
     assert clean
@@ -245,11 +322,11 @@ def test_the_clean_scan_is_neutral_not_positive(graph: GraphResponse) -> None:
 # --------------------------------------------------------------------------- notes
 
 
-def test_every_scan_record_lot_and_regulator_node_has_a_note(
+def test_every_scan_record_lot_regulator_seller_and_place_node_has_a_note(
     graph: GraphResponse, details: dict[str, NodeDetail]
 ) -> None:
     wanted = [node for node in graph.nodes
-              if node.type in ("scan", "record", "lot", "regulator")]
+              if node.type in ("scan", "record", "lot", "regulator", "seller", "place")]
     missing = [node.id for node in wanted if node.id not in details]
     assert missing == []
     assert all(detail.notice for detail in details.values())

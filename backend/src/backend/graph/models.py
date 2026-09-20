@@ -34,6 +34,9 @@ NodeType = Literal[
     "pill_ref",
     "topic",
     "cluster",
+    # Crowd reports (peel-reports): where someone says they bought the medicine.
+    "seller",
+    "place",
 ]
 
 # The id of every node is "<prefix>:<key>"; the key comes from `graph.keys`.
@@ -51,6 +54,8 @@ ID_PREFIX: dict[str, str] = {
     "pill_ref": "pillref",
     "topic": "topic",
     "cluster": "cluster",
+    "seller": "seller",
+    "place": "place",
 }
 
 LinkKind = Literal[
@@ -93,6 +98,11 @@ LinkKind = Literal[
     # pill identification and disagreements
     "identifies_as",
     "conflicts_with",
+    # crowd reports: a person's own statement about a purchase, never evidence
+    "bought_from",
+    "bought_in",
+    "located_in",
+    "also_reported",
     # structure
     "more",
 ]
@@ -101,6 +111,13 @@ LinkKind = Literal[
 # only when the record also covers all lots; the builder decides that per entry.
 ALERT_CAPABLE_KINDS: frozenset[str] = frozenset(
     {"exact_lot", "all_lots_product", "ndc_in_description"}
+)
+
+# A report is one person's unverified account of where they bought something. These
+# kinds are never strong and never an alert, whatever the scan's verdict: the graph
+# may show that reports cluster around a seller, not that the seller did anything.
+REPORT_KINDS: frozenset[str] = frozenset(
+    {"bought_from", "bought_in", "located_in", "also_reported"}
 )
 
 # How directly a record reached the user's scans. Best tier wins on merge.

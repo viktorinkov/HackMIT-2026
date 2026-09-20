@@ -4,12 +4,26 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  BG, INTENSITY, LINK_CLASS, LINK_STYLE, NODE_TYPES, PRESENTER_STOPS, SEVERITY,
-  SIM, TIERS, UNCORROBORATED_KINDS, UNKNOWN_TYPE, VERDICT,
-  linkClass, nodeColor, nodeRadius, typeOf,
+  BG, HIGHLIGHT_LINK, INTENSITY, LINK_CLASS, LINK_STYLE, NODE_TYPES, PRESENTER_STOPS,
+  REPORT_KINDS, SELECTION_RING, SEVERITY, SIM, TIERS, UNCORROBORATED_KINDS,
+  UNKNOWN_TYPE, VERDICT, linkClass, nodeColor, nodeRadius, typeOf,
 } from '../../../src/backend/graph/static/js/config.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+function channels(hex) {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+/** How far a colour is from grey: 0 is neutral, 255 is a fully saturated hue. */
+function chroma(hex) {
+  const rgb = channels(hex);
+  return Math.max(...rgb) - Math.min(...rgb);
+}
 
 test('no node, severity or verdict colour is green', () => {
   const hues = [];
@@ -132,4 +146,82 @@ test('every presenter stop is a prefixed node id', () => {
 test('no adverse findings is slate and shares no colour with a recall match', () => {
   assert.notEqual(VERDICT.no_adverse_findings.color, VERDICT.recall_match.color);
   assert.equal(VERDICT.recall_match.color, SEVERITY.critical.color);
+});
+
+// ------------------------------------------------------------- what a colour means
+//
+// One recalled lot showed a red path with moving dots while another sat inside a
+// purple ring with purple lines, and the two read as two different findings. They
+// were never that: the red path is a recall, the purple was only "selected". These
+// tests hold the vocabulary apart -- purple is yours, white is what you are looking
+// at, and a severity colour is the only thing that means a finding.
+
+test('hover and selection are neutral, and share no colour with your scans', () => {
+  assert.match(HIGHLIGHT_LINK, HEX);
+  assert.match(SELECTION_RING, HEX);
+  // Near-grey: a highlight that carried a hue would compete with the severity colours.
+  assert.ok(chroma(HIGHLIGHT_LINK) <= 16, HIGHLIGHT_LINK);
+  assert.ok(chroma(SELECTION_RING) <= 16, SELECTION_RING);
+  assert.notEqual(HIGHLIGHT_LINK.toLowerCase(), NODE_TYPES.scan.color.toLowerCase());
+  assert.notEqual(SELECTION_RING.toLowerCase(), NODE_TYPES.scan.color.toLowerCase());
+});
+
+test('the scan purple belongs to your scans and to nothing else', () => {
+  const scan = NODE_TYPES.scan.color.toLowerCase();
+  for (const [name, entry] of Object.entries(NODE_TYPES)) {
+    if (name === 'scan') continue;
+    assert.notEqual(entry.color.toLowerCase(), scan, name);
+  }
+  for (const entry of Object.values(SEVERITY)) assert.notEqual(entry.color.toLowerCase(), scan);
+  for (const entry of Object.values(VERDICT)) assert.notEqual(entry.color.toLowerCase(), scan);
+});
+
+test('a severity colour is more saturated than anything highlighting can produce', () => {
+  for (const [name, entry] of Object.entries(SEVERITY)) {
+    if (name === 'unknown') continue;
+    assert.ok(chroma(entry.color) > chroma(HIGHLIGHT_LINK), name);
+    assert.ok(chroma(entry.color) > chroma(SELECTION_RING), name);
+  }
+});
+
+test('a crowd report is its own link class, ahead of an uncorroborated match', () => {
+  for (const kind of REPORT_KINDS) {
+    assert.equal(linkClass({ kind }), LINK_CLASS.REPORT, kind);
+    assert.equal(linkClass({ kind, strong: true }), LINK_CLASS.REPORT, kind);
+  }
+  assert.ok(LINK_STYLE[LINK_CLASS.REPORT], 'the scene needs a report style to pool');
+});
+
+test('a report edge is sand, never a severity colour, and carries no particles', () => {
+  const report = LINK_STYLE.report.color;
+  assert.match(report, HEX);
+  assert.equal(LINK_STYLE.report.particles, 0);
+  for (const [name, entry] of Object.entries(SEVERITY)) {
+    assert.notEqual(report.toLowerCase(), entry.color.toLowerCase(), name);
+  }
+  // The edge and the seller it leads to are the same sand, so a report reads as one thing.
+  assert.equal(report.toLowerCase(), NODE_TYPES.seller.color.toLowerCase());
+  assert.ok(LINK_STYLE.report.alpha < LINK_STYLE.alert.alpha);
+});
+
+test('a reported seller or place is never coloured or sized by severity', () => {
+  for (const type of ['seller', 'place']) {
+    assert.ok(!NODE_TYPES[type].bySeverity, type);
+    assert.equal(nodeColor({ type, severity: 'critical' }), NODE_TYPES[type].color, type);
+  }
+});
+
+test('a seller is a cube and a purchase place is a plain sphere', () => {
+  assert.equal(NODE_TYPES.seller.shape, 'box');
+  assert.equal(NODE_TYPES.place.shape, 'sphere');
+});
+
+test('every declared shape is one js/nodes.js knows how to build', () => {
+  // nodes.js falls back to a sphere for anything else; this says so out loud, so a new
+  // shape in the vocabulary is a deliberate change on both sides.
+  const shapes = new Set(['sphere', 'ring', 'octa', 'hub', 'cloud', 'box']);
+  for (const [name, entry] of Object.entries(NODE_TYPES)) {
+    assert.ok(shapes.has(entry.shape || 'sphere'), `${name}: ${entry.shape}`);
+  }
+  assert.ok(shapes.has(UNKNOWN_TYPE.shape || 'sphere'));
 });

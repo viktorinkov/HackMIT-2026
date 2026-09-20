@@ -69,6 +69,22 @@ SCAN_HEALMOXY = "scan:demo-healmoxy-h02605"
 SCAN_IBU = "scan:demo-ibuprofen-i2"
 SCAN_MISMATCH = "scan:demo-ibuprofen-5892v"
 
+# Crowd reports. Every seller here is invented and says so; the cities and
+# countries are real ones that match the scan they hang off. A report is one
+# person's account of a purchase, so none of these edges is ever strong and
+# none of them ever alerts, whatever the scan's verdict says.
+PLACE_COLUMBUS = "place:columbus|ohio|united-states"
+PLACE_DOUALA = "place:douala|littoral|cameroon"
+PLACE_BOSTON = "place:boston|massachusetts|united-states"
+SELLER_RIVERSIDE = "seller:riverside demo pharmacy|columbus|ohio|united-states"
+SELLER_MARCHE = "seller:pharmacie du marché demo|douala|littoral|cameroon"
+CROWD_RIVERSIDE = f"cluster:{SELLER_RIVERSIDE}|reports"
+
+REPORT_BODY = (
+    "This comes from a report you filed. Peel has not checked it, and it says nothing "
+    "about what the seller did."
+)
+
 nodes: list[dict] = []
 links: list[dict] = []
 
@@ -414,8 +430,46 @@ node("topic:impurity-nitrosamine", "topic", "Impurity", val=1.8, personal=True, 
 node("topic:falsified", "topic", "Falsified product", val=2.0, personal=True, expandable=True,
      count=2)
 
+# --------------------------------------------------------------------------- reports
+
+node(SELLER_RIVERSIDE, "seller", "Riverside Demo Pharmacy",
+     sublabel="Columbus, United States", val=2.4, personal=True, expandable=True, count=2,
+     date="2026-09-02", demo=True, scan_ids=[SCAN_LEVO, SCAN_LEVO_SIB],
+     attrs={"reports": 2, "first_purchased_on": "2026-08-20",
+            "last_purchased_on": "2026-09-02", "city": "Columbus", "region": "Ohio",
+            "country": "United States", "variants": ["Riverside Demo Pharmacy"]})
+node(SELLER_MARCHE, "seller", "Pharmacie du Marché Demo",
+     sublabel="Douala, Cameroon", val=2.4, personal=True, expandable=True, count=1,
+     date="2026-08-30", demo=True, scan_ids=[SCAN_HEALMOXY],
+     attrs={"reports": 1, "first_purchased_on": "2026-08-30",
+            "last_purchased_on": "2026-08-30", "city": "Douala", "region": "Littoral",
+            "country": "Cameroon", "variants": ["Pharmacie du Marché Demo"]})
+node(PLACE_COLUMBUS, "place", "Columbus, United States", val=1.8, personal=True, count=2,
+     date="2026-09-02", demo=True, scan_ids=[SCAN_LEVO, SCAN_LEVO_SIB],
+     attrs={"reports": 2, "first_purchased_on": "2026-08-20",
+            "last_purchased_on": "2026-09-02", "city": "Columbus", "region": "Ohio",
+            "country": "United States"})
+node(PLACE_DOUALA, "place", "Douala, Cameroon", val=1.8, personal=True, count=1,
+     date="2026-08-30", demo=True, scan_ids=[SCAN_HEALMOXY],
+     attrs={"reports": 1, "first_purchased_on": "2026-08-30",
+            "last_purchased_on": "2026-08-30", "city": "Douala", "region": "Littoral",
+            "country": "Cameroon"})
+# A report that named a town but no shop: the scan reaches the place directly.
+node(PLACE_BOSTON, "place", "Boston, United States", val=1.6, personal=True, count=1,
+     date="2026-08-28", demo=True, scan_ids=[SCAN_IBU],
+     attrs={"reports": 1, "first_purchased_on": "2026-08-28",
+            "last_purchased_on": "2026-08-28", "city": "Boston", "region": "Massachusetts",
+            "country": "United States"})
+
 # --------------------------------------------------------------------------- clusters
 
+# Counts only, and only counts the live code can publish: four other people, of
+# whom two scanned something with a finding and two did not. A split with a
+# group of one on either side is suppressed (`expand._publishable_flagged`), so
+# a fixture must not show one either.
+node(CROWD_RIVERSIDE, "cluster", "Named by 4 other people", val=1.2, count=4,
+     expandable=False, demo=True,
+     attrs={"relation": "reports", "parent": SELLER_RIVERSIDE, "count": 4, "flagged": 2})
 node("cluster:reg:fda|records", "cluster", "+17,961 more FDA records", val=1.4, count=17961,
      expandable=True, attrs={"relation": "records", "parent": "reg:fda"})
 node("cluster:reg:who|records", "cluster", "+82 more WHO records", val=1.2, count=82,
@@ -532,6 +586,21 @@ weak("imprint:5892V", "related", PILLREF_TEMAZEPAM, 0.25, match_kind="imprint_ex
 weak(PILLREF_TEMAZEPAM, "identifies_as", "med:temazepam", 0.25, scan_ids=[SCAN_MISMATCH])
 strong("med:temazepam", "conflicts_with", "med:ibuprofen", 0.7, match_kind="imprint",
        scan_ids=[SCAN_MISMATCH])
+
+# (g) what the person said about where the medicines came from. Never strong,
+# never an alert, even on the two scans whose verdict is recall_match.
+weak(SCAN_LEVO, "bought_from", SELLER_RIVERSIDE, 0.3, scan_ids=[SCAN_LEVO])
+weak(SCAN_LEVO_SIB, "bought_from", SELLER_RIVERSIDE, 0.3, scan_ids=[SCAN_LEVO_SIB])
+weak(SELLER_RIVERSIDE, "located_in", PLACE_COLUMBUS, 0.3, count=2,
+     scan_ids=[SCAN_LEVO, SCAN_LEVO_SIB])
+weak(PLACE_COLUMBUS, "located_in", "country:united-states", 0.3, count=2,
+     scan_ids=[SCAN_LEVO, SCAN_LEVO_SIB])
+weak(SCAN_HEALMOXY, "bought_from", SELLER_MARCHE, 0.3, scan_ids=[SCAN_HEALMOXY])
+weak(SELLER_MARCHE, "located_in", PLACE_DOUALA, 0.3, scan_ids=[SCAN_HEALMOXY])
+weak(PLACE_DOUALA, "located_in", "country:cameroon", 0.3, scan_ids=[SCAN_HEALMOXY])
+weak(SCAN_IBU, "bought_in", PLACE_BOSTON, 0.3, scan_ids=[SCAN_IBU])
+weak(PLACE_BOSTON, "located_in", "country:united-states", 0.3, scan_ids=[SCAN_IBU])
+weak(SELLER_RIVERSIDE, "also_reported", CROWD_RIVERSIDE, 0.3, count=4)
 
 # structure
 weak("reg:fda", "more", "cluster:reg:fda|records", 0.1)
@@ -1126,6 +1195,116 @@ detail(
     counts={"records": 403, "in_your_graph": 2},
 )
 
+detail(
+    SELLER_RIVERSIDE, "seller", "Riverside Demo Pharmacy",
+    subtitle="Named in your report as where you bought it",
+    properties=[
+        prop("reports", "Reports you filed", "2"),
+        prop("purchased_between", "You said you bought it between",
+             "Aug 20, 2026 – Sep 2, 2026"),
+        prop("place", "Place", "Columbus, United States"),
+    ],
+    # Every number on a seller note is this person's own. Other people's
+    # reports are the cluster below, which has a note of its own.
+    body=REPORT_BODY,
+    backlinks=[
+        backlink(SCAN_LEVO, "scan", "Levothyroxine 200 mcg",
+                 "Where you said you bought it", SCAN_LEVO),
+        backlink(SCAN_LEVO_SIB, "scan", "Levothyroxine 200 mcg",
+                 "Where you said you bought it", SCAN_LEVO_SIB),
+        backlink(PLACE_COLUMBUS, "place", "Columbus, United States", "Located in"),
+        backlink(CROWD_RIVERSIDE, "cluster", "Named by 4 other people",
+                 "Other people's reports"),
+    ],
+    counts={"reports": 2, "scans": 2},
+    demo=True,
+)
+
+detail(
+    SELLER_MARCHE, "seller", "Pharmacie du Marché Demo",
+    subtitle="Named in your report as where you bought it",
+    properties=[
+        prop("reports", "Reports you filed", "1"),
+        prop("purchased_on", "You said you bought it", "Aug 30, 2026"),
+        prop("place", "Place", "Douala, Cameroon"),
+    ],
+    body=REPORT_BODY,
+    backlinks=[
+        backlink(SCAN_HEALMOXY, "scan", "Healmoxy amoxicillin 500 mg",
+                 "Where you said you bought it", SCAN_HEALMOXY),
+        backlink(PLACE_DOUALA, "place", "Douala, Cameroon", "Located in"),
+    ],
+    counts={"reports": 1, "scans": 1},
+    demo=True,
+)
+
+PLACE_BODY = (
+    "This is the city or country you gave in a report you filed. Peel has not checked "
+    "it, and it says nothing about the medicines sold there."
+)
+
+detail(
+    PLACE_COLUMBUS, "place", "Columbus, United States",
+    subtitle="The place you named in your report",
+    properties=[
+        prop("reports", "Reports you filed", "2"),
+        prop("purchased_between", "You said you bought it between",
+             "Aug 20, 2026 – Sep 2, 2026"),
+    ],
+    body=PLACE_BODY,
+    backlinks=[
+        backlink(SELLER_RIVERSIDE, "seller", "Riverside Demo Pharmacy", "Located in"),
+        backlink("country:united-states", "country", "United States", "Located in"),
+    ],
+    counts={"reports": 2},
+    demo=True,
+)
+
+detail(
+    PLACE_DOUALA, "place", "Douala, Cameroon",
+    subtitle="The place you named in your report",
+    properties=[
+        prop("reports", "Reports you filed", "1"),
+        prop("purchased_on", "You said you bought it", "Aug 30, 2026"),
+    ],
+    body=PLACE_BODY,
+    backlinks=[
+        backlink(SELLER_MARCHE, "seller", "Pharmacie du Marché Demo", "Located in"),
+        backlink("country:cameroon", "country", "Cameroon", "Located in"),
+    ],
+    counts={"reports": 1},
+    demo=True,
+)
+
+detail(
+    PLACE_BOSTON, "place", "Boston, United States",
+    subtitle="The place you named in your report",
+    properties=[
+        prop("reports", "Reports you filed", "1"),
+        prop("purchased_on", "You said you bought it", "Aug 28, 2026"),
+    ],
+    body=PLACE_BODY,
+    backlinks=[
+        backlink(SCAN_IBU, "scan", "Ibuprofen 200 mg", "Where you said you bought it",
+                 SCAN_IBU),
+        backlink("country:united-states", "country", "United States", "Located in"),
+    ],
+    counts={"reports": 1},
+    demo=True,
+)
+
+# The shape `detail._report_cluster_detail` really returns: a title, a subtitle
+# and a body. The two counts the panel shows are read off the cluster NODE
+# (`count`, `attrs.flagged`), so the note itself carries no properties — there
+# is nothing else about those people that it is allowed to say.
+detail(
+    CROWD_RIVERSIDE, "cluster", "Other people's reports",
+    subtitle="Counts from other people's reports",
+    body="Other people filed reports naming the same place of purchase. Peel shows how "
+         "many, and nothing else about them: no dates, no locations, no scans. Peel has "
+         "not checked any of these reports, and they say nothing about what anyone did.",
+)
+
 # =========================================================================== expansions
 
 
@@ -1208,6 +1387,23 @@ expansions = {
         ],
         "meta": expand_meta(counts={"records": 2, "regulators": 2, "web_pages": 2,
                                     "prior_scans": 1}),
+    },
+    SELLER_RIVERSIDE: {
+        "anchor": SELLER_RIVERSIDE,
+        # Counts only: no foreign scan id, no report id, no date, no location.
+        "nodes": [
+            {"id": CROWD_RIVERSIDE, "type": "cluster", "label": "Named by 4 other people",
+             "val": 1.2, "count": 4, "expandable": False, "demo": True,
+             "attrs": {"relation": "reports", "parent": SELLER_RIVERSIDE, "count": 4,
+                       "flagged": 2}},
+        ],
+        "links": [
+            {"id": f"{SELLER_RIVERSIDE}>also_reported>{CROWD_RIVERSIDE}",
+             "source": SELLER_RIVERSIDE, "target": CROWD_RIVERSIDE, "kind": "also_reported",
+             "strong": False, "alert": False, "weight": 0.3, "count": 4,
+             "match_kind": "also_reported"},
+        ],
+        "meta": expand_meta(counts={"other_reports": 4, "flagged": 2}),
     },
     "reg:fda": {
         "anchor": "reg:fda",

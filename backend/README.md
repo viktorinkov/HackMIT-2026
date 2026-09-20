@@ -793,8 +793,8 @@ uv run python scripts/seed_demo_scans.py --purge --yes       # delete every peel
 (`uv run --project backend uvicorn backend.app:app --host 127.0.0.1 --port 8010`).
 
 ```bash
-cd backend && uv run pytest tests/graph              # 204 passed
-node --test "backend/tests/graph/js/**/*.test.mjs"   # from the repo root; 82 passed
+cd backend && uv run pytest tests/graph              # 225 passed
+node --test "backend/tests/graph/js/**/*.test.mjs"   # from the repo root; 130 passed
 
 curl -s "localhost:8010/graph?demo=1"
 # -> {"nodes":[{"id":"scan:demo-levo-d2402430","verdict":"recall_match","demo":true,...}],
@@ -826,7 +826,62 @@ and an unrelated NAD+ recall sharing the lot string `D24005` both come back `lot
 - Demo scans land in the live `peel-scans` index and must be purged after judging
   (`scripts/seed_demo_scans.py --purge --yes`).
 
-## Testing and verification
+### Crowd reports
+
+A report (`backend/src/backend/reports/`, index `peel-reports`) is one person's own
+account, which Peel has not checked, of where they bought a medicine — filed from the results chat and joined
+to a scan by `scan_id` alone. `graph/reports_graph.py` turns this device's own reports into
+`seller`/`place` nodes and `bought_from`/`bought_in`/`located_in` edges on the personal graph
+(`GraphContext.personal`, `GET /graph`); `graph/expand.py` turns *other* people's reports of
+the same seller or place into one `also_reported` edge to a `cluster:` node carrying counts.
+
+Five rules keep this safe, enforced by `tests/graph/test_builder.py`,
+`tests/graph/js/config.test.mjs` and `tests/graph/js/store.test.mjs`:
+
+- **R1 — a report is a statement, never evidence.** Its edges (`models.REPORT_KINDS`) are
+  never `strong` and never `alert`; a `seller`/`place` node carries no severity, verdict or
+  risk level and is never drawn as a risk, whatever the scan next to it says.
+- **R2 — cross-device privacy is counts only.** What other people's reports contribute is a
+  cluster node carrying a count of distinct other people and, when it cannot single anyone
+  out, an on-findings count; never their `scan_id`, `report_id`, purchase date, medicine,
+  free-text label or coordinates. Below `MIN_CROWD_REPORTS` (2) people it is not returned at
+  all — one other report about a small-town seller identifies that person (k-anonymity,
+  `graph/expand.py`).
+- **R3 — coordinates never leave the backend and free text never becomes a label.**
+  The reports query fetches an allow-list of fields (`REPORT_SOURCE_INCLUDES`), so a field
+  added to `peel-reports` later is not fetched by default, and `purchase_location.label` /
+  `coordinates` are refused explicitly as well (`REPORT_SOURCE_EXCLUDES`). A place node keys
+  and labels only on `city`/`region`/`country`, and only exists when one of them is present.
+  Seller text that holds an `@` or a run of seven or more digits mints no node.
+- **R4 — a seller is keyed with its place**, so the same chain name in two cities is two
+  different shops (`reports_graph.seller_key`, `graph/keys.py: company_key`).
+- **R5 — reports never touch a verdict, a match tier or an alert edge.** The safety invariant
+  (`tests/graph/test_builder.py`) holds exactly the same with reports attached.
+
+**Seeding demo reports** (`scripts/seed_demo_scans.py --reports`), a second, independent phase
+over the twelve demo scenarios already seeded onto `peel-graph-demo`:
+
+```bash
+uv run python scripts/seed_demo_scans.py --reports          # dry run, writes nothing
+uv run python scripts/seed_demo_scans.py --reports --yes    # file the demo purchase reports
+```
+
+Every invented seller name contains the word "Demo"; cities/countries are real ones matching
+each scenario's own country, so the graph has sellers and places to draw without inventing a
+new fixture format.
+
+**`GET /graph/expand?id=seller:<key>`** (also wired for `place:`) looks up other people's
+reports naming the same seller or place and returns one `also_reported` edge to a `cluster:`
+node. Its `count` is the number of **distinct other people** (reports are grouped by the device
+that owns the scan, so one person filing twice is one reporter, and this device's own scans
+never count, however old). Fewer than `MIN_CROWD_REPORTS` (2) other people returns no cluster
+at all. `attrs.flagged`, how many of them reported on a scan with a recall or mismatch verdict,
+is published only when both sides of that split are 0 or at least 2; a group of one would
+disclose one person's result. No medicine breakdown is returned. A report whose scan cannot be
+read is not counted, demo scans' reports never count toward a real seller, and a capped page
+reads "N+" rather than as an exact total. The page renders the pair as "Named by 4 other
+people" / "2 of them on scans with findings" plus "Peel has not checked these reports."
+(`static/js/panels/note.js`).
 
 ```bash
 uv run pytest                    # live-cluster tests auto-skipped

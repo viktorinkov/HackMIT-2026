@@ -16,22 +16,36 @@ from backend.graph.service import (
     reset_graph_service,
 )
 from backend.knowledge.client import KnowledgeError
+from backend.knowledge.fields import REPORTS_INDEX, SCANS_INDEX
 
 
 class FakeEs:
-    """Just enough of AsyncElasticsearch for `GraphContext.scan_docs`."""
+    """Just enough of AsyncElasticsearch for `scan_docs` and `report_docs`."""
 
     def __init__(self, docs: list[dict[str, Any]] | None = None,
-                 error: Exception | None = None) -> None:
+                 error: Exception | None = None,
+                 reports: list[dict[str, Any]] | None = None,
+                 reports_error: Exception | None = None) -> None:
         self.docs = docs or []
+        self.reports = reports or []
         self.error = error
+        self.reports_error = reports_error
         self.calls: list[dict[str, Any]] = []
 
     async def search(self, **kwargs: Any) -> dict[str, Any]:
         self.calls.append(kwargs)
-        if self.error:
-            raise self.error
-        return {"hits": {"hits": [{"_source": doc} for doc in self.docs]}}
+        if kwargs.get("index") == REPORTS_INDEX:
+            if self.reports_error:
+                raise self.reports_error
+            rows = self.reports
+        else:
+            if self.error:
+                raise self.error
+            rows = self.docs
+        return {"hits": {"hits": [{"_source": doc} for doc in rows]}}
+
+    def calls_on(self, index: str) -> list[dict[str, Any]]:
+        return [call for call in self.calls if call.get("index") == index]
 
 
 def scan_doc(scan_id: str = "scan-live-1") -> dict[str, Any]:
@@ -160,7 +174,7 @@ async def test_the_live_graph_reads_scans_through_the_source_allow_list() -> Non
     assert body["meta"]["scans"] == 1
     assert "scan:scan-live-1" in {node["id"] for node in body["nodes"]}
 
-    sent = es.calls[0]
+    sent = es.calls_on(SCANS_INDEX)[0]
     includes = sent["source"]["includes"]
     assert "bottle" not in includes and "imprint" not in includes
     assert "hardware.spectrum" not in includes
@@ -175,9 +189,84 @@ async def test_the_personal_graph_is_cached_and_fresh_bypasses_the_cache() -> No
     with TestClient(make_app(service)) as client:
         client.get("/graph", params={"device_id": "dev-1"})
         client.get("/graph", params={"device_id": "dev-1"})
-        assert len(es.calls) == 1
+        # One build is one scans query (and one reports query behind it).
+        assert len(es.calls_on(SCANS_INDEX)) == 1
         client.get("/graph", params={"device_id": "dev-1", "fresh": 1})
-        assert len(es.calls) == 2
+        assert len(es.calls_on(SCANS_INDEX)) == 2
+
+
+def _purchase_report(scan_id: str = "scan-live-1") -> dict[str, Any]:
+    return {
+        "report_id": "rep-1",
+        "scan_id": scan_id,
+        "purchased_on": "2026-08-20",
+        "seller": "Riverside Demo Pharmacy",
+        "purchase_location": {"city": "Columbus", "region": "Ohio",
+                              "country": "United States"},
+        "created_at": "2026-09-03T10:00:00Z",
+    }
+
+
+async def test_the_personal_graph_carries_the_reports_filed_against_its_own_scans() -> None:
+    es = FakeEs([scan_doc()], reports=[_purchase_report()])
+    service = GraphService(GraphContext(es=es))  # type: ignore[arg-type]
+    with TestClient(make_app(service)) as client:
+        response = client.get("/graph", params={"device_id": "dev-1"})
+
+    body = response.json()
+    types = {node["id"]: node["type"] for node in body["nodes"]}
+    assert "seller:riverside demo pharmacy|columbus|ohio|united-states" in types
+    assert body["meta"]["counts"]["seller"] == 1
+    assert body["meta"]["counts"]["place"] == 1
+    report_edges = [link for link in body["links"] if link["kind"] == "bought_from"]
+    assert report_edges and all(
+        not link["strong"] and not link["alert"] for link in report_edges
+    )
+
+    sent = es.calls_on(REPORTS_INDEX)[0]
+    assert sent["query"] == {"bool": {"filter": [{"terms": {"scan_id": ["scan-live-1"]}}]}}
+    # An allow-list, like every other read in this package: `peel-reports` is
+    # the index holding free text people typed, so a field added to it later
+    # must not become readable here just by existing. These six are exactly
+    # what `reports_graph.normalise_report` reads.
+    assert sorted(sent["source"]["includes"]) == [
+        "purchase_location.city",
+        "purchase_location.country",
+        "purchase_location.region",
+        "purchased_on",
+        "scan_id",
+        "seller",
+    ]
+    # And the two fields the graph must never be able to read, refused by name
+    # as well as left out.
+    assert sorted(sent["source"]["excludes"]) == [
+        "purchase_location.coordinates",
+        "purchase_location.label",
+    ]
+
+
+async def test_a_field_added_to_the_reports_index_is_not_fetched_by_the_graph() -> None:
+    """The allow-list is the boundary, so a new report field is unreachable."""
+    from backend.graph.service import REPORT_SOURCE_INCLUDES
+
+    for field in ("report_id", "created_at", "notes", "contact_email",
+                  "purchase_location.lat", "purchase_location.lon"):
+        assert field not in REPORT_SOURCE_INCLUDES, field
+
+
+async def test_a_reports_outage_degrades_to_a_graph_without_sellers() -> None:
+    from elasticsearch import TransportError
+
+    es = FakeEs([scan_doc()], reports_error=TransportError("connection refused"))
+    service = GraphService(GraphContext(es=es))  # type: ignore[arg-type]
+    with TestClient(make_app(service)) as client:
+        response = client.get("/graph", params={"device_id": "dev-1"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "scan:scan-live-1" in {node["id"] for node in body["nodes"]}
+    assert not [node for node in body["nodes"] if node["type"] in ("seller", "place")]
+    assert "seller" not in body["meta"]["counts"]
 
 
 async def test_an_elasticsearch_failure_keeps_its_status_code() -> None:

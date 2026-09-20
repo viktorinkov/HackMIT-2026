@@ -6,7 +6,7 @@ import pytest
 
 from backend.graph.expand import STATED_MANUFACTURER_SUBLABEL, expand_node
 from backend.knowledge.client import KnowledgeError
-from backend.knowledge.fields import Ndc, Reg, Web
+from backend.knowledge.fields import Ndc, Reg, Report, Scan, Web
 from backend.knowledge.search import Hit
 
 # Lot D24005 really does collide in the corpus: it is listed by a bevacizumab
@@ -51,15 +51,24 @@ def hit(source: dict[str, Any], match_kind: str, score: float = 1.0) -> Hit:
 
 
 class FakeEs:
-    """Records every call; each method returns the queued response or raises."""
+    """Records every call; each method returns the queued response or raises.
 
-    def __init__(self, **responses: Any) -> None:
+    `by_index` wins over the per-method response, for the handlers that read
+    two indices in one expansion.
+    """
+
+    def __init__(self, *, by_index: dict[str, Any] | None = None, **responses: Any) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.responses = responses
+        self.by_index = by_index or {}
 
     async def _run(self, name: str, kwargs: dict[str, Any]) -> Any:
         self.calls.append((name, kwargs))
-        value = self.responses.get(name, empty())
+        index = kwargs.get("index")
+        if index in self.by_index:
+            value = self.by_index[index]
+        else:
+            value = self.responses.get(name, empty())
         if isinstance(value, Exception):
             raise value
         return value
@@ -69,6 +78,9 @@ class FakeEs:
 
     async def get(self, **kwargs: Any) -> Any:
         return await self._run("get", kwargs)
+
+    def call_on(self, index: str) -> dict[str, Any]:
+        return next(kwargs for _name, kwargs in self.calls if kwargs.get("index") == index)
 
 
 def empty() -> dict[str, Any]:
@@ -452,6 +464,347 @@ async def test_an_unknown_node_type_expands_to_nothing() -> None:
     response = await expand_node(Ctx(), "topic:subpotent", device_id=None, scan_id=None)
     assert response.anchor == "topic:subpotent"
     assert response.nodes == [] and response.links == []
+
+
+# --------------------------------------------------------------------------- reports
+
+SELLER = "seller:riverside demo pharmacy|columbus|ohio|united-states"
+OWN_SCAN = "scan-mine"
+
+
+def rows(*pairs: tuple[str, dict[str, Any]]) -> dict[str, Any]:
+    """Hits whose `_id` matters, which `page()` cannot express."""
+    return {
+        "hits": {
+            "hits": [{"_id": doc_id, "_source": source} for doc_id, source in pairs],
+            "total": {"value": len(pairs)},
+        }
+    }
+
+
+def foreign_reports(*scan_ids: str) -> dict[str, Any]:
+    """What `_source: {includes: [scan_id]}` really returns: the join key only."""
+    return rows(*((f"report-{index}", {Report.SCAN_ID: scan_id})
+                  for index, scan_id in enumerate(scan_ids)))
+
+
+def foreign_scans(
+    *specs: tuple[str, str, bool], devices: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """What `CROWD_SCAN_SRC` really returns: device, verdict, demo.
+
+    Each scan belongs to its own device unless `devices` says otherwise, which
+    is how a crowd of N people is spelled; two scan ids mapped to one device is
+    how one person filing twice is spelled.
+    """
+    devices = devices or {}
+    return rows(
+        *(
+            (
+                scan_id,
+                {
+                    Scan.DEVICE_ID: devices.get(scan_id, f"owner-of-{scan_id}"),
+                    Scan.RESEARCH: {"verdict": verdict},
+                    Scan.DEMO: demo,
+                },
+            )
+            for scan_id, verdict, demo in specs
+        )
+    )
+
+
+def seller_graph(*, demo: bool = False) -> Any:
+    from backend.graph.models import GraphMeta, GraphNode, GraphResponse
+
+    return GraphResponse(
+        nodes=[
+            GraphNode(id=f"scan:{OWN_SCAN}", type="scan", label="Levothyroxine 200 mcg",
+                      personal=True, demo=demo),
+            GraphNode(
+                id=SELLER, type="seller", label="Riverside Demo Pharmacy", personal=True,
+                expandable=True, demo=demo, scan_ids=[OWN_SCAN],
+                attrs={"reports": 1, "city": "Columbus", "region": "Ohio",
+                       "country": "United States",
+                       "variants": ["Riverside Demo Pharmacy"]},
+            ),
+        ],
+        links=[],
+        meta=GraphMeta(device_id="dev-1"),
+    )
+
+
+async def test_seller_expansion_returns_counts_only_and_never_a_foreign_scan_id() -> None:
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("other-1", "other-2", "other-3", "other-4"),
+            "peel-scans": foreign_scans(
+                ("other-1", "recall_match", False),
+                ("other-2", "mismatch_found", False),
+                ("other-3", "no_adverse_findings", False),
+                ("other-4", "no_adverse_findings", False),
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+
+    cluster = next(node for node in response.nodes if node.type == "cluster")
+    assert cluster.count == 4
+    assert cluster.attrs["flagged"] == 2
+    assert cluster.label == "Named by 4 other people"
+    # A per-medicine breakdown is other people's scan content, not a count of
+    # reports, and is never published.
+    assert "medicines" not in cluster.attrs
+
+    link = links_by_kind(response, "also_reported")[0]
+    assert link.source == SELLER and link.target == cluster.id
+    assert link.strong is False and link.alert is False
+
+    # Nothing that could name another person. (The anchor carries this device's
+    # own scan id, as every personal node does; the cluster carries none.)
+    blob = response.model_dump_json()
+    for leaked in ("other-1", "other-2", "other-3", "other-4", "report-0", "owner-of-"):
+        assert leaked not in blob, leaked
+    assert cluster.scan_ids == []
+    assert link.scan_ids == []
+    excluded = es.call_on("peel-reports")["query"]["bool"]["must_not"]
+    assert excluded == [{"terms": {Report.SCAN_ID: [OWN_SCAN]}}]
+
+
+async def test_two_reports_from_one_person_are_one_reporter_and_show_nothing() -> None:
+    """A double-tapped Submit, and one person's two scans, are not a crowd.
+
+    `POST /scans/{id}/reports` writes a document per tap, so the floor has to
+    count people; counting rows lets one person publish their own medicine,
+    place of purchase and verdict back as everybody else's corroboration.
+    """
+    for reports, scans in (
+        # The same scan reported twice.
+        (("other-1", "other-1"), (("other-1", "recall_match", False),)),
+        # Two scans, one device.
+        (
+            ("other-1", "other-2"),
+            (("other-1", "recall_match", False), ("other-2", "recall_match", False)),
+        ),
+    ):
+        es = FakeEs(
+            by_index={
+                "peel-reports": foreign_reports(*reports),
+                "peel-scans": foreign_scans(
+                    *scans, devices={"other-1": "dev-9", "other-2": "dev-9"}
+                ),
+            }
+        )
+        response = await expand_node(
+            Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+        )
+        assert [node.type for node in response.nodes] == ["seller"]
+        assert response.links == []
+
+
+async def test_a_flagged_split_with_a_group_of_one_is_suppressed() -> None:
+    """The floor is on the breakdown too, not only on the total.
+
+    Three other people with one flagged scan between them would publish that one
+    person's verdict under a named shop; the total stands, the split does not.
+    """
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("other-1", "other-2", "other-3"),
+            "peel-scans": foreign_scans(
+                ("other-1", "recall_match", False),
+                ("other-2", "no_adverse_findings", False),
+                ("other-3", "no_adverse_findings", False),
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+
+    cluster = next(node for node in response.nodes if node.type == "cluster")
+    assert cluster.count == 3
+    assert "flagged" not in cluster.attrs
+
+
+async def test_all_or_none_flagged_is_publishable() -> None:
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("other-1", "other-2"),
+            "peel-scans": foreign_scans(
+                ("other-1", "no_adverse_findings", False),
+                ("other-2", "no_adverse_findings", False),
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+    cluster = next(node for node in response.nodes if node.type == "cluster")
+    assert cluster.attrs["flagged"] == 0
+
+
+async def test_a_report_whose_scan_cannot_be_read_is_not_counted() -> None:
+    """An orphaned report — a purged demo one, say — has unknown provenance."""
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("ghost-1", "ghost-2", "other-3"),
+            "peel-scans": foreign_scans(("other-3", "recall_match", False)),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+    assert [node.type for node in response.nodes] == ["seller"]
+    assert response.links == []
+
+
+async def test_this_devices_own_older_scans_are_never_counted_as_other_people() -> None:
+    """`own` stops at `scan_limit`; the owning device settles the rest.
+
+    A device with more scans than the personal graph holds would otherwise see
+    its own older filings come back as somebody else's corroboration.
+    """
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("mine-old-1", "mine-old-2", "other-3"),
+            "peel-scans": foreign_scans(
+                ("mine-old-1", "recall_match", False),
+                ("mine-old-2", "recall_match", False),
+                ("other-3", "recall_match", False),
+                devices={"mine-old-1": "dev-1", "mine-old-2": "dev-1"},
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+    assert [node.type for node in response.nodes] == ["seller"]
+    assert response.links == []
+
+
+async def test_a_capped_page_of_reports_never_reads_as_an_exact_total() -> None:
+    reports = foreign_reports("other-1", "other-2")
+    reports["hits"]["total"] = {"value": 5000}
+    es = FakeEs(
+        by_index={
+            "peel-reports": reports,
+            "peel-scans": foreign_scans(
+                ("other-1", "recall_match", False), ("other-2", "recall_match", False)
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+    cluster = next(node for node in response.nodes if node.type == "cluster")
+    assert cluster.label == "Named by 2+ other people"
+    assert cluster.attrs["truncated"] is True
+
+
+async def test_a_reports_outage_costs_the_crowd_count_and_nothing_else() -> None:
+    """The same line `GraphContext.report_docs` holds, one hop on."""
+    from elasticsearch import TransportError
+
+    es = FakeEs(by_index={"peel-reports": TransportError("connection refused")})
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+    assert [node.type for node in response.nodes] == ["seller"]
+    assert response.links == []
+
+
+async def test_fewer_than_two_other_reports_shows_no_crowd_count() -> None:
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("other-1"),
+            "peel-scans": foreign_scans(("other-1", "recall_match", False)),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()), SELLER, device_id="dev-1", scan_id=None
+    )
+
+    assert [node.type for node in response.nodes] == ["seller"]
+    assert response.links == []
+
+
+async def test_demo_reports_never_count_toward_a_real_sellers_crowd_signal() -> None:
+    reports = foreign_reports("other-1", "other-2", "other-3")
+    scans = foreign_scans(
+        ("other-1", "recall_match", True),
+        ("other-2", "recall_match", True),
+        ("other-3", "recall_match", False),
+    )
+    real = await expand_node(
+        Ctx(es=FakeEs(by_index={"peel-reports": reports, "peel-scans": scans}),
+            personal=seller_graph()),
+        SELLER,
+        device_id="dev-1",
+        scan_id=None,
+    )
+    # One real report left, which is below the k-anonymity floor.
+    assert [node.type for node in real.nodes] == ["seller"]
+
+    rehearsal = await expand_node(
+        Ctx(es=FakeEs(by_index={"peel-reports": reports, "peel-scans": scans}),
+            personal=seller_graph(demo=True)),
+        SELLER,
+        device_id="dev-1",
+        scan_id=None,
+    )
+    cluster = next(node for node in rehearsal.nodes if node.type == "cluster")
+    assert cluster.count == 3 and cluster.demo is True
+
+
+async def test_a_seller_that_is_not_this_devices_own_expands_to_nothing() -> None:
+    es = FakeEs(by_index={"peel-reports": foreign_reports("other-1", "other-2")})
+    response = await expand_node(
+        Ctx(es=es, personal=seller_graph()),
+        "seller:someone elses shop|leeds|england|united-kingdom",
+        device_id="dev-1",
+        scan_id=None,
+    )
+    assert response.links == []
+    assert [node.type for node in response.nodes] == ["seller"]
+    assert es.calls == []
+
+
+async def test_a_place_expansion_filters_on_the_structured_fields_only() -> None:
+    from backend.graph.models import GraphMeta, GraphNode, GraphResponse
+
+    place = "place:columbus|ohio|united-states"
+    graph = GraphResponse(
+        nodes=[
+            GraphNode(id=f"scan:{OWN_SCAN}", type="scan", label="Ibuprofen", personal=True),
+            GraphNode(id=place, type="place", label="Columbus, United States", personal=True,
+                      scan_ids=[OWN_SCAN],
+                      attrs={"city": "Columbus", "region": "Ohio",
+                             "country": "United States"}),
+        ],
+        links=[],
+        meta=GraphMeta(device_id="dev-1"),
+    )
+    es = FakeEs(
+        by_index={
+            "peel-reports": foreign_reports("other-1", "other-2"),
+            "peel-scans": foreign_scans(
+                ("other-1", "recall_match", False), ("other-2", "recall_match", False)
+            ),
+        }
+    )
+    response = await expand_node(
+        Ctx(es=es, personal=graph), place, device_id="dev-1", scan_id=None
+    )
+
+    filters = es.call_on("peel-reports")["query"]["bool"]["filter"]
+    assert filters == [
+        {"term": {"purchase_location.city": "Columbus"}},
+        {"term": {"purchase_location.region": "Ohio"}},
+        {"term": {"purchase_location.country": "United States"}},
+    ]
+    assert next(node for node in response.nodes if node.type == "cluster").count == 2
 
 
 async def test_expanded_nodes_are_never_personal_and_stay_expandable() -> None:
