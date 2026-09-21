@@ -1,0 +1,15 @@
+# TruePill runtime dependencies. Python 3.10+ (PEP 604 `X | None` annotations
+# are evaluated at runtime by Pydantic).
+
+# The classification layer itself (`import truepill`) needs only these two:
+numpy>=1.26
+scipy>=1.11            # nnls, curve_fit
+
+# The time-resolved pipeline and its WebSocket server (truepill.models,
+# truepill.verdict, truepill.server) also need:
+pydantic>=2.7,<3
+fastapi>=0.110
+uvicorn[standard]>=0.30  # [standard] pulls in the WebSocket driver
+
+# Optional, only for `python -m truepill.rig_characterize --port ...`:
+#   pyserial>=3.5

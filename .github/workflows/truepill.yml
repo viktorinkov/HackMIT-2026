@@ -1,0 +1,29 @@
+name: truepill
+
+# Only the classification layer. Nothing here runs for a change to the rest of the repository.
+on:
+  push:
+    paths:
+      - 'truepill/**'
+      - '.github/workflows/truepill.yml'
+  pull_request:
+    paths:
+      - 'truepill/**'
+      - '.github/workflows/truepill.yml'
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.13']     # the floor, and what the backend runs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: install
+        run: pip install -r truepill/requirements-dev.txt
+      - name: test
+        run: python -m pytest truepill -q
